@@ -266,6 +266,7 @@ router.get('/detail', async (req: Request, res: Response) => {
         cr.selected_car_id,
         cr.accident_detail_id,
         cr.created_at,
+        cr.admin_note,
 
         ad.accident_type,
         ad.accident_date,

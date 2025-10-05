@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { User, ClaimItem, ClaimReportRow, ClaimStatus, Car, AccidentDraft, DamagePhoto } from "@/types/claim";
-import PdfRequest from "@/app/reports/PdfRequest";
+import AccidentDetail from "@/app/adminpage/reportsall/accidentdetail";
 
 // ---------- Config ----------
 const URL_PREFIX =
@@ -132,14 +132,13 @@ function StatusChip({ status }: { status: ClaimStatus }) {
 
 function ReviewedCard({
   item,
-  onOpenPdf,
 }: {
   item: ClaimItem;
-  onOpenPdf: (id: string) => void;
 }) {
   const isApproved = item.status === "สำเร็จ";
   const isRejected = item.status === "เอกสารไม่ผ่านการตรวจสอบ";
   const isIncomplete = item.status === "เอกสารต้องแก้ไขเพิ่มเติม";
+  const [openId, setOpenId] = useState<string | null>(null);
 
   // สีกรอบตามสถานะ
   const borderColor = isApproved
@@ -231,7 +230,7 @@ function ReviewedCard({
             {/* แสดงเฉพาะปุ่ม “ดูรายงาน PDF” สำหรับ ปฏิเสธ / ไม่ครบ */}
             {(isRejected || isIncomplete) ? (
               <button
-                onClick={() => onOpenPdf(item.id)}
+                onClick={() => setOpenId(item.id)}
                 className={`inline-flex items-center gap-2 rounded-full bg-gradient-to-r ${mainButtonColor} px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition`}
               >
                 📄 ดูรายงาน PDF
@@ -248,6 +247,9 @@ function ReviewedCard({
           </div>
         </div>
       </div>
+      {openId && (
+        <AccidentDetail claimId={openId} onClose={() => setOpenId(null)} />
+      )}
     </div>
   );
 }
@@ -416,14 +418,14 @@ export default function ReportsReviewedPage() {
             <EmptyState label={tab === "approved" ? "ยังไม่มีรายการที่อนุมัติ" : "ยังไม่มีรายการที่ถูกปฏิเสธ"} />
           ) : (
             visible.map((item) => (
-              <ReviewedCard key={item.id} item={item} onOpenPdf={handleOpenPdf} />
+              <ReviewedCard key={item.id} item={item}/>
             ))
           )}
         </div>
       </div>
 
       {/* Modal PDF */}
-      {pdfOpen && (
+      {/* {pdfOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
             <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200/70 bg-white/90 px-4 py-3 backdrop-blur">
@@ -439,12 +441,12 @@ export default function ReportsReviewedPage() {
               {pdfLoading || !pdfDetail ? (
                 <div className="p-6 text-zinc-600">กำลังเตรียมเอกสาร…</div>
               ) : (
-                <PdfRequest detail={pdfDetail} />
+                <AccidentDetail detail={pdfDetail} />
               )}
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
