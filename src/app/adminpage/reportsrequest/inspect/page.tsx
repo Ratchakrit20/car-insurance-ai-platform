@@ -9,6 +9,7 @@ import ImageList from "./ImageList";
 import ImageViewer from "./ImageViewer";
 import DamageTable from "./DamageTable";
 import SummaryPanel from "./SummaryPanel";
+import SafeAreaSpacer from "@/app/components/SafeAreaSpacer";
 
 
 // ===== EN ↔ TH dictionaries =====
@@ -766,6 +767,7 @@ export default function InspectPage() {
           </aside>
         </div>
       </div>
+      <SafeAreaSpacer />
     </div>
 
   );

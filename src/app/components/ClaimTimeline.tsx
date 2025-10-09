@@ -180,7 +180,7 @@ export default function ClaimTimeline({
         : [];
 
     console.log("✅ incomplete_histor y=>", safeIncomplete);
-console.log("status =>", status);
+    console.log("status =>", status);
     // เปิด/ปิด modal → ล็อคสกอลล์หน้าหลัง
     useEffect(() => {
         if (!open) return;

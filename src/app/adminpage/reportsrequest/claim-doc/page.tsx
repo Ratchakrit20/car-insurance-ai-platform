@@ -255,12 +255,6 @@ export default function ClaimDocPage() {
                   </button>
                 </>
               )}
-            <button
-              onClick={() => window.print()}
-              className="h-10 rounded-xl px-4 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 w-full sm:w-auto"
-            >
-              พิมพ์เอกสาร
-            </button>
           </div>
         </div>
 

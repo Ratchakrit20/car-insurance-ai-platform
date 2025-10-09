@@ -41,7 +41,7 @@ export default function DamageTable({
 }) {
   const [openPickerId, setOpenPickerId] = useState<number | null>(null);
   const [customInput, setCustomInput] = useState("");
-
+  const [allSelected, setAllSelected] = useState(false);
   // ปิด popover เมื่อคลิกนอกแถว
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -55,6 +55,11 @@ export default function DamageTable({
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, [openPickerId]);
+    // ✅ ตรวจสอบว่าทุกแถวเลือกชิ้นส่วนแล้วหรือยัง
+  useEffect(() => {
+    const ok = boxes.length > 0 && boxes.every((b) => b.part && b.part.trim() !== "");
+    setAllSelected(ok);
+  }, [boxes]);
   // ✅ รวมกล่องที่มีชิ้นส่วนซ้ำกัน
   const mergedBoxes = Object.values(
     boxes.reduce((acc, b) => {
@@ -93,6 +98,7 @@ export default function DamageTable({
         {mergedBoxes.map((b) => {
           const partTH = b.part ?? "";
           const isCustomPart = partTH !== "" && !PART_THAI.includes(partTH);
+          const isInvalid = !b.part || b.part.trim() === "";
           const damages = Array.from(
             new Set(normArr((b as any).damage).map((x) => x.toLowerCase()))
           ).map((v) => v);
@@ -119,25 +125,36 @@ export default function DamageTable({
                 {/* ชิ้นส่วน */}
                 <div className="col-span-12 md:col-span-7 min-w-0">
                   <select
-                    className="h-10 w-full rounded-xl border-zinc-200 bg-white px-3 ring-1 ring-zinc-200 focus:outline-none"
+                    className={`h-10 flex-1 rounded-xl bg-white px-3 ring-1 focus:outline-none ${
+                      isInvalid
+                        ? "ring-rose-400 focus:ring-rose-500"
+                        : "ring-zinc-200 focus:ring-indigo-500"
+                    }`}
                     value={PART_THAI.includes(partTH) ? partTH : ""}
                     onChange={(e) =>
-                      onChange({ ...b, part: e.target.value === OTHER_PART ? "" : e.target.value })
+                      onChange({
+                        ...b,
+                        part: e.target.value === OTHER_PART ? "" : e.target.value,
+                      })
                     }
                   >
-                    <option value="" disabled>เลือกชิ้นส่วน…</option>
-                    {PART_THAI.map((th) => <option key={th} value={th}>{th}</option>)}
+                    <option value="">เลือกชิ้นส่วน…</option>
+                    {PART_THAI.map((th) => (
+                      <option key={th} value={th}>
+                        {th}
+                      </option>
+                    ))}
                     <option value={OTHER_PART}>{OTHER_PART}</option>
                   </select>
 
-                  {(isCustomPart || partTH === "") && (
+                  {/* {(isCustomPart || partTH === "") && (
                     <input
                       className="mt-2 h-10 w-full rounded-xl border-zinc-200 bg-white px-3 ring-1 ring-zinc-200 focus:outline-none"
                       placeholder="ระบุชิ้นส่วน"
                       value={b.part ?? ""}
                       onChange={(e) => onChange({ ...b, part: e.target.value })}
                     />
-                  )}
+                  )} */}
                 </div>
 
                 {/* ระดับ (A/B/C เท่านั้น ให้ตรงกับ DB) */}
@@ -267,6 +284,29 @@ export default function DamageTable({
                     )}
                   </div>
                 </div>
+                              
+              {/* แจ้งเตือนถ้ายังไม่เลือก */}
+              {isInvalid && (
+                <div className="col-span-12 md:col-start-2 md:col-span-10 mt-2">
+                  <div className="flex items-center gap-2 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 w-fit shadow-sm">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                      stroke="currentColor"
+                      className="w-4 h-4 text-rose-500"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="font-medium">กรุณาเลือกชิ้นส่วน</span>
+                  </div>
+                </div>
+              )}
               </div>
             </div>
           );
@@ -274,28 +314,37 @@ export default function DamageTable({
       </div>
 
       {/* footer */}
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-zinc-500">
-          กด “บันทึก” เพื่อเก็บการแก้ไข
-        </div>
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-xs text-zinc-500">กด “บันทึก” เพื่อเก็บการแก้ไข</div>
+
         <div className="flex gap-2 self-end sm:self-auto">
+          {/* ปุ่มบันทึก */}
           <button
-            className="h-10 rounded-full bg-white px-4 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 hover:bg-zinc-50"
-            onClick={() => saveCurrentImage(mergedBoxes)}
+            disabled={!allSelected}
+            className={`h-10 rounded-full px-4 text-sm font-medium ${
+              allSelected
+                ? "bg-white text-zinc-800 ring-1 ring-zinc-200 hover:bg-zinc-50"
+                : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+            }`}
+            onClick={() => {
+              if (allSelected) saveCurrentImage(mergedBoxes);
+            }}
           >
             บันทึก
           </button>
+
+          {/* ปุ่มดำเนินการต่อ */}
           <button
             disabled={!canProceed}
-            title={!canProceed ? "กรุณาบันทึกความเสียหายให้ครบทุกภาพก่อน" : ""}
-            className={
-              "h-10 rounded-full px-4 text-sm font-medium " +
-              (canProceed
+            title={!canProceed ? "กรุณาบันทึกให้ครบก่อนดำเนินการต่อ" : ""}
+            className={`h-10 rounded-full px-4 text-sm font-medium ${
+              canProceed
                 ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                : "bg-zinc-200 text-zinc-500 cursor-not-allowed")
-            }
-            onClick={() => { if (canProceed) onDone(); }}
-            aria-disabled={!canProceed}
+                : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+            }`}
+            onClick={() => {
+              if (canProceed) onDone();
+            }}
           >
             ดำเนินการต่อ
           </button>
