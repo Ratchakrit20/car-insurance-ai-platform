@@ -35,7 +35,7 @@ export default function DamageTable({
   boxes: Annotation[];
   onChange: (b: Annotation) => void;
   onRemove: (id: number) => void;
-  saveCurrentImage: () => void;
+  saveCurrentImage: (merged?: Annotation[]) => void;
   onDone: () => void;
   canProceed: boolean;    // ✅ เพิ่มเข้ามา
 }) {
@@ -55,6 +55,23 @@ export default function DamageTable({
     document.addEventListener("click", onDocClick);
     return () => document.removeEventListener("click", onDocClick);
   }, [openPickerId]);
+  // ✅ รวมกล่องที่มีชิ้นส่วนซ้ำกัน
+  const mergedBoxes = Object.values(
+    boxes.reduce((acc, b) => {
+      const key = b.part?.trim() || `__id_${b.id}`; // ใช้ part เป็น key
+      if (!acc[key]) {
+        acc[key] = { ...b, damage: [...normArr(b.damage)] };
+      } else {
+        // รวมความเสียหาย (ไม่ซ้ำ)
+        const combinedDamage = Array.from(
+          new Set([...normArr(acc[key].damage), ...normArr(b.damage)])
+        );
+        acc[key] = { ...acc[key], damage: combinedDamage };
+      }
+      return acc;
+    }, {} as Record<string, Annotation>)
+  );
+
 
   return (
     <div className="mt-4 rounded-3xl bg-white ring-1 ring-zinc-200 shadow-sm p-4 sm:p-5 lg:p-6">
@@ -73,7 +90,7 @@ export default function DamageTable({
           </div>
         )}
 
-        {boxes.map((b) => {
+        {mergedBoxes.map((b) => {
           const partTH = b.part ?? "";
           const isCustomPart = partTH !== "" && !PART_THAI.includes(partTH);
           const damages = Array.from(
@@ -264,7 +281,7 @@ export default function DamageTable({
         <div className="flex gap-2 self-end sm:self-auto">
           <button
             className="h-10 rounded-full bg-white px-4 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 hover:bg-zinc-50"
-            onClick={saveCurrentImage}
+            onClick={() => saveCurrentImage(mergedBoxes)}
           >
             บันทึก
           </button>

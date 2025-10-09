@@ -15,10 +15,10 @@ import SummaryPanel from "./SummaryPanel";
 const DAMAGE_EN2TH: Record<string, string> = {
   "crack": "ร้าว",
   "dent": "บุบ",
-  "glass shatter": "กระจกแตก",
-  "lamp broken": "ไฟแตก",
+  "glass_shatter": "กระจกแตก",
+  "lamp_broken": "ไฟแตก",
   "scratch": "ขีดข่วน",
-  "tire flat": "ยางแบน",
+  "tire_flat": "ยางแบน",
 };
 const PART_EN2TH: Record<string, string> = {
   "Back-bumper": "กันชนหลัง",
@@ -135,7 +135,7 @@ async function analyzeImageByUrl(
   const file = new File([blob], "upload.jpg", { type: blob.type || "image/jpeg" });
 
   const qs = new URLSearchParams({
-    conf_parts: String(params.conf_parts ?? 0.3),
+    conf_parts: String(params.conf_parts ?? 0.25),
     conf_damage: String(params.conf_damage ?? 0.25),
     imgsz: String(params.imgsz ?? 640),
     mask_iou_thresh: String(params.mask_iou_thresh ?? 0.1),
@@ -225,9 +225,9 @@ function calculateSeverity(
   // 2) กำหนด “ขั้นต่ำ” ถ้ามีความเสียหายที่ต้องเปลี่ยนชิ้นส่วน
   let floor: Severity | null = null;
 
-  const hasGlassShatter = damages.includes("glass shatter");
-  const hasLampBroken = damages.includes("lamp broken");
-  const hasTireFlat = damages.includes("tire flat");
+  const hasGlassShatter = damages.includes("glass_shatter");
+  const hasLampBroken = damages.includes("lamp_broken");
+  const hasTireFlat = damages.includes("tire_flat");
 
   // ยางแบน → ขับไม่ปลอดภัย ⇒ อย่างน้อย C
   if (hasTireFlat) floor = maxSeverity(floor, "C");
@@ -355,7 +355,7 @@ export default function InspectPage() {
 
   // config model
   const [modelParams, setModelParams] = useState<ModelParams>({
-    conf_parts: 0.5,
+    conf_parts: 0.25,
     conf_damage: 0.25,
     imgsz: 640,
     mask_iou_thresh: 0.1,
@@ -536,43 +536,84 @@ export default function InspectPage() {
     return Math.round(n * 1000) / 1000; // ให้เข้ากับ unique index แบบปัดทศนิยม
   }
 
-  async function saveCurrentImage() {
+  async function saveCurrentImage(merged?: Annotation[]) {
     const img = images[activeIndex];
-    const boxes = boxesByIndex[activeIndex] ?? [];
+    const boxesRaw = boxesByIndex[activeIndex] ?? [];
+    const boxes = merged ?? boxesRaw; // ✅ ใช้ merged ที่ส่งมาถ้ามี
+
     if (!img?.id) {
-      alert("ไม่พบ image id"); return;
+      alert("ไม่พบ image id");
+      return;
     }
+
+    // ✅ รวมกล่องที่มีชิ้นส่วน (part_name) เดียวกันก่อนบันทึก
+    const mergedBoxes = Object.values(
+      boxes.reduce((acc, b) => {
+        const key = b.part?.trim() || `__id_${b.id}`;
+        if (!acc[key]) {
+          acc[key] = { ...b, damage: Array.isArray(b.damage) ? b.damage : [b.damage] };
+        } else {
+          // รวมความเสียหาย (ไม่ซ้ำ)
+          const combined = Array.from(
+            new Set([
+              ...(Array.isArray(acc[key].damage) ? acc[key].damage : [acc[key].damage]),
+              ...(Array.isArray(b.damage) ? b.damage : [b.damage]),
+            ])
+          );
+          acc[key] = { ...acc[key], damage: combined };
+        }
+        return acc;
+      }, {} as Record<string, Annotation>)
+    );
+
+    // ✅ สร้าง payload จาก mergedBoxes แทน boxes ดิบ
     const payload = {
-      image_id: img.id,          // = evaluation_image_id
-      boxes: boxes.map((b) => ({
+      image_id: img.id, // = evaluation_image_id
+      boxes: mergedBoxes.map((b) => ({
         part_name: b.part,
         damage_name: b.damage,
         severity: b.severity,
         area_percent: b.areaPercent ?? null,
-        x: round3(b.x), y: round3(b.y), w: round3(b.w), h: round3(b.h),
+        x: round3(b.x),
+        y: round3(b.y),
+        w: round3(b.w),
+        h: round3(b.h),
       })),
     };
 
+    // ✅ ส่งข้อมูลรวมแล้วไป backend
     const resp = await fetch(`${URL_PREFIX}/api/image-annotations/save`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(payload),
-
     });
+
     if (!resp.ok) {
       const t = await resp.text();
       alert(`บันทึกไม่สำเร็จ: ${t}`);
       return;
     }
+
     const j = await resp.json();
     console.log("Saving image:", img);
     console.log("saved:", j);
-    setAnnotatedById((m) => ({ ...m, [img.id]: boxes.length > 0 }));
+    console.log("📦 mergedBoxes sent:", mergedBoxes);
+
+    setAnnotatedById((m) => ({ ...m, [img.id]: mergedBoxes.length > 0 }));
     alert("บันทึกเรียบร้อย");
   }
 
 
+  // ✅ ตรวจสอบสิทธิ์ผู้ใช้ก่อน render หน้า
+  if (isAuthenticated === null) {
+    return <div className="p-6 text-zinc-500">กำลังตรวจสอบสิทธิ์ผู้ใช้…</div>;
+  }
+
+  if (isAuthenticated === false) {
+    router.replace("/login");
+    return null;
+  }
   // States
   if (!claimId) return <div className="p-6 text-rose-600">ไม่พบ claim_id</div>;
   if (loading) return <div className="p-6 text-zinc-600">กำลังโหลด…</div>;
@@ -604,37 +645,42 @@ export default function InspectPage() {
         <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-5 lg:gap-6">
 
           {/* ซ้าย */}
-          <aside className="md:col-span-2 lg:col-span-3">
-            <ImageList
-              adminId={user!.id}
-              claimId={claimId}
-              images={images.map(im => ({
-                ...im,
-                is_annotated: annotatedById[im.id] ?? im.is_annotated
-              }))}
-              activeIndex={activeIndex}
-              onSelect={async (i) => {
-                setActiveIndex(i);
-                if (!boxesByIndex[i]) {
-                  const imageId = images[i]?.id;
-                  if (imageId) {
-                    const saved = await fetchSavedBoxes(imageId);
-                    if (saved.length) {
-                      setBoxesByIndex((m) => ({ ...m, [i]: saved }));
-                      // ✅ มีข้อมูล แปลว่าอนุมัติแล้ว
-                      setAnnotatedById((m) => ({ ...m, [imageId]: true }));
-                      return;
-                    } else {
-                      // ✅ ไม่มีข้อมูล แปลว่ายังไม่บันทึก
-                      setAnnotatedById((m) => ({ ...m, [imageId]: false }));
+          {user ? (
+            <aside className="md:col-span-2 lg:col-span-3">
+              <ImageList
+                adminId={user.id}
+                claimId={claimId}
+                images={images.map(im => ({
+                  ...im,
+                  is_annotated: annotatedById[im.id] ?? im.is_annotated
+                }))}
+                activeIndex={activeIndex}
+                onSelect={async (i) => {
+                  setActiveIndex(i);
+                  if (!boxesByIndex[i]) {
+                    const imageId = images[i]?.id;
+                    if (imageId) {
+                      const saved = await fetchSavedBoxes(imageId);
+                      if (saved.length) {
+                        setBoxesByIndex((m) => ({ ...m, [i]: saved }));
+                        setAnnotatedById((m) => ({ ...m, [imageId]: true }));
+                        return;
+                      } else {
+                        setAnnotatedById((m) => ({ ...m, [imageId]: false }));
+                      }
                     }
+                    if (!overlayByIndex[i]) void analyzeActiveImage(i);
                   }
-                  if (!overlayByIndex[i]) void analyzeActiveImage(i);
-                }
-              }}
-              onBack={() => router.back()}
-            />
-          </aside>
+                }}
+                onBack={() => router.back()}
+              />
+            </aside>
+          ) : (
+            <aside className="md:col-span-2 lg:col-span-3 flex items-center justify-center text-sm text-zinc-400 py-10">
+              กำลังโหลดข้อมูลผู้ใช้…
+            </aside>
+          )}
+
 
           {/* กลาง */}
           <section className="md:col-span-4 lg:col-span-6">

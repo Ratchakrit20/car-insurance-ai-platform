@@ -268,7 +268,7 @@ router.get('/detail', async (req: Request, res: Response) => {
         cr.created_at,
         cr.admin_note,
 
-        ad.accident_type,
+        ad.accident_type ,
         ad.accident_date,
         ad.accident_time,
         ad.area_type,
@@ -492,7 +492,7 @@ router.get('/admin/detail', async (req: Request, res: Response) => {
           car_path: r.car_path,
         },
         accident: {
-          accident_type: r.accident_type,
+          accidentType: r.accident_type,
           accident_date: r.accident_date,
           accident_time: r.accident_time,
           province: r.province,

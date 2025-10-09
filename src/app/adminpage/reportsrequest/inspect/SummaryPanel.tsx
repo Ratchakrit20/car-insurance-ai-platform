@@ -34,7 +34,7 @@ export default function SummaryPanel({
   return (
     <>
       <div className="rounded-3xl bg-white ring-1 ring-zinc-200 shadow-sm p-4">
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-zinc-700">ระดับความละเอียดของการวิเคราะห์</div>
           <span className="text-sm font-semibold text-indigo-700 pl-1">{analysisLevel}%</span>
         </div>
@@ -45,7 +45,7 @@ export default function SummaryPanel({
           value={analysisLevel}
           onChange={(e) => onChangeLevel(Number(e.target.value))}
           className="mt-3 w-full accent-indigo-600"
-        />
+        /> */}
 
         <div className="mt-6">
           <div className="text-sm font-medium text-zinc-700 mb-2">ภาพรวมความเสียหาย</div>
