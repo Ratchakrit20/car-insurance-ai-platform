@@ -120,14 +120,13 @@ export default function ProfilePage() {
       setPasswordMsg("กรุณากรอกข้อมูลให้ครบ");
       return false;
     }
+
     if (newPassword !== confirmPassword) {
       setPasswordMsg("รหัสผ่านใหม่และยืนยันรหัสไม่ตรงกัน");
       return false;
     }
-    if (newPassword.length < 8) {
-      setPasswordMsg("รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร");
-      return false;
-    }
+
+    // ❌ ไม่ตรวจความยาวหรือรูปแบบแล้ว
     setPasswordMsg("");
     return true;
   }

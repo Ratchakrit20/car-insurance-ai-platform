@@ -140,7 +140,7 @@ export default function ReportsView({
               ))}
             </div>
           </div>
-          
+
         ) : (
           // 📌 Mobile: Detail overlay (เวอร์ชันชัวร์สุด)
           <div className="fixed inset-0 z-50 bg-white flex flex-col">
@@ -163,6 +163,7 @@ export default function ReportsView({
                     `http://localhost:3001/api/claim-requests/detail?claim_id=${selected.id}`,
                     "_blank"
                   )
+
                 }
               />
             </div>
@@ -211,9 +212,11 @@ export default function ReportsView({
               claim={selected}
               onOpenPdf={() =>
                 window.open(
-                  `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${selected.id}`,
+                  `http://localhost:3001/api/claim-requests/detail?claim_id=${selected.id}`,
                   "_blank"
                 )
+
+
               }
             />
           ) : (

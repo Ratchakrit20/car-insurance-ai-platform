@@ -40,24 +40,24 @@ export default function ClaimDocPage() {
   const claimId = sp.get("claim_id");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [user, setUser] = useState<User | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<ClaimDetail | null>(null);
 
-  const [actionLoading, setActionLoading] = useState<"approve" | "reject" | "incomplete" | null>(null);
+  const [actionLoading, setActionLoading] = useState<
+    "approve" | "reject" | "incomplete" | null
+  >(null);
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
-
+  const [showIncomplete, setShowIncomplete] = useState(false);
+  const [incompleteReason, setIncompleteReason] = useState("");
 
   // -------- Auth --------
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-          credentials: "include",
-        });
+        const res = await fetch(`${URL_PREFIX}/api/me`, { credentials: "include" });
         const data = await res.json();
         if (cancelled) return;
         setUser(data.user ?? null);
@@ -91,7 +91,8 @@ export default function ClaimDocPage() {
         );
         const json = await res.json();
         if (!alive) return;
-        if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
+        if (!res.ok || !json?.ok)
+          throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
         setDetail(json.data as ClaimDetail);
       } catch (e: any) {
         if (alive) setErr(e?.message ?? "เกิดข้อผิดพลาด");
@@ -104,11 +105,16 @@ export default function ClaimDocPage() {
     };
   }, [claimId]);
 
-
   /** “ตารางความเสียหาย” รวมจากทุกภาพ */
   const damageRows = useMemo(() => {
     const photos = detail?.accident?.damagePhotos ?? [];
-    const rows: Array<{ no: number; part: string; damages: string; severity: string; side?: string }> = [];
+    const rows: Array<{
+      no: number;
+      part: string;
+      damages: string;
+      severity: string;
+      side?: string;
+    }> = [];
     let i = 1;
     for (const p of photos) {
       const anns = (p as any)?.annotations ?? [];
@@ -131,16 +137,38 @@ export default function ClaimDocPage() {
     return rows;
   }, [detail]);
 
-  async function patchStatus(next: "approved" | "rejected" | "incomplete", note?: string) {
+  async function patchStatus(
+    next: "approved" | "rejected" | "incomplete",
+    note?: string
+  ) {
     if (!detail?.claim_id) return;
     try {
-      setActionLoading(next === "approved" ? "approve" : next === "rejected" ? "reject" : "incomplete");
-      const body = {
+      setActionLoading(
+        next === "approved"
+          ? "approve"
+          : next === "rejected"
+            ? "reject"
+            : "incomplete"
+      );
+
+      const now = new Date().toISOString();
+      const adminId = user ? Number(user.id) : null;
+
+      const body: Record<string, any> = {
         status: next,
         admin_note: note ?? null,
-        approved_by: user ? Number(user.id) : null,
-        approved_at: new Date().toISOString(),
       };
+
+      if (next === "approved") {
+        body.approved_by = adminId;
+        body.approved_at = now;
+      } else if (next === "rejected") {
+        body.rejected_by = adminId;
+        body.rejected_at = now;
+      } else if (next === "incomplete") {
+        body.incomplete_by = adminId;
+        body.incomplete_at = now;
+      }
 
       const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${detail.claim_id}`, {
         method: "PATCH",
@@ -148,14 +176,22 @@ export default function ClaimDocPage() {
         credentials: "include",
         body: JSON.stringify(body),
       });
+
       const j = await resp.json();
-      if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
+      if (!resp.ok || !j?.ok)
+        throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
 
       setDetail((d) => (d ? { ...d, status: STATUS_EN2TH[next] } : d));
+
+      // ปิด modal หลังส่ง
       if (next === "rejected") {
         setShowReject(false);
         setRejectReason("");
+      } else if (next === "incomplete") {
+        setShowIncomplete(false);
+        setIncompleteReason("");
       }
+
       router.push("/adminpage/reportsrequest");
     } catch (e: any) {
       alert(e?.message ?? "เกิดข้อผิดพลาด");
@@ -168,7 +204,9 @@ export default function ClaimDocPage() {
     if (!confirm("ยืนยันอนุมัติการเคลมนี้?")) return;
     void patchStatus("approved");
   };
+
   const handleReject = () => setShowReject(true);
+  const handleIncomplete = () => setShowIncomplete(true);
 
   if (loading) return <div className="p-6 text-zinc-600">กำลังโหลดเอกสาร…</div>;
   if (err) return <div className="p-6 text-rose-600">ผิดพลาด: {err}</div>;
@@ -199,8 +237,8 @@ export default function ClaimDocPage() {
                     onClick={handleReject}
                     disabled={actionLoading !== null}
                     className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "reject"
-                        ? "bg-rose-200 text-rose-700"
-                        : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                      ? "bg-rose-200 text-rose-700"
+                      : "bg-rose-50 text-rose-700 hover:bg-rose-100"
                       } border border-rose-200 w-full sm:w-auto`}
                   >
                     {actionLoading === "reject" ? "กำลังปฏิเสธ…" : "ไม่อนุมัติ"}
@@ -209,8 +247,8 @@ export default function ClaimDocPage() {
                     onClick={handleApprove}
                     disabled={actionLoading !== null}
                     className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "approve"
-                        ? "bg-emerald-300 text-white"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700"
+                      ? "bg-emerald-300 text-white"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
                       } w-full sm:w-auto`}
                   >
                     {actionLoading === "approve" ? "กำลังอนุมัติ…" : "อนุมัติ"}
@@ -263,7 +301,7 @@ export default function ClaimDocPage() {
               <Info
                 label="วันที่/เวลา"
                 value={thDateTime(acc.accident_date, acc.accident_time)}
-              />              
+              />
               <Info label="ประเภทอุบัติเหตุ" value={(acc as any).accidentType ?? "-"} />
               <Info label="จังหวัด/อำเภอ" value={`${(acc as any).province ?? "-"} / ${(acc as any).district ?? "-"}`} />
               <Info label="ถนน/บริเวณใกล้เคียง" value={`${(acc as any).road ?? "-"} / ${(acc as any).nearby ?? "-"}`} />
@@ -350,8 +388,8 @@ export default function ClaimDocPage() {
                     onClick={() => patchStatus("rejected", rejectReason.trim())}
                     disabled={actionLoading === "reject" || !rejectReason.trim()}
                     className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "reject"
-                        ? "bg-rose-300 text-white"
-                        : "bg-rose-600 text-white hover:bg-rose-700"
+                      ? "bg-rose-300 text-white"
+                      : "bg-rose-600 text-white hover:bg-rose-700"
                       }`}
                   >
                     {actionLoading === "reject" ? "กำลังส่ง…" : "ยืนยันไม่อนุมัติ"}

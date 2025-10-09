@@ -117,7 +117,7 @@ export interface ClaimItem {
   status: ClaimStatus;
   photoUrl?: string;
 
-  
+
 
 
 
@@ -129,7 +129,7 @@ export interface ClaimItem {
   details?: string | null;
   evidenceMedia?: MediaItem[];
   damagePhotos?: DamagePhoto[];
-  
+
   car_path: string;
 
   location?: {
@@ -137,13 +137,20 @@ export interface ClaimItem {
     lng: number | null;
     accuracy?: number | null;
   };
-  
+
   selected_car_id?: number;
   accident_detail_id?: number;
+  approved_at?: string | null;
   created_at?: string;
-  updated_at: string;
+  updated_at?: string | null;
+  rejected_at?: string | null;
+  incomplete_at?: string | null;
+  admin_note?: string | null;
   car_model: string;
   car_brand: string;
+  incomplete_history?: Array<{ note: string; time: string }>;
+  resubmitted_history?: Array<{ note: string; time: string }>;
+
   steps?: ClaimStep[];
 }
 type ClaimStep = {
@@ -161,7 +168,13 @@ export interface ClaimReportRow {
   status?: ClaimStatus | string;
   created_at?: string;
   updated_at?: string;
+  approved_at?: string | null;
+  incomplete_history?: Array<{ note: string; time: string }>;
+  resubmitted_history?: Array<{ note: string; time: string }>;
 
+  rejected_at?: string | null;
+  incomplete_at?: string | null;
+  admin_note?: string | null;
   // accident_details
   accident_type?: string;
   accident_date?: string;

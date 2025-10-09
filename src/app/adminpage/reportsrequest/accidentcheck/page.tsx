@@ -6,7 +6,7 @@ import EvidenceGallery from "../../../components/EvidenceGallery";
 import MapPreview from "../../../components/MapPreview";
 import { useRouter, useSearchParams } from "next/dist/client/components/navigation";
 import Link from "next/dist/client/link";
-import type {User } from "@/types/claim";
+import type { User } from "@/types/claim";
 
 const URL_PREFIX =
   process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
@@ -82,56 +82,56 @@ function topClasses(perClass?: Record<string, number> | null, topN = 5) {
 
 // ---------- Component ----------
 export default function accidentCheck() {
-    const sp = useSearchParams();
-    const router = useRouter();
-    const claimId = sp.get("claim_id");
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-    const [user, setUser] = useState<User | null>(null);
-    const [showIncomplete, setShowIncomplete] = useState(false);
-    const [incompleteReason, setIncompleteReason] = useState("");
-    const [actionLoading, setActionLoading] = useState<"approve" | "reject" | "incomplete" | null>(null);
-    const [submitting, setSubmitting] = useState(false);
-    
+  const sp = useSearchParams();
+  const router = useRouter();
+  const claimId = sp.get("claim_id");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [showIncomplete, setShowIncomplete] = useState(false);
+  const [incompleteReason, setIncompleteReason] = useState("");
+  const [actionLoading, setActionLoading] = useState<"approve" | "reject" | "incomplete" | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
 
 
-    // เพิ่ม state
-    const [car, setCar] = useState<Car | null>(null);
-    const [draft, setDraft] = useState<AccidentDraft | null>(null);
 
-      // -------- Auth --------
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-            credentials: "include",
-            });
-            const data = await res.json();
-            if (cancelled) return;
-            setUser(data.user ?? null);
-            setIsAuthenticated(Boolean(data.isAuthenticated));
-        } catch {
-            if (!cancelled) setIsAuthenticated(false);
-        }
-        })();
-        return () => {
-        cancelled = true;
-        };
-    }, []);
-    // ดึงจาก API
-    useEffect(() => {
+  // เพิ่ม state
+  const [car, setCar] = useState<Car | null>(null);
+  const [draft, setDraft] = useState<AccidentDraft | null>(null);
+
+  // -------- Auth --------
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        setUser(data.user ?? null);
+        setIsAuthenticated(Boolean(data.isAuthenticated));
+      } catch {
+        if (!cancelled) setIsAuthenticated(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // ดึงจาก API
+  useEffect(() => {
     const fetchDetail = async () => {
-        try {
+      try {
         const res = await fetch(
-            `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
-            { credentials: "include", cache: "no-store" }
+          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
+          { credentials: "include", cache: "no-store" }
         );
         const json = await res.json();
         if (json.ok) {
-            const d = json.data;
+          const d = json.data;
 
-            setCar({
+          setCar({
             id: d.selected_car_id,
             car_brand: d.car_brand,
             car_model: d.car_model,
@@ -144,9 +144,9 @@ export default function accidentCheck() {
             car_path: d.car_path,
             chassis_number: "", // ใส่เพิ่มถ้า schema มี
             registration_province: d.registration_province,
-            });
+          });
 
-            setDraft({
+          setDraft({
             accidentType: d.accident_type,
             accident_date: d.accident_date,
             accident_time: d.accident_time,
@@ -158,84 +158,116 @@ export default function accidentCheck() {
             details: d.details,
             location: { lat: d.latitude, lng: d.longitude, accuracy: d.accuracy },
             evidenceMedia: d.evidence_file_url
-                ? [{ url: d.evidence_file_url, type: d.media_type }]
-                : [],
+              ? [{ url: d.evidence_file_url, type: d.media_type }]
+              : [],
             damagePhotos: d.damage_images?.map((img: any) => ({
-                url: img.original_url,
-                side: img.side,
-                note: img.damage_note,
-                type: "image",
+              url: img.original_url,
+              side: img.side,
+              note: img.damage_note,
+              type: "image",
             })),
-            });
+          });
         }
-        } catch (e) {
+      } catch (e) {
         console.error("fetch claim detail failed", e);
-        }
+      }
     };
     fetchDetail();
-    }, [claimId]);
+  }, [claimId]);
 
 
-    // รูปหลักฐาน (เดิม) -> ใช้ PrettyEvidenceGallery แทน เพื่อความสวยงาม + modal
-    const evidenceList: (string | MediaItem)[] = useMemo(() => {
-        if (!draft) return [];
-        if (Array.isArray(draft.evidenceMedia) && draft.evidenceMedia.length > 0) {
-        return draft.evidenceMedia.map(normalizeMediaItem);
-        }
-        return [];
-    }, [draft]);
-
-    // รูปความเสียหาย: เก็บ metadata (side/total/perClass/note)
-    const damageList: DamagePhoto[] = useMemo(() => {
-        if (!draft?.damagePhotos || draft.damagePhotos.length === 0) return [];
-        return draft.damagePhotos
-        .filter((d) => !!d?.url)
-        .map((d, idx) =>
-            normalizeMediaItem<DamagePhoto>({
-            url: d.url,
-            type: d.type,
-            publicId: d.publicId || `damage-${idx}`,
-            side: d.side,
-            total: d.total,
-            perClass: d.perClass,
-            note: d.note,
-            })
-        );
-    }, [draft?.damagePhotos]);
-
-
-    async function patchStatus(next: "approve" | "reject" | "incomplete", note?: string) {
-        if (!claimId) return;
-        try {
-        setActionLoading(next);
-        const body = {
-            status: next,
-            admin_note: note ?? null,
-            approved_by: user ? Number(user.id) : null,
-            approved_at: new Date().toISOString(),
-        };
-
-        const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(body),
-        });
-        const j = await resp.json();
-        if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
-
-        if (next === "incomplete") {
-            setShowIncomplete(false);
-            setIncompleteReason("");
-        }
-        
-        router.push("/adminpage/reportsrequest");
-        } catch (e: any) {
-        alert(e?.message ?? "เกิดข้อผิดพลาด");
-        } finally {
-        setActionLoading(null);
-        }
+  // รูปหลักฐาน (เดิม) -> ใช้ PrettyEvidenceGallery แทน เพื่อความสวยงาม + modal
+  const evidenceList: (string | MediaItem)[] = useMemo(() => {
+    if (!draft) return [];
+    if (Array.isArray(draft.evidenceMedia) && draft.evidenceMedia.length > 0) {
+      return draft.evidenceMedia.map(normalizeMediaItem);
     }
+    return [];
+  }, [draft]);
+
+  // รูปความเสียหาย: เก็บ metadata (side/total/perClass/note)
+  const damageList: DamagePhoto[] = useMemo(() => {
+    if (!draft?.damagePhotos || draft.damagePhotos.length === 0) return [];
+    return draft.damagePhotos
+      .filter((d) => !!d?.url)
+      .map((d, idx) =>
+        normalizeMediaItem<DamagePhoto>({
+          url: d.url,
+          type: d.type,
+          publicId: d.publicId || `damage-${idx}`,
+          side: d.side,
+          total: d.total,
+          perClass: d.perClass,
+          note: d.note,
+        })
+      );
+  }, [draft?.damagePhotos]);
+
+
+async function patchStatus(
+  next: "approve" | "reject" | "incomplete",
+  note?: string
+) {
+  if (!claimId) return;
+  try {
+    setActionLoading(next);
+
+    const now = new Date().toISOString();
+    const adminId = user ? Number(user.id) : null;
+
+    const body: Record<string, any> = {
+      status: next,
+      admin_note: note ?? null,
+    };
+
+    if (next === "approve") {
+      body.approved_by = adminId;
+      body.approved_at = now;
+    } else if (next === "reject") {
+      body.rejected_by = adminId;
+      body.rejected_at = now;
+    } else if (next === "incomplete") {
+      body.incomplete_by = adminId;
+      body.incomplete_at = now;
+
+      // ✅ ดึงประวัติเก่าก่อนจะ append
+      const res = await fetch(`${URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const json = await res.json();
+      const prevHistory = json?.data?.incomplete_history || [];
+
+      body.incomplete_history = [
+        ...prevHistory,
+        { time: now, note: note || "" },
+      ];
+    }
+
+    const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+
+    const j = await resp.json();
+    if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
+
+    if (next === "incomplete") {
+      setShowIncomplete(false);
+      setIncompleteReason("");
+    }
+
+    router.push("/adminpage/reportsrequest");
+  } catch (e: any) {
+    alert(e?.message ?? "เกิดข้อผิดพลาด");
+  } finally {
+    setActionLoading(null);
+  }
+}
+
+
 
 
 
@@ -244,10 +276,10 @@ export default function accidentCheck() {
       <div className="mx-auto max-w-3xl text-center p-6">
         <p className="text-zinc-300">ไม่พบข้อมูลรถหรือรายละเอียดอุบัติเหตุ</p>
         <Link
-            href={`/adminpage/reportsrequest`}
-            className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+          href={`/adminpage/reportsrequest`}
+          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
         >
-            กลับไปหน้ารายการเคลม
+          กลับไปหน้ารายการเคลม
         </Link>
       </div>
     );
@@ -418,80 +450,78 @@ export default function accidentCheck() {
 
 
 
-      
 
-        <div className="mt-6 flex justify-end gap-3">
-            {/* ปุ่มย้อนกลับ */}
-            <button
-                onClick={() => router.back()}
-                className="h-10 rounded-xl px-4 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 w-full sm:w-auto"
-            >
-                ย้อนกลับ
-            </button>
 
-            {/* ปุ่มข้อมูลไม่ครบ */}
-            <button
-                onClick={() => setShowIncomplete(true)}
-                disabled={actionLoading !== null}
-                className={`h-10 rounded-xl px-4 text-sm font-medium ${
-                  actionLoading === "incomplete"
-                    ? "bg-amber-200 text-amber-800"
-                    : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                } border border-amber-200 w-full sm:w-auto`}
-            >
-                {actionLoading === "incomplete" ? "กำลังบันทึก…" : "ข้อมูลไม่ครบ"}
-            </button>
+      <div className="mt-6 flex justify-end gap-3">
+        {/* ปุ่มย้อนกลับ */}
+        <button
+          onClick={() => router.back()}
+          className="h-10 rounded-xl px-4 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 w-full sm:w-auto"
+        >
+          ย้อนกลับ
+        </button>
 
-            {/* ปุ่มตรวจสอบความเสียหาย */}
-            <button
-            onClick={() => router.push(`/adminpage/reportsrequest/inspect?claim_id=${claimId}`)}
-            disabled={submitting}
-            className={`rounded-lg px-4 py-2 font-medium text-white ${
-                submitting
-                ? "bg-[#6F47E4]"
-                : "bg-[#6F47E4] hover:bg-[#6F47E4]/80"
+        {/* ปุ่มข้อมูลไม่ครบ */}
+        <button
+          onClick={() => setShowIncomplete(true)}
+          disabled={actionLoading !== null}
+          className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "incomplete"
+              ? "bg-amber-200 text-amber-800"
+              : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+            } border border-amber-200 w-full sm:w-auto`}
+        >
+          {actionLoading === "incomplete" ? "กำลังบันทึก…" : "ข้อมูลไม่ครบ"}
+        </button>
+
+        {/* ปุ่มตรวจสอบความเสียหาย */}
+        <button
+          onClick={() => router.push(`/adminpage/reportsrequest/inspect?claim_id=${claimId}`)}
+          disabled={submitting}
+          className={`rounded-lg px-4 py-2 font-medium text-white ${submitting
+              ? "bg-[#6F47E4]"
+              : "bg-[#6F47E4] hover:bg-[#6F47E4]/80"
             }`}
-            >
-            ตรวจสอบความเสียหาย
-            </button>
-        </div>
-        {showIncomplete && (
-            <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 print:hidden">
-                <div className="w-[calc(100%-2rem)] max-w-lg rounded-xl bg-white p-4 shadow sm:p-5">
-                    <h4 className="text-base font-semibold">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
-                    <p className="mt-1 text-sm text-zinc-600">
-                    โปรดระบุสาเหตุหรือสิ่งที่ต้องการให้ลูกค้าแก้ไขเพิ่มเติม
-                    </p>
+        >
+          ตรวจสอบความเสียหาย
+        </button>
+      </div>
+      {showIncomplete && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 print:hidden">
+          <div className="w-[calc(100%-2rem)] max-w-lg rounded-xl bg-white p-4 shadow sm:p-5">
+            <h4 className="text-base font-semibold">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
+            <p className="mt-1 text-sm text-zinc-600">
+              โปรดระบุสาเหตุหรือสิ่งที่ต้องการให้ลูกค้าแก้ไขเพิ่มเติม
+            </p>
 
-                    <textarea
-                    className="mt-3 min-h-[120px] w-full rounded-lg border border-zinc-300 p-3 outline-none focus:ring-2 focus:ring-amber-200"
-                    placeholder="พิมพ์รายละเอียด…"
-                    value={incompleteReason}
-                    onChange={(e) => setIncompleteReason(e.target.value)}
-                    />
+            <textarea
+              className="mt-3 min-h-[120px] w-full rounded-lg border border-zinc-300 p-3 outline-none focus:ring-2 focus:ring-amber-200"
+              placeholder="พิมพ์รายละเอียด…"
+              value={incompleteReason}
+              onChange={(e) => setIncompleteReason(e.target.value)}
+            />
 
-                    <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button
-                        onClick={() => setShowIncomplete(false)}
-                        disabled={actionLoading === "incomplete"}
-                        className="h-10 rounded-xl bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200"
-                    >
-                        ยกเลิก
-                    </button>
-                    <button
-                        onClick={() => patchStatus("incomplete", incompleteReason.trim())}
-                        disabled={actionLoading === "incomplete" || !incompleteReason.trim()}
-                        className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "incomplete"
-                            ? "bg-amber-400 text-white"
-                            : "bg-amber-600 text-white hover:bg-amber-700"
-                        }`}
-                    >
-                        {actionLoading === "incomplete" ? "กำลังส่ง…" : "ยืนยันข้อมูลไม่ครบ"}
-                    </button>
-                    </div>
-                </div>
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => setShowIncomplete(false)}
+                disabled={actionLoading === "incomplete"}
+                className="h-10 rounded-xl bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => patchStatus("incomplete", incompleteReason.trim())}
+                disabled={actionLoading === "incomplete" || !incompleteReason.trim()}
+                className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "incomplete"
+                  ? "bg-amber-400 text-white"
+                  : "bg-amber-600 text-white hover:bg-amber-700"
+                  }`}
+              >
+                {actionLoading === "incomplete" ? "กำลังส่ง…" : "ยืนยันข้อมูลไม่ครบ"}
+              </button>
             </div>
-            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

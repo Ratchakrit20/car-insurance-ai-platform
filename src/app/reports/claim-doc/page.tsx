@@ -17,7 +17,7 @@ export default function ClaimDocPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<ClaimDetail | null>(null);
-
+  
   useEffect(() => {
     if (!claimId) { setErr("ไม่พบ claim_id"); setLoading(false); return; }
     let alive = true;
@@ -55,7 +55,7 @@ export default function ClaimDocPage() {
     <div className="min-h-screen bg-white">
       {/* แถบปุ่มบนเฉพาะตอนไม่พิมพ์ */}
       <div className="no-print mx-auto max-w-[794px] px-4 py-3 flex items-center justify-between">
-        <button onClick={() => router.back()} className="rounded-lg bg-zinc-100 px-3 py-1.5 text-sm hover:bg-zinc-200">
+        <button onClick={() => router.back()} className="rounded-lg text-black bg-zinc-100 px-3 py-1.5 text-sm hover:bg-zinc-200">
           ← กลับ
         </button>
         <button onClick={() => window.print()} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700">
@@ -67,3 +67,65 @@ export default function ClaimDocPage() {
     </div>
   );
 }
+<style jsx global>{`
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  @media print {
+    html,
+    body {
+      background: #fff !important;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
+      zoom: 0.85; /* ✅ ลดขนาดทั้งหมดให้อยู่ในหน้าเดียว */
+    }
+
+    #print-root {
+      width: 100%;
+      max-width: 794px;
+      min-height: 100%;
+      page-break-inside: avoid;
+      overflow: hidden;
+    }
+
+    .doc-box,
+    .avoid-break {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .doc-table {
+      font-size: 11px; /* ✅ ย่อฟอนต์ */
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+    }
+
+    .no-print,
+    .print-hide {
+      display: none !important;
+    }
+
+    /* ✅ ลดระยะ padding และ spacing */
+    .p-3,
+    .p-4,
+    .p-5 {
+      padding: 6px !important;
+    }
+    .mt-4,
+    .mt-5,
+    .mt-6 {
+      margin-top: 8px !important;
+    }
+
+    /* ✅ ปิดเงา / สีฟุ่มเฟือย */
+    .drop-shadow-sm,
+    .drop-shadow-md {
+      filter: none !important;
+    }
+  }
+`}</style>

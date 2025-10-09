@@ -37,7 +37,12 @@ function labelEl(text: string, required?: boolean) {
     </div>
   );
 }
-
+function formatDateForInput(isoString?: string) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return ""; // ไม่ใช่วันที่
+  return d.toISOString().split("T")[0]; // ✅ คืนค่า YYYY-MM-DD
+}
 function fieldSurface({
   required, filled,
 }: { required?: boolean; filled?: boolean }) {
@@ -67,7 +72,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
       const rawAcc = localStorage.getItem(ACC_KEY);
       if (rawAcc) {
         const a = JSON.parse(rawAcc);
-        setDate(a.accident_date || "");
+        setDate(formatDateForInput(a.accident_date));
         setTime(a.accident_time || "");
         setProvince(a.province || "");
         setDistrict(a.district || "");

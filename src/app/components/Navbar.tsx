@@ -9,6 +9,7 @@ import {
   LayoutDashboard, ClipboardCheck, LogOut, User
 } from "lucide-react";
 import { Prompt, Noto_Sans_Thai } from 'next/font/google';
+import NotificationBell from "./NotificationBell";
 
 const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
 const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
@@ -25,7 +26,7 @@ const navItemsCustomer = [
   { icon: <Home size={20} />, href: "/", label: "หน้าหลัก" },
   { icon: <Car size={20} />, href: "/detect", label: "การตรวจจับ" },
   { icon: <FileText size={20} />, href: "/reports", label: "การเคลมของฉัน" },
-  { icon: <Mail size={20} />, href: "/contact", label: "กล่องข้อความ" },
+  { icon: <Mail size={20} />, href: "/message", label: "กล่องข้อความ" },
   { icon: <UserCheck size={20} />, href: "/users", label: "ข้อมูลของฉัน" },
   //{ icon: <UserCheck size={20} />, href: "/claim", label: "สร้างการเคลมใหม่" }, // mobile only
 ];
@@ -50,11 +51,30 @@ const BRAND = {
   railBg: "rgba(217,222,226,0.5)",
 };
 
+
+
+
 export default function Navbar({ role: roleProp }: { role?: Role }) {
   const pathname = usePathname();
   const router = useRouter(); // ✅
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+    
+  
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+          credentials: "include",
+        });
+        const data: MeResponse = await res.json();
+        setMe(data);
+      } catch {
+        setMe({ isAuthenticated: false });
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (roleProp) { setLoading(false); return; }
@@ -113,6 +133,8 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
             <span className="font-bold text-sm text-black whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               Ai Car Damage Detection
             </span>
+                  {me?.user && <NotificationBell userId={me.user.id} />}
+
           </div>
 
           <nav className="flex flex-col gap-2 px-2 py-2 m-2">

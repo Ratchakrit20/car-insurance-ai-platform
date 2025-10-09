@@ -60,7 +60,7 @@ export default function ReportDetail({
   onDetail?: () => void;
 }) {
   const router = useRouter();
-
+  console.log("🧩 item.incomplete_history =>", claim.incomplete_history);
   const evidenceList: (string | MediaItem)[] = useMemo(() => {
     if (!claim) return [];
     if (
@@ -159,10 +159,16 @@ export default function ReportDetail({
               status={claim.status}
               created_at={claim.created_at}
               updated_at={claim.updated_at}
-              approved_at={(claim as any).approved_at}
-              admin_note={(claim as any).admin_note}
+              approved_at={claim.approved_at}
+              rejected_at={claim.rejected_at}
+              incomplete_at={claim.incomplete_at}
+              admin_note={claim.admin_note}
+              incomplete_history={claim.incomplete_history || []}
+              resubmitted_history={claim.resubmitted_history || []}
               onOpenPdf={onOpenPdf}
+
             />
+
           </div>
 
           {/* Map */}

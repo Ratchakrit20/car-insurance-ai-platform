@@ -38,20 +38,19 @@ type SubmitBody = {
 router.post("/submit", async (req: Request, res: Response) => {
   const body = req.body as SubmitBody;
 
-  // ---------- Basic validate ----------
   if (!body?.selected_car_id || !body?.accident) {
     return res.status(400).json({ ok: false, message: "selected_car_id & accident are required" });
   }
+
   const userId = body.user_id ?? null;
   const carId = Number(body.selected_car_id);
   const draft = body.accident;
+  const agreed = body.agreed ?? true;
+
   if (!draft?.accidentType || !draft?.date || !draft?.time || !draft?.areaType || !draft?.location) {
     return res.status(400).json({ ok: false, message: "invalid accident payload" });
   }
 
-  const agreed = body.agreed ?? true;
-
-  // ป้องกันประเภทเวลาให้เป็น HH:mm:ss (Postgres time)
   const accidentTime = /^\d{2}:\d{2}(:\d{2})?$/.test(draft.time)
     ? (draft.time.length === 5 ? `${draft.time}:00` : draft.time)
     : "00:00:00";
@@ -74,29 +73,26 @@ router.post("/submit", async (req: Request, res: Response) => {
          NOW(), NOW(), $15)
       RETURNING id
     `;
+
     const toNum = (v: any) => (Number.isFinite(+v) ? +v : null);
-  const round = (v: number, dp: number) => Math.round(v * 10 ** dp) / 10 ** dp;
+    const round = (v: number, dp: number) => Math.round(v * 10 ** dp) / 10 ** dp;
 
-  const lat = toNum(draft.location?.lat);
-  const lng = toNum(draft.location?.lng);
+    const lat = toNum(draft.location?.lat);
+    const lng = toNum(draft.location?.lng);
+    let acc = toNum(draft.location?.accuracy);
+    if (acc != null) {
+      acc = Math.min(Math.max(0, Math.abs(acc)), 9999.99);
+      acc = round(acc, 2);
+    }
 
-  // accuracy เป็นเมตร อนุญาต 0..9999.99 (ตาม NUMERIC(6,2))
-  let acc = toNum(draft.location?.accuracy);
-  if (acc != null) {
-    acc = Math.min(Math.max(0, Math.abs(acc)), 9999.99);
-    acc = round(acc, 2);
-  }
+    const latSafe = lat == null ? null : round(lat, 6);
+    const lngSafe = lng == null ? null : round(lng, 6);
+    console.log("[claim-submit] lat/lng/acc:", { latSafe, lngSafe, acc });
 
-  // ถ้าต้องการบีบ lat/lng ให้ตรง scale ด้วย (ปลอดภัยขึ้น)
-  const latSafe = lat == null ? null : round(lat, 6);
-  const lngSafe = lng == null ? null : round(lng, 6);
-
-  // debug เผื่อเจออีก
-  console.log("[claim-submit] lat/lng/acc:", { latSafe, lngSafe, acc });
-    const accValues = [
+    const accRes = await client.query(insertAccidentSql, [
       draft.accidentType,
-      draft.date,                    // YYYY-MM-DD
-      accidentTime,                  // HH:mm:ss
+      draft.date,
+      accidentTime,
       draft.province,
       draft.district,
       draft.road ?? null,
@@ -105,16 +101,17 @@ router.post("/submit", async (req: Request, res: Response) => {
       draft.details ?? null,
       latSafe,
       lngSafe,
-      acc, // numeric(6,2)
-      draft.evidenceMedia?.[0]?.url ?? null, // file_url (ย้ายไปเก็บที่ตารางรูป)
+      acc,
+      draft.evidenceMedia?.[0]?.url ?? null,
       agreed,
       draft.evidenceMedia?.[0]?.type ?? null,
-    ];
-    const accRes = await client.query(insertAccidentSql, accValues);
+    ]);
+
     const accidentDetailId: number = accRes.rows[0].id;
 
     // ---------- 2) claim_requests ----------
-    const insertClaimSql = `
+    const claimRes = await client.query(
+      `
       INSERT INTO claim_requests
         (user_id, status, approved_by, approved_at, admin_note,
          selected_car_id, accident_detail_id, created_at, updated_at)
@@ -122,13 +119,12 @@ router.post("/submit", async (req: Request, res: Response) => {
         ($1, 'pending', NULL, NULL, NULL,
          $2, $3, NOW(), NOW())
       RETURNING id
-    `;
-    const claimRes = await client.query(insertClaimSql, [userId, carId, accidentDetailId]);
+      `,
+      [userId, carId, accidentDetailId]
+    );
     const claimId: number = claimRes.rows[0].id;
 
-    
-
-    // ---------- 3) evaluation_images (url + side) ----------
+    // ---------- 3) evaluation_images ----------
     const photos: DamagePhoto[] = Array.isArray(draft.damagePhotos) ? draft.damagePhotos : [];
     if (photos.length > 0) {
       const insertImgSql = `
@@ -140,6 +136,22 @@ router.post("/submit", async (req: Request, res: Response) => {
         await client.query(insertImgSql, [claimId, p.url, p.note ?? null, p.side ?? "ไม่ระบุ"]);
       }
     }
+
+    // ---------- 4) แจ้งเตือนการสร้างเคลม ----------
+    await client.query(
+      `
+      INSERT INTO notifications (user_id, title, message, type, link_to)
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [
+        userId,
+        "ส่งคำขอเคลมสำเร็จ 🚗",
+        `ระบบได้รับคำขอเคลมหมายเลข #${claimId} แล้ว กำลังตรวจสอบโดยเจ้าหน้าที่`,
+        "claim",
+        `/reports/${claimId}`,
+      ]
+    );
+    console.log(`[claim-submit] 🟢 Notification created for user ${userId}, claim ${claimId}`);
 
     await client.query("COMMIT");
     return res.status(201).json({
@@ -175,7 +187,12 @@ router.put("/update/:id", async (req: Request, res: Response) => {
     await client.query("BEGIN");
 
     // 1) update accident_details
-    const updateAccSql = `
+    const accidentTime = /^\d{2}:\d{2}(:\d{2})?$/.test(draft.time)
+      ? (draft.time.length === 5 ? `${draft.time}:00` : draft.time)
+      : "00:00:00";
+
+    await client.query(
+      `
       UPDATE accident_details
       SET accident_type=$1, accident_date=$2, accident_time=$3,
           province=$4, district=$5, road=$6, area_type=$7, nearby=$8,
@@ -184,26 +201,23 @@ router.put("/update/:id", async (req: Request, res: Response) => {
       WHERE id = (
         SELECT accident_detail_id FROM claim_requests WHERE id=$13
       )
-    `;
-    const accidentTime = /^\d{2}:\d{2}(:\d{2})?$/.test(draft.time)
-      ? (draft.time.length === 5 ? `${draft.time}:00` : draft.time)
-      : "00:00:00";
-    const values = [
-      draft.accidentType,
-      draft.date,
-      accidentTime,
-      draft.province,
-      draft.district,
-      draft.road ?? null,
-      draft.areaType,
-      draft.nearby ?? null,
-      draft.details ?? null,
-      draft.location?.lat ?? null,
-      draft.location?.lng ?? null,
-      draft.location?.accuracy ?? null,
-      claimId,
-    ];
-    await client.query(updateAccSql, values);
+      `,
+      [
+        draft.accidentType,
+        draft.date,
+        accidentTime,
+        draft.province,
+        draft.district,
+        draft.road ?? null,
+        draft.areaType,
+        draft.nearby ?? null,
+        draft.details ?? null,
+        draft.location?.lat ?? null,
+        draft.location?.lng ?? null,
+        draft.location?.accuracy ?? null,
+        claimId,
+      ]
+    );
 
     // 2) ลบรูปเก่า + insert ใหม่
     await client.query(`DELETE FROM evaluation_images WHERE claim_id=$1`, [claimId]);
@@ -216,18 +230,38 @@ router.put("/update/:id", async (req: Request, res: Response) => {
         [claimId, p.url, p.note ?? null, p.side ?? "ไม่ระบุ"]
       );
     }
-    // 3) update claim_requests (status + updated_at)
+
+    // 3) update claim_requests
     await client.query(
-      `UPDATE claim_requests
+      `
+      UPDATE claim_requests
       SET status = 'pending',
           approved_by = NULL,
           approved_at = NULL,
           admin_note = NULL,
           updated_at = NOW()
-      WHERE id = $1`,
+      WHERE id = $1
+      `,
       [claimId]
     );
 
+    // 4) แจ้งเตือนการแก้ไข
+    const userRes = await client.query(`SELECT user_id FROM claim_requests WHERE id=$1`, [claimId]);
+    const userId = userRes.rows?.[0]?.user_id;
+    await client.query(
+      `
+      INSERT INTO notifications (user_id, title, message, type, link_to)
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [
+        userId,
+        "อัปเดตคำขอเคลมเรียบร้อย 🔧",
+        `คุณได้ส่งข้อมูลแก้ไขคำขอเคลมหมายเลข #${claimId} แล้ว`,
+        "claim",
+        `/reports/${claimId}`,
+      ]
+    );
+    console.log(`[claim-update] 🟢 Notification created for user ${userId}, claim ${claimId}`);
 
     await client.query("COMMIT");
     return res.json({ ok: true, claim_id: claimId, updated_images: photos.length });

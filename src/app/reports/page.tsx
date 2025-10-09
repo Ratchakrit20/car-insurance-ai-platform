@@ -77,7 +77,12 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
       status,
       created_at: r.created_at,
       updated_at: r.updated_at ?? new Date().toISOString(),
-
+      incomplete_at: r.incomplete_at ?? null,
+      admin_note: r.admin_note ?? null,
+      approved_at: r.approved_at ?? null,
+      rejected_at: r.rejected_at ?? null,
+      incomplete_history: r.incomplete_history || [],
+     resubmitted_history: r.resubmitted_history || [],
       // -------- car --------
       car_path: r.car_path ?? "",
       car_brand: r.car_brand ?? "",

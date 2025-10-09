@@ -74,43 +74,136 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * PATCH /api/customers/:id
- * - อัปเดตเบอร์โทร/ที่อยู่
- * - เปลี่ยนรหัสผ่าน (ต้องส่ง currentPassword + newPassword)
- */
+
+// 🧩 PATCH /api/customers/:id
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { phone_number, address, currentPassword, newPassword } = req.body;
 
-    // อัปเดตข้อมูลติดต่อ
-    if (phone_number || address) {
+    // ------------------------
+    // ✅ 1. อัปเดตเบอร์โทรศัพท์
+    // ------------------------
+    if (phone_number && !address && !currentPassword && !newPassword) {
       await pool.query(
-        `UPDATE users
-         SET phone_number = COALESCE($1, phone_number),
-             address = COALESCE($2, address)
-         WHERE id = $3`,
-        [phone_number, address, id]
+        `UPDATE users SET phone_number = $1 WHERE id = $2`,
+        [phone_number, id]
       );
+
+      // 🔔 เพิ่มแจ้งเตือน
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link_to)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          id,
+          "อัปเดตเบอร์โทรศัพท์สำเร็จ 📞",
+          "คุณได้ทำการเปลี่ยนเบอร์โทรศัพท์เรียบร้อยแล้ว",
+          "profile",
+          "/users",
+        ]
+      );
+
+      return res.json({ message: "อัปเดตเบอร์โทรศัพท์เรียบร้อย" });
     }
 
-    // อัปเดตรหัสผ่าน
+    // ------------------------
+    // ✅ 2. อัปเดตที่อยู่
+    // ------------------------
+    if (address && !phone_number && !currentPassword && !newPassword) {
+      await pool.query(
+        `UPDATE users SET address = $1 WHERE id = $2`,
+        [address, id]
+      );
+
+      // 🔔 เพิ่มแจ้งเตือน
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link_to)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          id,
+          "อัปเดตที่อยู่เรียบร้อย 🏠",
+          "คุณได้ทำการเปลี่ยนที่อยู่เรียบร้อยแล้ว",
+          "profile",
+          "/users",
+        ]
+      );
+
+      return res.json({ message: "อัปเดตที่อยู่เรียบร้อย" });
+    }
+
+    // ------------------------
+    // ✅ 3. อัปเดตรหัสผ่าน
+    // ------------------------
     if (currentPassword && newPassword) {
+      // 1️⃣ ดึงรหัสผ่านเดิมจาก DB มาก่อน
       const { rows } = await pool.query(
-        `SELECT password FROM users WHERE id = $1`,
+        `SELECT password_hash FROM users WHERE id = $1`,
         [id]
       );
-      if (rows.length === 0) return res.status(404).json({ message: "User not found" });
+      if (rows.length === 0)
+        return res.status(404).json({ message: "User not found" });
 
-      const match = await bcrypt.compare(currentPassword, rows[0].password);
-      if (!match) return res.status(400).json({ message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+      // 2️⃣ ตรวจว่ารหัสผ่านเดิมตรงกันไหม
+      const match = await bcrypt.compare(currentPassword, rows[0].password_hash);
+      if (!match)
+        return res.status(400).json({ message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
 
+      // 3️⃣ สร้าง hash ใหม่ และอัปเดต
       const hashed = await bcrypt.hash(newPassword, 10);
-      await pool.query(`UPDATE users SET password = $1 WHERE id = $2`, [hashed, id]);
+      await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [
+        hashed,
+        id,
+      ]);
+
+      // 🔔 เพิ่มแจ้งเตือน
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link_to)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          id,
+          "เปลี่ยนรหัสผ่านสำเร็จ 🔐",
+          "คุณได้ทำการเปลี่ยนรหัสผ่านเรียบร้อยแล้ว",
+          "account",
+          "/users",
+        ]
+      );
+
+      return res.json({ message: "เปลี่ยนรหัสผ่านเรียบร้อย" });
     }
 
-    return res.json({ message: "อัปเดตข้อมูลเรียบร้อย" });
+    // ------------------------
+    // ⚠ ไม่มีข้อมูลใดให้แก้ไข
+    // ------------------------
+    if (!phone_number && !address && !currentPassword && !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "กรุณาระบุข้อมูลที่ต้องการอัปเดต" });
+    }
+
+    // ถ้ามีหลายอย่างพร้อมกัน (เช่น ทั้ง phone + address)
+    if (phone_number && address) {
+      await pool.query(
+        `UPDATE users SET phone_number = $1, address = $2 WHERE id = $3`,
+        [phone_number, address, id]
+      );
+
+      // 🔔 แจ้งเตือนรวม
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link_to)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          id,
+          "อัปเดตข้อมูลติดต่อเรียบร้อย ✅",
+          "คุณได้ทำการอัปเดตข้อมูลติดต่อ (เบอร์โทร/ที่อยู่) แล้ว",
+          "profile",
+          "/users",
+        ]
+      );
+
+      return res.json({ message: "อัปเดตข้อมูลติดต่อเรียบร้อย" });
+    }
+
+    res.json({ message: "อัปเดตข้อมูลเรียบร้อย" });
   } catch (err: any) {
     console.error("PATCH /api/customers/:id error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -118,3 +211,4 @@ router.patch("/:id", async (req: Request, res: Response) => {
 });
 
 export default router;
+

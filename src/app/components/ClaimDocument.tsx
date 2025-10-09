@@ -1,14 +1,16 @@
-import type { ClaimDetail } from "@/types/claim";
+"use client";
+import type { ClaimDetail, Car, AccidentDraft } from "@/types/claim";
 import DamageDiagram from "../components/DamageDiagram";
+
 /* ---------- utils ---------- */
 const thDate = (iso?: string) =>
   !iso
     ? "-"
     : new Date(iso).toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
 type Row = {
   no: number;
@@ -18,22 +20,57 @@ type Row = {
   side?: string;
 };
 
-export default function ClaimDocument({ detail }: { detail: ClaimDetail }) {
-  const car = (detail.car ?? {}) as any;
-  const acc = (detail.accident ?? {}) as any;
+export default function ClaimDocument({ detail }: { detail: any }) {
+  // ✅ Map ฟิลด์ flat จาก detail ให้เป็น car / accident objects
+  const car: Car = {
+    id: detail.selected_car_id ?? 0, // ✅ เพิ่มบรรทัดนี้
+    car_brand: detail.car_brand,
+    car_model: detail.car_model,
+    car_license_plate: detail.license_plate,
+    insurance_type: detail.insurance_type,
+    policy_number: detail.policy_number,
+    coverage_end_date: detail.coverage_end_date,
+    car_year: detail.car_year,
+    car_path: detail.car_path,
+  };
 
-  // รวมรายการจาก annotations ของทุกภาพ
+
+
+  const acc: AccidentDraft = {
+    accidentType: detail.accident_type ?? "ไม่ระบุ",
+    accident_date: detail.accident_date ?? null,
+    accident_time: detail.accident_time ?? "-",
+    province: detail.province ?? "ไม่ระบุ",
+    district: detail.district ?? "ไม่ระบุ",
+    road: detail.road ?? "ไม่ระบุ",
+    nearby: detail.nearby ?? "ไม่ระบุ",
+    areaType: detail.area_type ?? "ไม่ระบุ",
+    details: detail.details ?? "-",
+    location: {
+      lat: parseFloat(detail.latitude ?? detail.location?.lat ?? "0"),
+      lng: parseFloat(detail.longitude ?? detail.location?.lng ?? "0"),
+      accuracy: parseFloat(detail.accuracy ?? detail.location?.accuracy ?? "0"),
+    },
+    damagePhotos: detail.damage_images ?? detail.damagePhotos ?? [],
+  };
+
+
+  console.log("🧾 detail:", detail);
+  console.log("🚗 mapped car:", car);
+  console.log("💥 mapped accident:", acc);
+
+  /* ---------- รวมรายการความเสียหาย ---------- */
   const rows: Row[] = [];
   let i = 1;
   for (const p of acc.damagePhotos ?? []) {
-    for (const a of (p as any).annotations ?? []) {
+    for (const a of p.annotations ?? []) {
       const dmg = Array.isArray(a.damage) ? a.damage.join(", ") : a.damage || "-";
       rows.push({
         no: i++,
         part: a.part || "-",
         damages: dmg,
-        severity: (a.severity as any) ?? "-",
-        side: (p as any).side,
+        severity: a.severity || "-",
+        side: p.side,
       });
     }
   }
@@ -42,36 +79,168 @@ export default function ClaimDocument({ detail }: { detail: ClaimDetail }) {
 
   return (
     <div id="print-root" className="mx-auto w-full max-w-[794px] bg-white p-0 print:max-w-none">
-      {/* PRINT hardening */}
-      <style jsx global>{`
-        @page { size: A4; margin: 10mm 10mm 12mm 10mm; }
-        @media print {
-          html, body { background: #fff !important; }
-          /* ซ่อนทุกอย่างยกเว้นเอกสาร */
-          body * { visibility: hidden !important; }
-          #print-root, #print-root * { visibility: visible !important; }
-          #print-root { position: absolute; inset: 0; margin: 0; }
-          /* เก็บเฉพาะเนื้อหา ห้าม floating สิ่งอื่น */
-          .no-print, .print-hide, [class*="fixed"], [class*="sticky"], [data-floating] { display: none !important; }
-          /* ตัดเงา/โฟกัส */
-          *:focus { outline: none !important; box-shadow: none !important; }
-          /* กันหักกลางกล่องสำคัญ */
-          .avoid-break { break-inside: avoid; page-break-inside: avoid; }
-          .break-before { break-before: page; page-break-before: always; }
-        }
-        /* ตารางเส้นคม */
-        .doc-table { border-collapse: collapse; width: 100%; }
-        .doc-table th, .doc-table td { border: 1px solid #C9CDD4; padding: 8px 10px; vertical-align: top; }
-        .doc-th { background: #F6F8FB; font-weight: 600; }
-        .doc-box { border: 1px solid #C9CDD4; border-radius: 6px; }
-        .legend-dot { width: 12px; height: 12px; border-radius: 9999px; display:inline-block; border:1px solid #111827; }
-        /* กล่องติ๊ก A-D เป็นกรอบสี่เหลี่ยม ไม่ใช่ <input> */
-        .check-cell { width: 14px; height: 14px; border: 1.6px solid #111827; display: inline-block; border-radius:2px; }
-        .check-fill { width: 9px; height: 9px; background:#111827; display:block; margin:2px; }
-      `}</style>
+  <style jsx global>{`
+  @page {
+    size: A4;
+    margin: 10mm 10mm 12mm 10mm;
+  }
+
+  @media print {
+    html, body {
+      background: #fff !important;
+    }
+    #print-root, #print-root * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      visibility: visible !important;
+    }
+    body * {
+      visibility: hidden !important;
+    }
+    #print-root {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+    }
+    .no-print, .print-hide, [class*="fixed"], [class*="sticky"], [data-floating] {
+      display: none !important;
+    }
+    *:focus {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    .avoid-break {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .break-before {
+      break-before: page;
+      page-break-before: always;
+    }
+  }
+
+  /* ===== ตาราง ===== */
+  .doc-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  .doc-table th,
+  .doc-table td {
+    padding: 4px 6px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .doc-th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #111827;
+  }
+  .doc-box {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #ffffff;
+    box-shadow: 0 0 0 1px #f3f4f6 inset;
+  }
+
+  /* ===== Legend สี ===== */
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    display: inline-block;
+    border: 1px solid #111827;
+    box-shadow: 0 0 0 0.5px rgba(0,0,0,0.1);
+  }
+
+  /* ===== Radio วงกลม ===== */
+  .radio-cell {
+    width: 16px;
+    height: 16px;
+    border: 1.6px solid #111827;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    margin: 0 auto;
+  }
+  .radio-fill {
+    width: 8px;
+    height: 8px;
+    background: #111827;
+    border-radius: 9999px;
+    display: block;
+  }
+
+  /* ===== Label & Value ===== */
+  .doc-box .info-label {
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.25;
+    letter-spacing: -0.1px;
+  }
+  .doc-box .info-value {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 13px;
+    line-height: 1.35;
+    letter-spacing: -0.1px;
+    word-break: break-word;
+  }
+
+  /* ===== ส่วนหัวเอกสาร ===== */
+  .header-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+  .header-sub {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 600;
+  }
+
+  /* ===== กล่องลายเซ็น ===== */
+  .sign-box {
+    border: 1px solid #d4d4d8;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: #fafafa;
+  }
+  .sign-title {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: #374151;
+    margin-bottom: 6px;
+  }
+  .sign-line {
+    color: #4b5563;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+  }
+
+  /* ===== Print Font ปรับเล็กลงนิดตอนพิมพ์ ===== */
+  @media print {
+    .doc-table th,
+    .doc-table td {
+      padding: 3px 5px !important;
+      font-size: 11px !important;
+    }
+    .doc-th {
+      background: #f3f4f6 !important;
+    }
+    #print-root, #print-root * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+`}</style>
+
+
 
       {/* ---------- Header ---------- */}
-      <div className="rounded-xl p-4 sm:p-5 shadow-none-print avoid-break text-black">
+      <div className="rounded-xl p-4 sm:p-5 text-black">
         <div className="mb-2 flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-full border border-zinc-300">🚗</div>
           <div>
@@ -83,130 +252,147 @@ export default function ClaimDocument({ detail }: { detail: ClaimDetail }) {
             </div>
           </div>
         </div>
-        <div className="my-2 h-px w-full bg-zinc-300" />
+        <div className="my-2 h-px bg-zinc-300" />
 
-        <div className="mb-2 text-center text-[15px] font-semibold tracking-wide text-zinc-900">
-          ข้อมูลการเคลม
-        </div>
+
+
+
 
         {/* ---------- กล่องข้อมูลเคลม ---------- */}
-        <div className="doc-box p-3 sm:p-4 text-[13px] avoid-break">
-          <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-            <Info label="ยี่ห้อรถ" value={car.car_brand} />
-            <Info label="ปี" value={String(car.car_year ?? "-")} />
-            <Info label="เลขที่เคลม" value={String(detail.claim_id)} />
+        <div className="doc-box p-4 text-[13px] avoid-break">
+          <div className="text-center border-b border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
+            ข้อมูลการเคลม
+          </div>
 
+          {/* ข้อมูลรถยนต์ */}
+          <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 text-[13px] print:grid-cols-3">
+            <Info label="ยี่ห้อรถ" value={car.car_brand} />
             <Info label="รุ่น" value={car.car_model} />
             <Info label="ทะเบียน" value={car.car_license_plate} />
-            <Info label="สถานะ" value={detail.status ?? "-"} />
-
-            <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
             <Info label="ประเภทประกัน" value={car.insurance_type} />
-            <Info label="คุ้มครองถึง" value={car.coverage_end_date ? thDate(car.coverage_end_date) : "-"} />
+            <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
+            <Info
+              label="คุ้มครองถึง"
+              value={car.coverage_end_date ? thDate(car.coverage_end_date) : "-"}
+            />
+          </div>
 
-            <div className="col-span-12 my-1 h-px w-full bg-zinc-200" />
+          <div className="my-2 h-px bg-zinc-200" />
 
+          {/* ข้อมูลอุบัติเหตุ */}
+          <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 text-[13px] print:grid-cols-3">
             <Info label="วันที่ยื่นคำขอ" value={thDate(detail.created_at)} />
-            <Info label="วันที่เกิดเหตุ" value={thDate(acc.date)} />
-            <Info label="เวลาที่เกิดเหตุ" value={acc.time ?? "-"} />
-
-            <Info label="ประเภทอุบัติเหตุ" value={acc.accidentType} />
-            <Info label="จังหวัด" value={acc.province} />
-            <Info label="อำเภอ" value={acc.district} />
-
-            <Info label="ถนน/บริเวณใกล้เคียง" value={`${acc.road ?? "-"} / ${acc.nearby ?? "-"}`} className="col-span-12" />
-            <Info label="ประเภทพื้นที่" value={acc.areaType} />
+            <Info label="วันที่เกิดเหตุ" value={thDate(acc.accident_date)} />
+            <Info label="เวลาที่เกิดเหตุ" value={acc.accident_time ?? "-"} />
+            <Info label="ประเภทอุบัติเหตุ" value={acc.accidentType ?? "-"} />
+            <Info label="จังหวัด" value={acc.province ?? "-"} />
+            <Info label="อำเภอ" value={acc.district ?? "-"} />
+            <Info
+              label="ถนน/บริเวณใกล้เคียง"
+              value={`${acc.road ?? "-"} / ${acc.nearby ?? "-"}`}
+            />
+            <Info label="ประเภทพื้นที่" value={acc.areaType ?? "-"} />
+            <Info label="รายละเอียด" value={acc.details ?? "-"} />
           </div>
         </div>
 
-        {/* ---------- รายการความเสียหาย (3 คอลัมน์) ---------- */}
+
+
+        {/* ---------- รายการความเสียหาย ---------- */}
         <div className="mt-4 doc-box avoid-break">
-          <div className="border-b border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
-            รายการความเสียหาย
+          <div className="text-center border-b border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
+            แผนภาพชิ้นส่วนที่เสียหาย
           </div>
 
+          {/* ✅ แบ่งสองส่วน: Diagram ใหญ่ + Legend */}
           <div className="grid grid-cols-12">
-            {/* ซ้าย: ชิ้นส่วนที่เสียหาย */}
-            <div className="col-span-12 border-b border-zinc-300 p-3 sm:col-span-4 sm:border-b-0 sm:border-r">
-              <div className="mb-2 text-[13px] font-semibold">ชิ้นส่วนที่เสียหาย</div>
-              <div className="grid grid-cols-1 gap-1 text-[13px]">
-                {uniqueParts.length ? (
-                  uniqueParts.map((p) => (
-                    <div key={p} className="flex items-center gap-2">
-                      <span className="legend-dot" style={{ background: "#fff" }} />
-                      <span>{p}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-zinc-500">—</div>
-                )}
+            {/* Diagram ใหญ่เต็มกลาง */}
+            <div className="col-span-12 sm:col-span-9 border-b border-zinc-300 sm:border-b-0 sm:border-r p-3 flex justify-center items-center">
+              <div className="text-center">
+
+                <DamageDiagram rows={rows} />
               </div>
             </div>
 
-            {/* กลาง: แผนภาพ */}
-            <div className="col-span-12 border-b border-zinc-300 p-3 sm:col-span-4 sm:border-b-0 sm:border-r">
-              <div className="mb-2 text-[13px] font-semibold">แผนภาพชิ้นส่วนที่เสียหาย</div>
-              <DamageDiagram rows={rows} />
-              
-            </div>
-
-            {/* ขวา: Legend */}
-            <div className="col-span-12 p-3 sm:col-span-4">
-              <div className="mb-2 text-[13px] font-semibold">ลักษณะความเสียหาย</div>
-              <ul className="grid grid-cols-1 gap-1 text-[13px]">
-                {[
-                  ["#D946EF", "รอยขีดข่วน"],
-                  ["#F59E0B", "รอยบุบ"],
-                  ["#3B82F6", "ร้าว"],
-                  ["#EF4444", "กระจกแตก"],
-                  ["#FACC15", "ไฟแตก"],
-                  ["#7C3AED", "ยางแบน"],
-                ].map(([color, label]) => (
-                  <li key={label} className="flex items-center gap-2">
-                    <span className="legend-dot" style={{ background: color as string }} />
-                    <span>{label}</span>
-                  </li>
-                ))}
-              </ul>
+            {/* Legend ด้านขวา (เล็กลง) */}
+            <div className="col-span-12 sm:col-span-3 p-3">
+              <div className="mb-2 text-[12px] font-semibold">ลักษณะความเสียหาย</div>
+              {[
+                ["#FCD34D", "รอยขีดข่วน"],
+                ["#F97316", "รอยบุบ"],
+                ["#3B82F6", "ร้าว"],
+                ["#DC2626", "กระจกแตก"],
+                ["#9333EA", "ไฟแตก"],
+                ["#6B7280", "ยางแบน"],
+              ].map(([color, label]) => (
+                <div key={label} className="flex items-center gap-2 text-[12px] leading-[1.4]">
+                  <span
+                    className="legend-dot"
+                    style={{
+                      background: color as string,
+                      width: "14px",
+                      height: "14px",
+                      borderWidth: "1px",
+                    }}
+                  />
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* ---------- ตาราง “รายการชิ้นส่วนที่เสียหาย” ---------- */}
+
+        {/* ---------- ตาราง ---------- */}
         <div className="mt-4 doc-box avoid-break">
-          <div className="border-b border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
+          <div className="text-center border-b border-zinc-200 bg-[#F6F8FB] px-2 py-1.5 text-[12px] font-semibold">
             รายการชิ้นส่วนที่เสียหาย
           </div>
+
           <div className="overflow-x-auto">
-            <table className="doc-table text-[13px]">
+            <table className="doc-table text-[11px] w-full text-left border-collapse leading-tight">
               <thead>
                 <tr>
-                  <th className="doc-th w-16 text-center">ลำดับ</th>
-                  <th className="doc-th">รายการ</th>
-                  <th className="doc-th w-[38%]">สภาพ</th>
-                  <th className="doc-th w-72 text-center" colSpan={4}>ระดับความเสียหาย</th>
+                  <th className="doc-th text-center w-[30px] py-[2px]">ลำดับ</th>
+                  <th className="doc-th py-[2px]">รายการ</th>
+                  <th className="doc-th w-[30%] py-[2px]">สภาพ</th>
+                  <th className="doc-th text-center py-[2px]" colSpan={4}>
+                    ระดับความเสียหาย
+                  </th>
                 </tr>
-                <tr>
+                <tr className="bg-[#fafafa] text-center">
                   <th />
                   <th />
                   <th />
                   {["A", "B", "C", "D"].map((lv) => (
-                    <th key={lv} className="doc-th w-16 text-center">{lv}</th>
+                    <th key={lv} className="doc-th w-8 py-[1px] text-[10px]">{lv}</th>
                   ))}
                 </tr>
               </thead>
+
               <tbody>
                 {rows.length ? (
                   rows.map((r) => (
-                    <tr key={r.no}>
-                      <td className="text-center">{r.no}</td>
-                      <td>{r.part}</td>
-                      {/* สภาพ = ข้อความธรรมดา ไม่มี input/overlay */}
-                      <td className="whitespace-pre-wrap break-words">{r.damages}</td>
+                    <tr key={r.no} className="even:bg-[#fafafa]">
+                      <td className="text-center py-[1px]">{r.no}</td>
+                      <td className="py-[1px]">{r.part}</td>
+                      <td className="py-[1px]">{r.damages}</td>
                       {["A", "B", "C", "D"].map((lv) => (
-                        <td key={lv} className="text-center">
-                          <span className="check-cell">
-                            {String(r.severity).toUpperCase() === lv ? <span className="check-fill" /> : null}
+                        <td key={lv} className="text-center align-middle py-[1px]">
+                          <span
+                            className="radio-cell"
+                            style={{
+                              width: "10px",
+                              height: "10px",
+                              borderWidth: "1.2px",
+                            }}
+                          >
+                            {String(r.severity).toUpperCase() === lv && (
+                              <span
+                                className="radio-fill"
+                                style={{ width: "5px", height: "5px" }}
+                              />
+                            )}
                           </span>
                         </td>
                       ))}
@@ -214,39 +400,57 @@ export default function ClaimDocument({ detail }: { detail: ClaimDetail }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-zinc-500">ไม่มีข้อมูลความเสียหาย</td>
+                    <td colSpan={7} className="py-3 text-center text-zinc-500 text-[11px]">
+                      ไม่มีข้อมูลความเสียหาย
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
-
         {/* ---------- ลายเซ็น ---------- */}
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 avoid-break">
-          <SignBox title="บริษัทประกัน" />
+        <div className="mt-4 flex justify-between gap-6 avoid-break">
+          <SignBox title="บริษัทประกัน"  />
           <SignBox title="ผู้เอาประกันภัย / ลูกค้า" />
         </div>
+
+
       </div>
     </div>
   );
 }
 
 /* ---------- subs ---------- */
-function Info({ label, value, className = "" }: { label: string; value?: string; className?: string }) {
+function Info({
+  label,
+  value,
+  className = "",
+}: {
+  label: string;
+  value?: string;
+  className?: string;
+}) {
   return (
-    <div className={`col-span-12 sm:col-span-6 lg:col-span-4 ${className}`}>
-      <div className="text-[12px] text-zinc-500">{label}</div>
-      <div className="text-[13px] font-medium">{value || "-"}</div>
+    <div className={`flex flex-col ${className}`}>
+      <span className="text-[12px] text-zinc-500 leading-tight">{label}</span>
+      <span className="text-[13px] font-medium text-zinc-900 leading-snug break-words">
+        {value || "-"}
+      </span>
     </div>
   );
 }
-function SignBox({ title }: { title: string }) {
+
+
+function SignBox({ title }: { title: string; }) {
   return (
-    <div className="rounded-md border border-zinc-300 p-4">
-      <div className="mb-10 text-[13px] text-zinc-700">{title}</div>
-      <div className="text-[13px] text-zinc-600">ลงชื่อ ___________________________</div>
-      <div className="mt-2 text-[13px] text-zinc-600">วันที่ ___________/___________/___________</div>
+    <div
+      className={`flex-1 border border-zinc-300 rounded-md p-3 text-[12px] `}
+    >
+      <div className="mb-2 font-semibold text-zinc-700">{title}</div>
+      <div>ลงชื่อ ___________________________</div>
+      <div className="mt-1">วันที่ ___________/___________/___________</div>
     </div>
   );
 }
+

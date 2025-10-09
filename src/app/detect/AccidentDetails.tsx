@@ -105,18 +105,30 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [dragOver, setDragOver] = useState(false);
 
-  // ✅ โหลด draft ตอน mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(ACC_KEY);
-      if (raw) {
-        const draft = JSON.parse(raw);
-        setAccidentType(draft.accidentType ?? "ชนสัตว์");
-        setDetails(draft.details ?? "");
-        setEvidenceFiles(draft.evidenceMedia ?? []);
-      }
-    } catch { }
-  }, []);
+
+ useEffect(() => {
+  try {
+    const raw = localStorage.getItem(ACC_KEY);
+    if (raw) {
+      const draft = JSON.parse(raw);
+      setAccidentType(draft.accidentType ?? "ชนสัตว์");
+      setDetails(draft.details ?? "");
+
+      // ✅ เติมค่าที่หายไป (normalize data)
+      const normalized = (draft.evidenceMedia ?? []).map((f: any, i: number) => ({
+        url: f.url,
+        type: f.type ?? "image",
+        publicId: f.publicId ?? "",
+        name: f.name ?? `ไฟล์ที่-${i + 1}`,
+        progress: f.progress ?? 100, // ถือว่าอัปโหลดเสร็จแล้ว
+      }));
+
+      setEvidenceFiles(normalized);
+    }
+  } catch (e) {
+    console.warn("load accident draft failed", e);
+  }
+}, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,28 +143,65 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     onNext();
   };
 
-  const handleFilesUpload = async (files: File[]) => {
-    for (const file of files) {
-      const temp: EvidenceFile = { url: "", type: "image", publicId: "", name: file.name, progress: 0 };
-      const index = evidenceFiles.length;
+ const handleFilesUpload = async (files: File[]) => {
+  // ✅ ใช้ Promise.all เพื่ออัปโหลดหลายไฟล์พร้อมกัน
+  const uploads = files.map((file, i) => {
+    const temp: EvidenceFile = {
+      url: "",
+      type: file.type.startsWith("video/") ? "video" : "image",
+      publicId: "",
+      name: file.name,
+      progress: 0,
+    };
 
-      setEvidenceFiles((prev) => [...prev, temp]);
+    // ✅ เพิ่ม temp เข้า state ก่อน เพื่อให้เห็น progress ทุกภาพ
+    let currentIndex = -1;
+    setEvidenceFiles((prev) => {
+      const newArr = [...prev, temp];
+      currentIndex = newArr.length - 1; // index ของภาพนี้
+      return newArr;
+    });
 
-      try {
-        const uploaded = await uploadToCloudinary(file, (p) => {
-          setEvidenceFiles((prev) =>
-            prev.map((f, idx) => (idx === index ? { ...f, progress: p } : f))
-          );
-        });
+    // ✅ เริ่มอัปโหลด Cloudinary
+    return uploadToCloudinary(file, (p) => {
+      // อัปเดต progress แบบเรียลไทม์
+      setEvidenceFiles((prev) =>
+        prev.map((f, idx) =>
+          idx === currentIndex ? { ...f, progress: p } : f
+        )
+      );
+    })
+      .then((uploaded) => {
+        // ✅ แทนค่าใหม่เมื่ออัปโหลดเสร็จ
+        setEvidenceFiles((prev) =>
+          prev.map((f, idx) =>
+            idx === currentIndex
+              ? { ...uploaded, name: file.name, progress: 100 }
+              : f
+          )
+        );
 
-        setEvidenceFiles((prev) => prev.map((f, idx) => (idx === index ? uploaded : f)));
-        setSelectedIndex(index);
-      } catch (err) {
-        console.error(err);
-        alert("อัปโหลดไฟล์ไม่สำเร็จ");
-      }
-    }
-  };
+        // ✅ เลือกภาพล่าสุดอัตโนมัติ
+        setSelectedIndex(currentIndex);
+      })
+      .catch((err) => {
+        console.error("upload error", err);
+        // ❌ ถ้าอัปโหลด fail → แสดงว่า fail
+        setEvidenceFiles((prev) =>
+          prev.map((f, idx) =>
+            idx === currentIndex
+              ? { ...f, progress: 0, name: file.name }
+              : f
+          )
+        );
+      });
+  });
+
+  // ✅ รอให้อัปโหลดทุกไฟล์เสร็จ (ไม่บังคับแต่ช่วยให้รอจบ)
+  await Promise.allSettled(uploads);
+};
+
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
