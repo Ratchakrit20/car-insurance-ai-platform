@@ -349,59 +349,59 @@ export default function InspectPage() {
   if (!acc?.damagePhotos) return [];
 
   return acc.damagePhotos
-    .filter((p: any) => p?.url)
-    .map((p: any, index: number) => ({
-      id: p.id ?? p.image_id ?? p.evaluation_image_id ?? `local-${index}`, // ✅ generate id เอง
-      url: p.url,
-      side: p.side,
-      is_annotated: p.is_annotated,
-      note: p.note ?? p.damage_note ?? "",
-    }));
-}, [detail]);
-useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-     const res = await fetch(`${URL_PREFIX}/api/me`, {
-  credentials: "include",
-});
-      const data = await res.json();
-      if (cancelled) return;
-      console.log("🔐 Auth data:", data);
-      setUser(data.user ?? null);
-      setIsAuthenticated(Boolean(data.isAuthenticated));
-    } catch {
-      if (!cancelled) setIsAuthenticated(false);
+      .filter((p: any) => p?.url)
+      .map((p: any, index: number) => ({
+        id: p.id ?? p.image_id ?? p.evaluation_image_id ?? `local-${index}`, // ✅ generate id เอง
+        url: p.url,
+        side: p.side,
+        is_annotated: p.is_annotated,
+        note: p.note ?? p.damage_note ?? "",
+      }));
+  }, [detail]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+      const res = await fetch(`${URL_PREFIX}/api/me`, {
+    credentials: "include",
+  });
+        const data = await res.json();
+        if (cancelled) return;
+        console.log("🔐 Auth data:", data);
+        setUser(data.user ?? null);
+        setIsAuthenticated(Boolean(data.isAuthenticated));
+      } catch {
+        if (!cancelled) setIsAuthenticated(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    // 🔒 รอให้ตรวจสอบสิทธิ์เสร็จก่อน
+    if (isAuthenticated !== true) return;
+    if (!claimId) {
+      setErr("ไม่พบ claim_id");
+      setLoading(false);
+      return;
     }
-  })();
-  return () => { cancelled = true; };
-}, []);
-useEffect(() => {
-  // 🔒 รอให้ตรวจสอบสิทธิ์เสร็จก่อน
-  if (isAuthenticated !== true) return;
-  if (!claimId) {
-    setErr("ไม่พบ claim_id");
-    setLoading(false);
-    return;
-  }
 
-  let alive = true;
-  (async () => {
-    try {
-      setLoading(true);
-      const d = await fetchDetail(String(claimId));
-      if (!alive) return;
-      console.log("✅ Claim detail loaded:", d);
-      setDetail(d);
-    } catch (e: any) {
-      if (alive) setErr(e?.message ?? "เกิดข้อผิดพลาด");
-    } finally {
-      if (alive) setLoading(false);
-    }
-  })();
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const d = await fetchDetail(String(claimId));
+        if (!alive) return;
+        console.log("✅ Claim detail loaded:", d);
+        setDetail(d);
+      } catch (e: any) {
+        if (alive) setErr(e?.message ?? "เกิดข้อผิดพลาด");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
 
-  return () => { alive = false; };
-}, [claimId, isAuthenticated]);
+    return () => { alive = false; };
+  }, [claimId, isAuthenticated]);
 
   //เช็คว่าตรวจสอบความเสียหายครบยังก่อนดำเนินการต่อ
   const [annotatedById, setAnnotatedById] = useState<Record<string | number, boolean>>({});

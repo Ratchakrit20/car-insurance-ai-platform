@@ -8,20 +8,10 @@ const { types } = pg;
 types.setTypeParser(114, (val) => JSON.parse(val));   // 114 = json
 types.setTypeParser(3802, (val) => JSON.parse(val));  // 3802 = jsonb
 
-// ✅ สร้าง pool ปกติ
-// const pool = new Pool({
-//   host: process.env.DB_HOST,
-//   user: process.env.DB_USER,
-//   password: process.env.DB_PASSWORD,
-//   database: process.env.DB_NAME,
-//   port: Number(process.env.DB_PORT),
-// });
-// ✅ ใช้ DATABASE_URL จาก Neon (แทน host/user/password)
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },  // สำคัญมากสำหรับ Neon Cloud
 });
-// ✅ บังคับให้ทุกการเชื่อมต่อใช้ schema public เป็นค่าเริ่มต้น
-pool.query("SET search_path TO public;").catch(console.error);
 
 export default pool;

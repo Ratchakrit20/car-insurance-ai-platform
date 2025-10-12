@@ -12,6 +12,7 @@ import customersRouter from "./routes/customers.routes";
 import adminRouter from "./routes/admin.routes";
 import notificationRoutes from "./routes/notifications.routes";
 import customerCarsRoutes from "./routes/customerCars.routes";
+import pool from './models/db';
 
 dotenv.config();
 
@@ -38,3 +39,11 @@ app.use("/api/admin", adminRouter);
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+(async () => {
+  try {
+    const result = await pool.query("SELECT current_database()");
+    console.log("✅ Connected to:", result.rows[0].current_database);
+  } catch (err) {
+    console.error("❌ Database connection failed:", err);
+  }
+})();
