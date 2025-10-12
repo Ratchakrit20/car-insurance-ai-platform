@@ -358,6 +358,7 @@ export default function InspectPage() {
         note: p.note ?? p.damage_note ?? "",
       }));
   }, [detail]);
+  // -------- โหลดข้อมูลผู้ใช้ (me) --------
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -376,6 +377,7 @@ export default function InspectPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
   useEffect(() => {
     // 🔒 รอให้ตรวจสอบสิทธิ์เสร็จก่อน
     if (isAuthenticated !== true) return;
@@ -402,6 +404,17 @@ export default function InspectPage() {
 
     return () => { alive = false; };
   }, [claimId, isAuthenticated]);
+
+  useEffect(() => {
+  if (!loading && detail && images.length > 0) {
+    // 🔥 วิเคราะห์ภาพแรกทันทีถ้ายังไม่มีผล
+    const firstImageId = images[0]?.id;
+    if (firstImageId && !boxesByIndex[0]) {
+      console.log("🧠 เริ่มวิเคราะห์ภาพแรกอัตโนมัติ...");
+      void analyzeActiveImage(0);
+    }
+  }
+}, [loading, detail, images]);
 
   //เช็คว่าตรวจสอบความเสียหายครบยังก่อนดำเนินการต่อ
   const [annotatedById, setAnnotatedById] = useState<Record<string | number, boolean>>({});

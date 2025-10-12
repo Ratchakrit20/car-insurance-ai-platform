@@ -143,11 +143,11 @@ export default function ClaimDocPage() {
       });
 
       const j = await resp.json();
-if (!resp.ok || !j?.ok)
-  throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
+    if (!resp.ok || !j?.ok)
+      throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
 
-// ✅ เก็บ status เป็นภาษาอังกฤษตาม type เดิม
-setDetail((d) => (d ? { ...d, status: next as ClaimDetail["status"] } : d));
+    // ✅ เก็บ status เป็นภาษาอังกฤษตาม type เดิม
+    setDetail((d) => (d ? { ...d, status: next as ClaimDetail["status"] } : d));
 
 
       if (next === "rejected") {
@@ -171,7 +171,7 @@ setDetail((d) => (d ? { ...d, status: next as ClaimDetail["status"] } : d));
     void patchStatus("approved");
   };
 
-  const handleReject = () => setShowReject(true);
+  const handleReject = () => patchStatus("rejected", "ติดต่อเจ้าหน้าที่ประกัน");
 
   if (loading) return <div className="p-6 text-zinc-600">กำลังโหลดเอกสาร…</div>;
   if (err) return <div className="p-6 text-rose-600">ผิดพลาด: {err}</div>;
