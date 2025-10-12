@@ -1,6 +1,11 @@
 import express, { Request, Response } from 'express';
 import pool from '../models/db';
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 const router = express.Router();
 
 /**
@@ -34,7 +39,7 @@ router.post("/", async (req: Request, res: Response) => {
        VALUES ($1, $2, $3, $4, $5)`,
       [
         user_id,
-        "ส่งคำขอเคลมสำเร็จ 🚗",
+        "ส่งคำขอเคลมสำเร็จ",
         `ระบบได้รับคำขอเคลมหมายเลข #${claim.id} แล้ว กำลังตรวจสอบโดยเจ้าหน้าที่`,
         "claim",
         `/reports/${claim.id}`,
@@ -64,22 +69,35 @@ router.patch("/:id", async (req: Request, res: Response) => {
       rejected_at,
       incomplete_by,
       incomplete_at,
-      resubmitted_history,
     } = req.body as any;
 
-    // ดึง user_id เพื่อส่งแจ้งเตือนกลับ
-    const userRes = await pool.query(
-      `SELECT user_id FROM claim_requests WHERE id = $1`,
+    const nowTH = dayjs().tz("Asia/Bangkok").format();
+
+    const { rows: userRows } = await pool.query(
+      `SELECT user_id, incomplete_history FROM claim_requests WHERE id = $1`,
       [id]
     );
-    if (userRes.rowCount === 0)
-      return res.status(404).json({ ok: false, message: "claim not found" });
-    const userId = userRes.rows[0].user_id;
 
-    // ✅ 1. อัปเดตสถานะเคลมตาม logic เดิม
+    if (userRows.length === 0)
+      return res.status(404).json({ ok: false, message: "claim not found" });
+
+    const userId = userRows[0].user_id;
+    const prevHistory = Array.isArray(userRows[0]?.incomplete_history)
+      ? userRows[0].incomplete_history
+      : [];
+
+    let newIncompleteHistory = prevHistory;
+    let newIncompleteAt = incomplete_at ?? null;
+
+    if (status === "incomplete" && admin_note) {
+      newIncompleteAt = nowTH;
+      newIncompleteHistory = [...prevHistory, { time: nowTH, note: admin_note }];
+    }
+
     const result = await pool.query(
       `
-      UPDATE claim_requests SET
+      UPDATE claim_requests
+      SET
         status = COALESCE($1, status),
         admin_note = COALESCE($2, admin_note),
         approved_by = COALESCE($3, approved_by),
@@ -88,10 +106,11 @@ router.patch("/:id", async (req: Request, res: Response) => {
         rejected_at = COALESCE($6, rejected_at::timestamp),
         incomplete_by = COALESCE($7, incomplete_by),
         incomplete_at = COALESCE($8, incomplete_at::timestamp),
-        resubmitted_history = $9::jsonb,
+        incomplete_history = $9::jsonb,
         updated_at = NOW()
       WHERE id = $10
-      RETURNING *`,
+      RETURNING *
+      `,
       [
         status ?? null,
         admin_note ?? null,
@@ -100,8 +119,8 @@ router.patch("/:id", async (req: Request, res: Response) => {
         rejected_by ?? null,
         rejected_at ?? null,
         incomplete_by ?? null,
-        incomplete_at ?? null,
-        resubmitted_history ? JSON.stringify(resubmitted_history) : "[]",
+        newIncompleteAt,
+        JSON.stringify(newIncompleteHistory),
         id,
       ]
     );
@@ -111,33 +130,35 @@ router.patch("/:id", async (req: Request, res: Response) => {
 
     const claim = result.rows[0];
 
-    // ✅ 2. เพิ่มแจ้งเตือนตามสถานะใหม่
+    // ✅ แจ้งเตือนผู้ใช้
     let title = "";
     let message = "";
 
     switch (status) {
-      case "approve":
-        title = "คำขอเคลมของคุณได้รับการอนุมัติแล้ว ✅";
+      case "approved":
+        title = "คำขอเคลมของคุณได้รับการอนุมัติแล้ว ";
         message = `คำขอเคลมหมายเลข #${id} ผ่านการตรวจสอบเรียบร้อยแล้ว`;
         break;
-      case "reject":
-        title = "คำขอเคลมของคุณถูกปฏิเสธ ❌";
+      case "rejected":
+        title = "คำขอเคลมของคุณถูกปฏิเสธ ";
         message = `คำขอเคลมหมายเลข #${id} ถูกปฏิเสธ เนื่องจาก: ${admin_note || "ไม่มีรายละเอียดเพิ่มเติม"}`;
         break;
       case "incomplete":
-        title = "เอกสารไม่ครบ กรุณาแก้ไข 🔧";
+        title = "เอกสารไม่ครบ กรุณาแก้ไข ";
         message = `คำขอเคลมหมายเลข #${id} ต้องแก้ไขเพิ่มเติม: ${admin_note || "โปรดตรวจสอบรายละเอียด"}`;
         break;
       default:
-        title = "สถานะเคลมของคุณได้รับการอัปเดต 🔄";
+        title = "สถานะเคลมของคุณได้รับการอัปเดต ";
         message = `คำขอเคลมหมายเลข #${id} มีการอัปเดตสถานะล่าสุด: ${status}`;
         break;
     }
 
     await pool.query(
-      `INSERT INTO notifications (user_id, title, message, type, link_to)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [userId, title, message, "claim", `/reports/${id}`]
+      `
+      INSERT INTO notifications (user_id, title, message, type, link_to)
+      VALUES ($1, $2, $3, 'claim', $4)
+      `,
+      [userId, title, message, `/reports/${id}`]
     );
 
     return res.json({ ok: true, claim });
@@ -146,6 +167,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, message: "internal error" });
   }
 });
+
 
 /**
  * PATCH /api/claim-requests/:id/correction
@@ -635,6 +657,171 @@ cr.resubmitted_history::jsonb AS resubmitted_history,
     return res.status(500).json({ ok: false, message: "server error" });
   }
 });
+// PATCH /api/claim-requests/:id/resubmit
+router.patch("/:id/resubmit", async (req: Request, res: Response) => {
+  const claimId = Number(req.params.id);
+  const { note, accident } = req.body as {
+    note?: string;
+    accident?: {
+      accidentType: string;
+      date: string;
+      time: string;
+      province?: string | null;
+      district?: string | null;
+      road?: string | null;
+      areaType: string;
+      nearby?: string | null;
+      details?: string | null;
+      location?: { lat?: number; lng?: number; accuracy?: number | null };
+      evidenceMedia?: { url: string; type?: string }[];
+      damagePhotos?: {
+        url: string;
+        note?: string;
+        side?: string;
+      }[];
+    };
+  };
+
+  if (!claimId) {
+    return res.status(400).json({ ok: false, message: "claim_id is required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 🟢 1) ดึง user_id และ resubmitted_history เดิม
+    const { rows } = await client.query(
+      `SELECT user_id, resubmitted_history, accident_detail_id
+       FROM claim_requests WHERE id = $1`,
+      [claimId]
+    );
+
+    if (rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ ok: false, message: "ไม่พบข้อมูลการเคลม" });
+    }
+
+    const userId = rows[0].user_id;
+    const accidentDetailId = rows[0].accident_detail_id;
+    const prevHistory = Array.isArray(rows[0].resubmitted_history)
+      ? rows[0].resubmitted_history
+      : [];
+
+    // 🟢 2) ถ้ามี accident ใหม่จากผู้ใช้ → อัปเดต accident_details
+    if (accident) {
+      const accTime = /^\d{2}:\d{2}(:\d{2})?$/.test(accident.time)
+        ? (accident.time.length === 5 ? `${accident.time}:00` : accident.time)
+        : "00:00:00";
+
+      await client.query(
+        `
+        UPDATE accident_details
+        SET
+          accident_type = $1,
+          accident_date = $2,
+          accident_time = $3,
+          province = $4,
+          district = $5,
+          road = $6,
+          area_type = $7,
+          nearby = $8,
+          details = $9,
+          latitude = $10,
+          longitude = $11,
+          accuracy = $12,
+          file_url = $13,
+          media_type = $14,
+          updated_at = NOW()
+        WHERE id = $15
+        `,
+        [
+          accident.accidentType,
+          accident.date,
+          accTime,
+          accident.province ?? null,
+          accident.district ?? null,
+          accident.road ?? null,
+          accident.areaType,
+          accident.nearby ?? null,
+          accident.details ?? null,
+          accident.location?.lat ?? null,
+          accident.location?.lng ?? null,
+          accident.location?.accuracy ?? null,
+          accident.evidenceMedia?.[0]?.url ?? null,
+          accident.evidenceMedia?.[0]?.type ?? null,
+          accidentDetailId,
+        ]
+      );
+
+      // 🟢 ลบรูปเก่าของเคลมนี้ก่อน insert ใหม่
+      await client.query(`DELETE FROM evaluation_images WHERE claim_id = $1`, [claimId]);
+
+      const damagePhotos = Array.isArray(accident.damagePhotos)
+        ? accident.damagePhotos
+        : [];
+
+      for (const p of damagePhotos) {
+        if (!p?.url) continue;
+        await client.query(
+          `
+          INSERT INTO evaluation_images (claim_id, original_url, damage_note, side, created_at)
+          VALUES ($1, $2, $3, $4, NOW())
+          `,
+          [claimId, p.url, p.note ?? null, p.side ?? "ไม่ระบุ"]
+        );
+      }
+    }
+
+    // 🟢 3) เพิ่มประวัติ resubmitted_history และตั้งสถานะกลับเป็น pending
+    const newRecord = {
+      time: dayjs().tz("Asia/Bangkok").format(),
+      note: note || "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
+    };
+
+    await client.query(
+      `
+      UPDATE claim_requests
+      SET
+        status = 'pending',
+        resubmitted_history = $1::jsonb,
+        updated_at = NOW()
+      WHERE id = $2
+      `,
+      [JSON.stringify([...prevHistory, newRecord]), claimId]
+    );
+
+    // 🟢 4) แจ้งเตือนผู้ใช้และแอดมิน
+   await client.query(
+  `
+  INSERT INTO notifications (user_id, title, message, type, link_to)
+  VALUES 
+    ($1, 'ส่งเอกสารแก้ไขเรียบร้อย ',
+     'คุณได้ส่งคำขอเคลมหมายเลข #' || $2 || ' กลับมาให้เจ้าหน้าที่ตรวจสอบอีกครั้ง',
+     'claim', '/reports/' || $2)
+  `,
+  [userId, claimId]
+);
+
+    await client.query("COMMIT");
+
+    return res.json({
+      ok: true,
+      message: "อัปเดตเอกสารและบันทึกการส่งกลับสำเร็จ",
+      claim_id: claimId,
+      accident_detail_id: accidentDetailId,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("❌ resubmit error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
+  } finally {
+    client.release();
+  }
+});
+
 
 
 export default router;

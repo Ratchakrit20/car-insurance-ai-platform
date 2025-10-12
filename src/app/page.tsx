@@ -13,7 +13,6 @@ const interFont = Inter({
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
-
 const thaiFont = Noto_Sans_Thai({
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
@@ -37,12 +36,14 @@ import {
 
 /** เรียก /api/me เพื่อรู้ user.id จาก server component */
 async function getMe(token: string): Promise<{ id: number; citizen_id?: string } | null> {
+
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
       headers: { Cookie: `token=${token}` },
       cache: "no-store",
     });
     if (!res.ok) return null;
+
     const json = await res.json();
     const id = Number(json?.user?.id ?? json?.user_id);
     const citizen_id = json?.user?.citizen_id ?? json?.citizen_id;
@@ -238,7 +239,7 @@ export default async function Page() {
             ตัวอย่างการเคลม
           </h2>
 
-          
+
         </section>
 
       </div>

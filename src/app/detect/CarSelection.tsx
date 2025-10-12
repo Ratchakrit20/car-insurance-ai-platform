@@ -37,7 +37,10 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
   );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
+useEffect(() => {
+    // ✅ ล้างข้อมูลทุกครั้งที่เข้าหน้าเริ่มสร้างเคลม
+    localStorage.removeItem("accidentDraft");
+  }, []);
   useEffect(() => {
     const fetchPolicies = async () => {
       if (!citizenId) {

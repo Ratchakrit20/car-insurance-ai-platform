@@ -62,9 +62,9 @@ export default function PolicyCard({
       {/* header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex text-black  items-center gap-2">
             <ShieldCheck size={18} />
-            <h4 className="font-semibold break-all">{p.policy_number}</h4>
+            <h4 className="font-semibold text-black break-all">{p.policy_number}</h4>
           </div>
           <div className="text-xs text-zinc-500 mt-1 sm:mt-0">{p.insurance_company}</div>
         </div>
@@ -83,7 +83,7 @@ export default function PolicyCard({
       </div>
 
       {/* body */}
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3  text-black text-sm">
         <InfoRow icon={<Hash size={14} />} labelText="ผู้เอาประกัน" value={p.insured_name} />
         <InfoRow icon={<Hash size={14} />} labelText="เลขบัตรประชาชน" value={p.citizen_id} />
         <InfoRow icon={<Hash size={14} />} labelText="บริษัทประกัน" value={p.insurance_company} />

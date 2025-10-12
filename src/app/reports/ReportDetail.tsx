@@ -6,7 +6,7 @@ import ClaimTimeline from "../components/ClaimTimeline";
 import PrintClaimButton from "../components/PrintClaim";
 import MapPreview from "../components/MapPreview";
 import EvidenceGallery from "../components/EvidenceGallery";
-import { useRouter } from "next/navigation";
+import { mapClaimData } from "./ClaimReportPreview";
 
 type MediaItem = { url: string; type?: "image" | "video"; publicId?: string };
 
@@ -19,8 +19,10 @@ function thDateTime(iso?: string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
+    hour12: false,
+  }) + " น.";
 }
+
 function isVideoUrl(url: string) {
   const u = url.toLowerCase();
   return (
@@ -30,6 +32,7 @@ function isVideoUrl(url: string) {
     u.includes("video/upload")
   );
 }
+
 function normalizeMediaItem<T extends { url: string; type?: "image" | "video" }>(
   m: string | T
 ): T {
@@ -53,14 +56,10 @@ const statusChip: Record<ClaimStatus, string> = {
 export default function ReportDetail({
   claim,
   onOpenPdf,
-  onDetail,
 }: {
   claim: ClaimItem;
   onOpenPdf: () => void;
-  onDetail?: () => void;
 }) {
-  const router = useRouter();
-  console.log("🧩 item.incomplete_history =>", claim.incomplete_history);
   const evidenceList: (string | MediaItem)[] = useMemo(() => {
     if (!claim) return [];
     if (
@@ -72,12 +71,14 @@ export default function ReportDetail({
     return [];
   }, [claim]);
 
+  const mapped = mapClaimData(claim);
+
   return (
-    <div className="rounded-[8px] bg-[#F3F0FF] p-4 shadow-inner mb-30">
+    <div className="rounded-[8px] bg-[#F3F0FF] p-4 shadow-inner">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-black bg-white px-3 py-1 rounded-md shadow-sm">
-          {claim.carTitle} · {claim.selected_car_id}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-base font-semibold text-black bg-white px-4 py-2 rounded-md shadow-sm">
+          {claim.car_brand} {claim.car_model} ทะเบียน {claim.license_plate} · {claim.selected_car_id}
         </h2>
         <div className="flex items-center gap-2">
           <span
@@ -89,100 +90,121 @@ export default function ReportDetail({
         </div>
       </div>
 
-      {/* Content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-black">
-        {/* ซ้าย (2/3) */}
+      {/* Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-black sm:mb-40">
+        {/* Left 2/3 */}
         <div className="lg:col-span-2 space-y-4">
-          {/* ภาพถ่ายความเสียหาย */}
-          <div className="rounded-lg bg-white p-4 shadow-sm">
-            <h3 className="mb-2 font-semibold text-violet-700">ภาพถ่ายความเสียหาย</h3>
+          {/* ภาพความเสียหาย */}
+          <div className="rounded-lg bg-white p-4 shadow">
+            <h3 className="mb-2 font-semibold text-violet-700">
+              ภาพถ่ายความเสียหาย
+            </h3>
             <EvidenceGallery media={claim.damagePhotos ?? []} />
           </div>
 
+
+
           {/* รายละเอียดเหตุการณ์ + สถานที่ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* รายละเอียดเหตุการณ์ */}
-            <div className="rounded-lg bg-white p-4 text-sm shadow-sm">
-              <h3 className="mb-3 font-semibold text-violet-700">รายละเอียดเหตุการณ์</h3>
-              <dl className="space-y-2">
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-violet-100 transition hover:shadow-md">
+              <h3 className="mb-4 font-semibold text-violet-700 text-base">
+                รายละเอียดเหตุการณ์
+              </h3>
+              <dl className="space-y-4 text-[15px] text-zinc-800">
                 <div>
-                  <dt className="font-medium">ประเภทอุบัติเหตุ:</dt>
-                  <dd>{claim.incidentType ?? "-"}</dd>
+                  <dt className="font-medium text-black mb-1">ประเภทอุบัติเหตุ</dt>
+                  <dd className="pl-2 text-zinc-600">{claim.incidentType ?? "-"}</dd>
                 </div>
+
                 <div>
-                  <dt className="font-medium">รายละเอียดเหตุการณ์:</dt>
-                  <dd className="whitespace-pre-wrap">{claim.details ?? "-"}</dd>
+                  <dt className="font-medium text-black mb-1">รายละเอียดเหตุการณ์</dt>
+                  <dd className="pl-2 text-zinc-600 whitespace-pre-wrap">
+                    {claim.details ?? "-"}
+                  </dd>
                 </div>
               </dl>
             </div>
 
             {/* รายละเอียดสถานที่ */}
-            <div className="rounded-lg bg-white p-4 text-sm shadow-sm">
-              <h3 className="mb-3 font-semibold text-violet-700">รายละเอียดสถานที่</h3>
-              <dl className="space-y-2">
-                <div>
-                  <dt className="font-medium">วัน/เวลา:</dt>
-                  <dd>
-                    {thDateTime(claim.incidentDate)} {claim.incidentTime ?? ""}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-medium">สถานที่:</dt>
-                  <dd>
-                    {claim.province ?? "-"} {claim.district ?? ""} {claim.road ?? ""}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-medium">ประเภทพื้นที่:</dt>
-                  <dd>{claim.areaType ?? "-"}</dd>
-                </div>
-              </dl>
-            </div>
-          </div>
+            <div className="rounded-xl bg-white p-5 shadow-sm border border-violet-100 transition hover:shadow-md">
+              <h3 className="mb-4 font-semibold text-violet-700 text-base">
+                รายละเอียดสถานที่
+              </h3>
+                 <dt className="font-medium text-black mb-1">เวลาที่เกิดเหตุ</dt>
+              <dd className="pl-2 text-zinc-600">
+           
 
-          {/* หลักฐานภาพ/วิดีโอ */}
-          {evidenceList.length > 0 && (
-            <div className="rounded-lg bg-white p-4 shadow-sm">
-              <h3 className="mb-2 font-semibold text-violet-700">ภาพหลักฐาน</h3>
-              <EvidenceGallery media={evidenceList} />
-            </div>
+                {(() => {
+                  const dateTime = claim.incidentTime
+                    ? `${claim.incidentDate.split("T")[0]}T${claim.incidentTime}`
+                    : claim.incidentDate;
+                  return thDateTime(dateTime);
+                })()}
+              </dd>
+
+              <div>
+                <dt className="font-medium text-black mb-1">สถานที่</dt>
+                <dd className="pl-2 text-zinc-600">
+                  {claim.province ?? "-"} {claim.district ?? ""} {claim.road ?? ""}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="font-medium text-black mb-1">ประเภทพื้นที่</dt>
+                <dd className="pl-2 text-zinc-600">{claim.areaType ?? "-"}</dd>
+              </div>
+            
+          </div>
+        </div>
+
+
+
+        {/* ตำแหน่งที่เกิดเหตุ */}
+        <div className="rounded-lg bg-white p-4 shadow">
+          <h3 className="mb-2 font-semibold text-violet-700">
+            ตำแหน่งที่เกิดเหตุ
+          </h3>
+          {claim.location?.lat && claim.location?.lng ? (
+            <MapPreview lat={claim.location.lat} lng={claim.location.lng} />
+          ) : (
+            <div className="text-sm text-zinc-500">ไม่มีข้อมูลตำแหน่ง</div>
           )}
         </div>
 
-        {/* ขวา (1/3) */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Timeline */}
-          <div className="rounded-lg bg-white p-4 shadow-sm">
-            <h3 className="mb-2 font-semibold text-violet-700">สถานะเคลม</h3>
-            <ClaimTimeline
-              claimId={claim.id}
-              status={claim.status}
-              created_at={claim.created_at}
-              updated_at={claim.updated_at}
-              approved_at={claim.approved_at}
-              rejected_at={claim.rejected_at}
-              incomplete_at={claim.incomplete_at}
-              admin_note={claim.admin_note}
-              incomplete_history={claim.incomplete_history || []}
-              resubmitted_history={claim.resubmitted_history || []}
-              onOpenPdf={onOpenPdf}
-
-            />
-
+        {/* ภาพหลักฐาน */}
+        {evidenceList.length > 0 && (
+          <div className="rounded-lg bg-white p-4 shadow">
+            <h3 className="mb-2 font-semibold text-violet-700">
+              ภาพหลักฐาน
+            </h3>
+            <EvidenceGallery media={evidenceList} />
           </div>
+        )}
+      </div>
 
-          {/* Map */}
-          <div className="rounded-lg bg-white p-4 shadow-sm">
-            <h3 className="mb-2 font-semibold text-violet-700">ตำแหน่งที่เกิดเหตุ</h3>
-            {claim.location?.lat && claim.location?.lng ? (
-              <MapPreview lat={claim.location.lat} lng={claim.location.lng} />
-            ) : (
-              <div className="text-sm text-zinc-500">ไม่มีข้อมูลตำแหน่ง</div>
-            )}
-          </div>
+      {/* Right 1/3 */}
+      <div className="lg:col-span-1 space-y-4">
+        {/* Timeline */}
+        <div className="rounded-lg bg-white p-4 shadow">
+          <h3 className="mb-2 font-semibold text-violet-700">สถานะเคลม</h3>
+          <ClaimTimeline
+            claimId={claim.id.toString()}
+            status={claim.status}
+            created_at={claim.created_at}
+            approved_at={claim.approved_at}
+            rejected_at={claim.rejected_at}
+            incomplete_at={claim.incomplete_at}
+            admin_note={claim.admin_note}
+            incomplete_history={claim.incomplete_history || []}
+            resubmitted_history={claim.resubmitted_history || []}
+            car={mapped.car}
+            draft={mapped.draft}
+            onOpenPdf={onOpenPdf}
+          />
         </div>
       </div>
     </div>
-
+    </div >
   );
 }

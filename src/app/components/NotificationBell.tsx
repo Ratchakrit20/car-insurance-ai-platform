@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Notification = {
   id: number;
@@ -15,6 +16,7 @@ type Notification = {
 export default function NotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/notifications/${userId}`)
@@ -53,7 +55,18 @@ export default function NotificationBell({ userId }: { userId: string }) {
                   n.is_read ? "opacity-70" : ""
                 }`}
                 onClick={() => {
-                  if (n.link_to) window.location.href = n.link_to;
+                  if (n.link_to) {
+                    let link = n.link_to.startsWith("/")
+                      ? n.link_to
+                      : `/${n.link_to}`;
+
+                    if (link.startsWith("/reports/")) {
+                      const id = link.split("/reports/")[1];
+                      link = `/reports?claim_id=${id}`;
+                    }
+
+                    window.location.href = link;
+                  }
                 }}
               >
                 <div className="font-medium text-zinc-800">{n.title}</div>

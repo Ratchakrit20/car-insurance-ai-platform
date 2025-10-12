@@ -25,7 +25,7 @@ export default function PoliciesGrid({
         <div className="mt-6 flex justify-center">
           <button
             onClick={onRefresh}
-            className="rounded-2xl px-4 py-2 text-sm ring-1 ring-indigo-200 hover:bg-indigo-50"
+            className="rounded-2xl px-4 py-2 text-sm text-black ring-1 ring-indigo-200 hover:bg-indigo-50"
           >
             รีเฟรชรายการกรมธรรม์
           </button>

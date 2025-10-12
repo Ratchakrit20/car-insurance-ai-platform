@@ -34,15 +34,15 @@ function UserSummary({ user }: { user: User }) {
     <div className="rounded-2xl ring-1 ring-emerald-200/60 bg-white shadow-sm p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold">{user.name}</h2>
-          <div className="text-xs text-zinc-500">Customer</div>
+          <h2 className="text-lg sm:text-xl text-black font-semibold">{user.name}</h2>
+          <div className="text-xs text-black">Customer</div>
         </div>
-        <div className="hidden sm:flex items-center text-xs text-zinc-500 gap-1">
+        <div className="hidden sm:flex items-center text-xs text-black gap-1">
           <span>Created</span>
           <span className="font-medium">{thDate(user.created_at)}</span>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-black gap-3">
         <InfoRow icon={<Hash size={14} />} labelText="Citizen ID" value={user.citizen_id} />
         <InfoRow icon={<CarIcon size={14} />} labelText="Phone" value={user.phone_number || "-"} />
         <InfoRow icon={<CarIcon size={14} />} labelText="Email" value={user.email || "-"} />
@@ -161,17 +161,18 @@ export default function CustomerPoliciesPage() {
   const count = policies.length;
 
   return (
+     <div className="min-h-screen w-full bg-white">
     <div className="mx-auto w-full max-w-6xl p-3 sm:p-6">
       {/* Header bar */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push("/adminpage/customers")}
-            className="h-10 rounded-2xl px-3 ring-1 ring-zinc-300 hover:bg-zinc-50 inline-flex items-center gap-2 text-sm"
+            className="h-10 rounded-2xl text-black px-3 ring-1 ring-zinc-300 hover:bg-zinc-50 inline-flex items-center gap-2 text-sm"
           >
             <ArrowLeft size={16} /> กลับ
           </button>
-          <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl text-black font-semibold flex items-center gap-2">
             <ShieldCheck size={20} /> กรมธรรม์ของลูกค้า
             {user && (
               <span className="ml-1 inline-flex items-center justify-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-emerald-200 min-w-[1.75rem]">
@@ -219,5 +220,6 @@ export default function CustomerPoliciesPage() {
         </>
       )}
     </div>
+     </div>
   );
 }

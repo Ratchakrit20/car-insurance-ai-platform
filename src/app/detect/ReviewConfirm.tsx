@@ -1,7 +1,6 @@
-// components/ReviewConfirm.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import EvidenceGallery from "../components/EvidenceGallery";
 import MapPreview from "../components/MapPreview";
 // ---------- Types ----------
@@ -119,14 +118,14 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
       return null;
     }
   }, []);
-
-  const draft: AccidentDraft | null = useMemo(() => {
+  const [draft, setDraft] = useState<AccidentDraft | null>(null);
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(ACC_KEY);
-      console.log("🚗 Raw draft(ACC_KEY) from localStorage:", raw);
-      return raw ? JSON.parse(raw) : null;
+      console.log("🚗 โหลด accidentDraft:", raw);
+      setDraft(raw ? JSON.parse(raw) : null);
     } catch {
-      return null;
+      setDraft(null);
     }
   }, []);
   const claimStatus = normalizeStatus((draft as any)?.status);
@@ -161,21 +160,27 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
   }, [draft?.damagePhotos]);
 
   const handleSubmit = async () => {
+
     if (!agree || !car || !draft) return;
 
     setSubmitting(true);
     try {
       const claimId = (draft as any)?.claim_id ?? null;
+      const claimStatus = normalizeStatus((draft as any)?.status);
 
       let url = "";
-      let method: "POST" | "PUT" = "POST";
+      let method: "POST" | "PUT" | "PATCH" = "POST";
 
       if (claimId && claimStatus === "incomplete") {
-        // ✅ เคสเก่า incomplete → update
+        // ✅ ถ้าเคยถูกแจ้งให้แก้ไข → ใช้ endpoint resubmit ใหม่
+        url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/${claimId}/resubmit`;
+        method = "PATCH";
+      } else if (claimId) {
+        // ✅ ถ้ามี claimId แต่ไม่ใช่ incomplete (กรณี edit draft อื่น ๆ)
         url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-submit/update/${claimId}`;
         method = "PUT";
       } else {
-        // ✅ เคสใหม่ → create
+        // ✅ เคสใหม่ → สร้างเคลมใหม่
         url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-submit/submit`;
         method = "POST";
       }
@@ -184,13 +189,20 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         ...draft,
         date: draft.accident_date,
         time: draft.accident_time,
-        areaType: draft.areaType,  // ✅ map เป็น snake_case ให้ backend
+        areaType: draft.areaType,
       };
-
-      // ลบ field ที่ frontend ใช้เองออกกันสับสน
       delete (accidentPayload as any).accident_date;
       delete (accidentPayload as any).accident_time;
+
       console.log("📤 Accident payload:", accidentPayload);
+      console.log("✅ กำลังส่งข้อมูลแก้ไขใหม่:", {
+        accident_date: draft.accident_date,
+        accident_time: draft.accident_time,
+        province: draft.province,
+        district: draft.district,
+        road: draft.road,
+        details: draft.details,
+      });
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -198,11 +210,12 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         body: JSON.stringify({
           user_id: userId,
           selected_car_id: car.id,
-          accident: accidentPayload,   // ✅ ส่ง field ตามที่ backend รอรับ
+          accident: accidentPayload,
           agreed: agree,
-          status: claimStatus,
+          note: "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
         }),
       });
+
       const data = await res.json();
       if (!res.ok || !data?.ok) {
         alert(data?.message || "ส่งคำขอไม่สำเร็จ");
@@ -262,7 +275,7 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         </div>
 
         {/* ขวา: รูปรถ */}
-        <div className="rounded-[7px] h-[15opxaaaaaaaaaa] flex items-center justify-center">
+        <div className="rounded-[7px] h-[180px] flex items-center justify-center">
           <img
             src={car.car_path}
             alt="Car"
@@ -316,82 +329,24 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         {/* ขวา: ความเสียหาย */}
         <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
           <h2 className="font-semibold mb-3">รูปความเสียหาย</h2>
+
           {/* รูปความเสียหาย */}
-          {damageList.length > 0 && (
-            <section className="mt-6">
+          {damageList.length > 0 ? (
+            <div className="mt-4">
+              <EvidenceGallery
+                media={damageList.map((d) => ({
+                  url: d.url,
+                  type: d.type,
+                  caption: `ด้าน: ${d.side ?? "ไม่ระบุ"}${d.total ? ` · รวม ${d.total} ตำแหน่ง` : ""}`,
+                  note: d.note || "", // ✅ เพิ่ม note ของแต่ละรูป
+                }))}
+              />
 
-
-              <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-                {damageList.map((d, idx) => {
-                  const classes = topClasses(d.perClass, 5);
-                  const hasNote = !!(d.note && d.note.trim().length > 0);
-
-                  return (
-                    <div
-                      key={`${d.publicId || d.url}-${idx}`}
-                      className="relative overflow-hidden rounded-xl ring-1 ring-zinc-200/70 bg-zinc-50"
-                    >
-                      <div className="aspect-video w-full bg-black/5">
-                        {d.type === "video" ? (
-                          <video
-                            src={d.url}
-                            controls
-                            className="h-full w-full object-cover"
-                            preload="metadata"
-                          />
-                        ) : (
-                          <img
-                            src={d.url}
-                            alt={`damage-${idx}`}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        )}
-                      </div>
-
-                      {/* Badges มุมบนซ้าย */}
-                      <div className="absolute left-2 top-2 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-zinc-900/80 text-white text-xs px-2 py-1">
-                          ด้าน: {formatSide(d.side)}
-                        </span>
-                        {d.total !== undefined && d.total !== null && (
-                          <span className="rounded-full bg-indigo-600 text-white text-xs px-2 py-1">
-                            รวม: {d.total} ตำแหน่ง
-                          </span>
-                        )}
-                      </div>
-
-                      {/* รายละเอียดความเสียหาย */}
-                      <div className="p-3 space-y-2">
-                        {/* {classes.length > 0 ? (
-                          <div className="space-y-1">
-                            <div className="text-xs text-zinc-500">ความเสียหายที่ตรวจพบ</div>
-                            <ul className="text-sm">
-                              {classes.map(([name, score]) => (
-                                <li key={name} className="flex items-center justify-between py-0.5">
-                                  <span className="truncate">{toTHDamage(name)}</span>
-                                  <span className="ml-3 tabular-nums text-zinc-600">{score} ตำแหน่ง</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-zinc-500">ไม่มีข้อมูลจำแนกความเสียหาย</div>
-                        )} */}
-
-                        {hasNote && (
-                          <div className="text-sm">
-                            <div className="text-xs text-zinc-500">รายระเอียดความเสียหาย</div>
-                            <div className="whitespace-pre-wrap">{d.note}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+            </div>
+          ) : (
+            <div className="text-sm text-zinc-500">ไม่มีข้อมูลรูปความเสียหาย</div>
           )}
+
 
         </div>
       </div>
@@ -419,19 +374,18 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         <button
           onClick={handleSubmit}
           disabled={!agree || submitting}
-          className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${
-            submitting
-              ? "bg-gray-400 cursor-not-allowed"
-              : agree
+          className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${submitting
+            ? "bg-gray-400 cursor-not-allowed"
+            : agree
               ? "bg-[#6F47E4] hover:bg-[#5A35D1]"
               : "bg-gray-400 cursor-not-allowed"
-          }`}
+            }`}
         >
           {submitting
             ? "กำลังส่ง..."
             : claimStatus === "incomplete"
-            ? "ยืนยันการแก้ไข"
-            : "ยืนยันส่งเรื่อง"}
+              ? "ยืนยันการแก้ไข"
+              : "ยืนยันส่งเรื่อง"}
         </button>
       </div>
     </div>

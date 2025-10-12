@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
+const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
+const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 type Img = {
   url: string;
   side?: string;
@@ -113,7 +120,8 @@ export default function ImageList({
 
 
   return (
-    <div className="rounded-3xl bg-white ring-1 ring-zinc-200 shadow-sm p-3">
+        <div className={`${thaiFont.className} rounded-[8px] bg-white ring-1 ring-zinc-200 shadow-sm p-3`}>
+
       <div className="mb-2 text-sm font-medium text-zinc-700">รายการรูปภาพ</div>
 
       <div className="space-y-2 max-h-72 sm:max-h-[60vh] overflow-auto p-1">
@@ -127,7 +135,7 @@ export default function ImageList({
             <button
               key={i}
               onClick={() => onSelect(i)}
-              className={`w-full flex items-center gap-3 rounded-2xl p-2 ring-1 transition
+              className={`w-full flex items-center gap-3 rounded-[8px] p-2 ring-1 transition
                 ${
                   i === activeIndex
                     ? "bg-emerald-50 ring-emerald-200"
@@ -170,23 +178,23 @@ export default function ImageList({
       {/* ปุ่มเปิด modal “รูปภาพไม่ชัด” */}
       <button
         onClick={() => setShowIncomplete(true)}
-        className="mt-3 h-11 w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 
+        className="mt-3 h-11 w-full rounded-[8px] bg-gradient-to-r from-red-500 to-red-600 
                   text-sm font-semibold text-white shadow-md 
                   hover:from-red-600 hover:to-red-700 
                   focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
       >
-        🚫 รูปภาพไม่ชัด
+        รูปภาพไม่ชัด
       </button>
 
       {/* ปุ่มย้อนกลับ */}
       <button
-        className="mt-3 w-full h-11 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600
+        className="mt-3 w-full h-11 rounded-[8px] bg-gradient-to-r from-indigo-500 to-indigo-600
                   text-sm font-semibold text-white shadow-md 
                   hover:from-indigo-600 hover:to-indigo-700 
                   focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1"
         onClick={onBack}
       >
-        ⬅️ ย้อนกลับ
+         ย้อนกลับ
       </button>
 
       {/* Modal: ข้อมูลไม่ครบ */}

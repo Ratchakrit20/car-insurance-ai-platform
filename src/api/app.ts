@@ -11,6 +11,7 @@ import imageAnnotationsRouter from "./routes/imageannotations.routes";
 import customersRouter from "./routes/customers.routes";
 import adminRouter from "./routes/admin.routes";
 import notificationRoutes from "./routes/notifications.routes";
+import customerCarsRoutes from "./routes/customerCars.routes";
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser()); // ✅ ใช้งาน cookie-parser
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/customer-cars", customerCarsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', meRoutes); // ✅ me route
 app.use('/api/policy', policyRoutes); // ✅ policy route

@@ -1,5 +1,12 @@
 "use client";
-
+import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
+const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
+const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 export default function InspectHeader(props: {
   claimId: string;
   title: string;
@@ -9,10 +16,9 @@ export default function InspectHeader(props: {
   const { claimId, title, accidentType, accidentDate } = props;
   return (
     <header className="mb-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 ring-1 ring-amber-300">
-          🛠️
-        </div>
+
+      <div className={`${thaiFont.className} flex items-start gap-3`}>
+
         <div>
           <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
             ตรวจสอบความเสียหาย
@@ -22,7 +28,7 @@ export default function InspectHeader(props: {
           </p>
         </div>
       </div>
-      <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
+      <div className="mt-4 h-px w-full bg-white" />
     </header>
   );
 }

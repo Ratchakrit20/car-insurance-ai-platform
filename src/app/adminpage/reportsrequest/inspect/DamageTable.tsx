@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { Annotation } from "@/types/claim";
-
+import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
+const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
+const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 /* ===== ตัวเลือกภาษาไทยล้วน ===== */
 const DAMAGE_THAI = ["ร้าว","บุบ","กระจกแตก","ไฟแตก","ขีดข่วน","ยางแบน"];
 const PART_THAI = [
@@ -79,7 +86,9 @@ export default function DamageTable({
 
 
   return (
-    <div className="mt-4 rounded-3xl bg-white ring-1 ring-zinc-200 shadow-sm p-4 sm:p-5 lg:p-6">
+        <div className={`${thaiFont.className} mt-4 rounded-[8px] bg-white ring-1 ring-zinc-200 shadow-sm p-4 sm:p-5 lg:p-6`}>
+
+
       {/* header (≥ md) */}
       <div className="mb-3 hidden md:grid grid-cols-12 items-center text-xs text-zinc-500">
         <div className="col-span-1 pl-1">สี</div>
@@ -90,7 +99,7 @@ export default function DamageTable({
 
       <div className="space-y-3">
         {boxes.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-zinc-200 p-6 text-center text-zinc-500">
+          <div className="rounded-[8px] border border-dashed border-zinc-200 p-6 text-center text-zinc-500">
             ยังไม่มีจุดความเสียหาย
           </div>
         )}
@@ -112,12 +121,12 @@ export default function DamageTable({
           };
 
           return (
-            <div key={b.id} className="rounded-2xl ring-1 ring-zinc-200 bg-white p-3 sm:p-4">
+            <div key={b.id} className="rounded-[8px] ring-1 ring-zinc-200 bg-white p-3  text-black sm:p-4">
               <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-center">
                 {/* สี */}
                 <div className="col-span-12 md:col-span-1">
                   <span
-                    className="inline-block h-4 w-4 rounded ring-1 ring-zinc-300"
+                    className="inline-block h-4 w-4 rounded-full ring-1 ring-zinc-300"
                     style={{ backgroundColor: b.color }}
                   />
                 </div>

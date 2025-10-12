@@ -104,31 +104,33 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   const [uploading, setUploading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [dragOver, setDragOver] = useState(false);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
+  useEffect(() => {
+    setPreviewLoaded(false);
+  }, [evidenceFiles, selectedIndex]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ACC_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        setAccidentType(draft.accidentType ?? "ชนสัตว์");
+        setDetails(draft.details ?? "");
 
+        // ✅ เติมค่าที่หายไป (normalize data)
+        const normalized = (draft.evidenceMedia ?? []).map((f: any, i: number) => ({
+          url: f.url,
+          type: f.type ?? "image",
+          publicId: f.publicId ?? "",
+          name: f.name ?? `ไฟล์ที่-${i + 1}`,
+          progress: f.progress ?? 100, // ถือว่าอัปโหลดเสร็จแล้ว
+        }));
 
- useEffect(() => {
-  try {
-    const raw = localStorage.getItem(ACC_KEY);
-    if (raw) {
-      const draft = JSON.parse(raw);
-      setAccidentType(draft.accidentType ?? "ชนสัตว์");
-      setDetails(draft.details ?? "");
-
-      // ✅ เติมค่าที่หายไป (normalize data)
-      const normalized = (draft.evidenceMedia ?? []).map((f: any, i: number) => ({
-        url: f.url,
-        type: f.type ?? "image",
-        publicId: f.publicId ?? "",
-        name: f.name ?? `ไฟล์ที่-${i + 1}`,
-        progress: f.progress ?? 100, // ถือว่าอัปโหลดเสร็จแล้ว
-      }));
-
-      setEvidenceFiles(normalized);
+        setEvidenceFiles(normalized);
+      }
+    } catch (e) {
+      console.warn("load accident draft failed", e);
     }
-  } catch (e) {
-    console.warn("load accident draft failed", e);
-  }
-}, []);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,76 +145,78 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     onNext();
   };
 
- const handleFilesUpload = async (files: File[]) => {
-  // ✅ ใช้ Promise.all เพื่ออัปโหลดหลายไฟล์พร้อมกัน
-  const uploads = files.map((file, i) => {
-    const temp: EvidenceFile = {
-      url: "",
-      type: file.type.startsWith("video/") ? "video" : "image",
-      publicId: "",
-      name: file.name,
-      progress: 0,
-    };
+  const handleFilesUpload = async (files: File[]) => {
+    // ✅ ใช้ Promise.all เพื่ออัปโหลดหลายไฟล์พร้อมกัน
+    const uploads = files.map((file, i) => {
+      const temp: EvidenceFile = {
+        url: "",
+        type: file.type.startsWith("video/") ? "video" : "image",
+        publicId: "",
+        name: file.name,
+        progress: 0,
+      };
 
-    // ✅ เพิ่ม temp เข้า state ก่อน เพื่อให้เห็น progress ทุกภาพ
-    let currentIndex = -1;
-    setEvidenceFiles((prev) => {
-      const newArr = [...prev, temp];
-      currentIndex = newArr.length - 1; // index ของภาพนี้
-      return newArr;
+      // ✅ เพิ่ม temp เข้า state ก่อน เพื่อให้เห็น progress ทุกภาพ
+      let currentIndex = -1;
+      setEvidenceFiles((prev) => {
+        const newArr = [...prev, temp];
+        currentIndex = newArr.length - 1; // index ของภาพนี้
+        return newArr;
+      });
+
+      // ✅ เริ่มอัปโหลด Cloudinary
+      return uploadToCloudinary(file, (p) => {
+        // อัปเดต progress แบบเรียลไทม์
+        setEvidenceFiles((prev) =>
+          prev.map((f, idx) =>
+            idx === currentIndex ? { ...f, progress: p } : f
+          )
+        );
+      })
+        .then((uploaded) => {
+          // ✅ แทนค่าใหม่เมื่ออัปโหลดเสร็จ
+          setEvidenceFiles((prev) =>
+            prev.map((f, idx) =>
+              idx === currentIndex
+                ? { ...uploaded, name: file.name, progress: 100 }
+                : f
+            )
+          );
+
+          // ✅ เลือกภาพล่าสุดอัตโนมัติ
+          setSelectedIndex(currentIndex);
+        })
+        .catch((err) => {
+          console.error("upload error", err);
+          // ❌ ถ้าอัปโหลด fail → แสดงว่า fail
+          setEvidenceFiles((prev) =>
+            prev.map((f, idx) =>
+              idx === currentIndex
+                ? { ...f, progress: 0, name: file.name }
+                : f
+            )
+          );
+        });
     });
 
-    // ✅ เริ่มอัปโหลด Cloudinary
-    return uploadToCloudinary(file, (p) => {
-      // อัปเดต progress แบบเรียลไทม์
-      setEvidenceFiles((prev) =>
-        prev.map((f, idx) =>
-          idx === currentIndex ? { ...f, progress: p } : f
-        )
-      );
-    })
-      .then((uploaded) => {
-        // ✅ แทนค่าใหม่เมื่ออัปโหลดเสร็จ
-        setEvidenceFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === currentIndex
-              ? { ...uploaded, name: file.name, progress: 100 }
-              : f
-          )
-        );
-
-        // ✅ เลือกภาพล่าสุดอัตโนมัติ
-        setSelectedIndex(currentIndex);
-      })
-      .catch((err) => {
-        console.error("upload error", err);
-        // ❌ ถ้าอัปโหลด fail → แสดงว่า fail
-        setEvidenceFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === currentIndex
-              ? { ...f, progress: 0, name: file.name }
-              : f
-          )
-        );
-      });
-  });
-
-  // ✅ รอให้อัปโหลดทุกไฟล์เสร็จ (ไม่บังคับแต่ช่วยให้รอจบ)
-  await Promise.allSettled(uploads);
-};
+    // ✅ รอให้อัปโหลดทุกไฟล์เสร็จ (ไม่บังคับแต่ช่วยให้รอจบ)
+    await Promise.allSettled(uploads);
+  };
 
 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-     if (files.length > 0) {
+    if (files.length > 0) {
       handleFilesUpload(files);
     }
     // ✅ reset value เพื่อให้อัปโหลดไฟล์ชื่อซ้ำได้
     e.target.value = "";
   };
- const canProceed =
-    evidenceFiles.length > 0 && evidenceFiles.every((f) => f.progress === 100);
+  const canProceed =
+  evidenceFiles.length > 0 &&
+  evidenceFiles.every((f) => f.progress === 100) &&
+  previewLoaded; 
 
   const handleRemove = (i: number) => {
     const updated = evidenceFiles.filter((_, idx) => idx !== i);
@@ -305,8 +309,8 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
                         type="button"
                         onClick={() => handleRemove(i)}
                         className={` absolute top-1 right-1  rounded-[8px] transition ${isActive
-                            ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
-                            : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
+                          ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
+                          : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
                           }`}
                       >
                         <X className="w-4 h-4  " />
@@ -355,18 +359,25 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
             <div className="md:col-span-2 bg-zinc-50 rounded-lg p-3 flex items-center justify-center">
               {evidenceFiles[selectedIndex]?.url ? (
                 evidenceFiles[selectedIndex].type === "video" ? (
-                  <video src={evidenceFiles[selectedIndex].url} className="max-h-[360px] rounded" controls />
+                  <video
+                    src={evidenceFiles[selectedIndex].url}
+                    className="max-h-[360px] rounded"
+                    controls
+                    onCanPlayThrough={() => setPreviewLoaded(true)} // ✅ โหลดวิดีโอเสร็จ
+                  />
                 ) : (
                   <img
                     src={evidenceFiles[selectedIndex].url}
                     alt={evidenceFiles[selectedIndex].name}
                     className="max-h-[360px] rounded object-contain"
+                    onLoad={() => setPreviewLoaded(true)} // ✅ โหลดรูปเสร็จ
                   />
                 )
               ) : (
                 <p className="text-sm text-zinc-500">ไฟล์ยังไม่พร้อมแสดงผล</p>
               )}
             </div>
+
           </div>
         </div>
 
@@ -381,7 +392,7 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
               ย้อนกลับ
             </button>
           )}
-           <button
+          <button
             type="submit"
             disabled={!canProceed} // ✅ ถ้ายังอัปโหลดไม่เสร็จ หรือไม่มีไฟล์ → disable
             className={`w-full sm:w-auto rounded-[7px] px-6 py-2 font-medium 

@@ -2,7 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
-export type MediaItem = { url: string; type?: "image" | "video"; publicId?: string };
+export type MediaItem = {
+  url: string;
+  type?: "image" | "video";
+  publicId?: string;
+  caption?: string; // เช่น ด้าน: หน้า
+  note?: string; // รายละเอียดความเสียหาย
+};
 
 type Props = {
   media: (string | MediaItem)[];
@@ -24,12 +30,10 @@ const makeThumb = (url: string, w = 800) =>
 
 export default function EvidenceGallery({
   media,
-  title = "ภาพความเสียหาย",
   thumbWidth = 800,
   className = "",
 }: Props) {
   const items = useMemo(() => (media || []).map(asMediaItem), [media]);
-
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
 
@@ -54,81 +58,60 @@ export default function EvidenceGallery({
     return <div className="text-sm text-zinc-500">ไม่มีไฟล์แนบ</div>;
   }
 
-  // ภาพแรกใหญ่
-  const [first, ...rest] = items;
-
   return (
     <section className={className}>
-      <div className="grid grid-cols-2 gap-2">
-        {/* ซ้าย: ภาพใหญ่ */}
-        <button
-          type="button"
-          onClick={() => {
-            setIndex(0);
-            setOpen(true);
-          }}
-          className="relative col-span-1 row-span-2 overflow-hidden rounded-lg"
-        >
-          {isVideo(first) ? (
-            <video
-              src={first.url}
-              className="h-full w-full object-cover border-1 "
-              controls
-            />
-          ) : (
-            <img
-              src={makeThumb(first.url, thumbWidth)}
-              alt="main"
-              className="h-full w-full object-cover border-1"
-            />
-          )}
-        </button>
-
-        {/* ขวา: 4 ภาพเล็ก */}
-        <div className="grid grid-cols-2 gap-2 ">
-          {rest.slice(0, 4).map((m, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {items.map((m, i) => (
+          <div
+            key={i}
+            className="rounded-lg overflow-hidden shadow-sm ring-1 ring-zinc-200/70 bg-white hover:shadow-md transition"
+          >
             <button
               type="button"
-              key={i}
               onClick={() => {
-                setIndex(i + 1);
+                setIndex(i);
                 setOpen(true);
               }}
-              className="relative overflow-hidden rounded-lg"
+              className="relative w-full aspect-video block overflow-hidden group"
             >
               {isVideo(m) ? (
-                <video
-                  src={m.url}
-                  className="h-full w-full object-cover border-1"
-                  controls
-                />
+                <video src={m.url} className="h-full w-full object-cover" controls />
               ) : (
                 <img
                   src={makeThumb(m.url, thumbWidth)}
-                  alt={`thumb-${i}`}
-                  className="h-full w-full object-cover border-1"
+                  alt={`evidence-${i}`}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               )}
-
-              {/* overlay ถ้ามีเกิน 5 รูป */}
-              {i === 3 && rest.length > 4 && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-lg font-semibold">
-                  +{rest.length - 4}
+              {m.caption && (
+                <div className="absolute bottom-1 left-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
+                  {m.caption}
                 </div>
               )}
             </button>
-          ))}
-        </div>
+
+            {/* note ใต้ภาพ */}
+            {(m.caption || m.note) && (
+              <div className="p-2">
+                {m.note && (
+                  <p className="text-xs text-zinc-700 whitespace-pre-wrap leading-snug">
+                    <span className="font-medium text-zinc-800">รายละเอียด:</span> {m.note}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* modal viewer ของคุณ (เดิม) */}
+      {/* 🔍 Modal */}
       {open && items[index] && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 sm:p-8"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center"
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative mx-auto max-w-6xl w-full max-h-[90vh]"
+            className="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -138,39 +121,50 @@ export default function EvidenceGallery({
               ✕
             </button>
 
-            {/* arrows */}
             {items.length > 1 && (
               <>
                 <button
                   onClick={() => setIndex((i) => (i - 1 + items.length) % items.length)}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 px-3 py-2 text-white/90 hover:text-white"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 px-3 py-2 text-white/90 hover:text-white text-3xl"
                 >
                   ‹
                 </button>
                 <button
                   onClick={() => setIndex((i) => (i + 1) % items.length)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-2 text-white/90 hover:text-white"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-2 text-white/90 hover:text-white text-3xl"
                 >
                   ›
                 </button>
               </>
             )}
 
-            <div className="grid place-items-center">
-              {isVideo(items[index]) ? (
-                <video
-                  src={items[index].url}
-                  controls
-                  className="mx-auto max-h-[80vh] max-w-[90vw] object-contain rounded-lg"
-                />
-              ) : (
-                <img
-                  src={items[index].url}
-                  alt="evidence"
-                  className="mx-auto max-h-[80vh] max-w-[90vw] object-contain rounded-lg"
-                />
-              )}
-            </div>
+            {isVideo(items[index]) ? (
+              <video
+                src={items[index].url}
+                controls
+                className="mx-auto max-h-[80vh] max-w-[90vw] object-contain rounded-lg"
+              />
+            ) : (
+              <img
+                src={items[index].url}
+                alt="preview"
+                className="mx-auto max-h-[80vh] max-w-[90vw] object-contain rounded-lg"
+              />
+            )}
+
+            {/* caption + note ใน modal */}
+            {(items[index].caption || items[index].note) && (
+              <div className="mt-3 text-center text-white space-y-1">
+                {items[index].caption && (
+                  <p className="text-sm font-semibold">{items[index].caption}</p>
+                )}
+                {items[index].note && (
+                  <p className="text-sm text-zinc-200 whitespace-pre-wrap">
+                    รายละเอียด: {items[index].note}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

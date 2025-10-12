@@ -72,6 +72,9 @@ export type DamagePhoto = MediaItem & {
   note?: string;
   // ⬇️ เพิ่ม: annotations ที่ backend แนบมา (ถ้ามี)
   annotations?: Annotation[];
+
+  original_url?: string | null;
+  is_annotated?: boolean;
 };
 
 export type Car = {
@@ -116,7 +119,7 @@ export interface ClaimItem {
   severitySummary?: string;
   status: ClaimStatus;
   photoUrl?: string;
-
+ license_plate?: string | null;
 
 
 

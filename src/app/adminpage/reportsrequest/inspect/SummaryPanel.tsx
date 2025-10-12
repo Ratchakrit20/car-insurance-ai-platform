@@ -2,7 +2,14 @@
 
 import type { Annotation } from "@/types/claim";
 import { useMemo } from "react";
-
+import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
+const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
+const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 export default function SummaryPanel({
   boxes,
   analysisLevel,
@@ -33,7 +40,9 @@ export default function SummaryPanel({
 
   return (
     <>
-      <div className="rounded-3xl bg-white ring-1 ring-zinc-200 shadow-sm p-4">
+        <div className={`${thaiFont.className} rounded-[8px] bg-white ring-1 ring-zinc-200 shadow-sm p-4`}>
+
+      
         {/* <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-zinc-700">ระดับความละเอียดของการวิเคราะห์</div>
           <span className="text-sm font-semibold text-indigo-700 pl-1">{analysisLevel}%</span>
@@ -48,7 +57,7 @@ export default function SummaryPanel({
         /> */}
 
         <div className="mt-6">
-          <div className="text-sm font-medium text-zinc-700 mb-2">ภาพรวมความเสียหาย</div>
+          <div className="text-sm font-medium text-black mb-2">ภาพรวมความเสียหาย</div>
           <div className="flex items-center gap-5">
             <div className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-full ring-1 ring-zinc-200" style={donutStyle} />
             <div className="flex-1 space-y-2">
@@ -59,7 +68,7 @@ export default function SummaryPanel({
               </div>
               <ul className="space-y-1">
                 {donutData.map((d, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs sm:text-sm">
+                  <li key={i} className="flex text-black items-center gap-2 text-xs sm:text-sm">
                     <span className="inline-block h-3 w-3 rounded" style={{ backgroundColor: d.color }} />
                     <span className="truncate">{d.label}</span>
                     <span className="ml-auto font-medium">{d.pct}%</span>
@@ -74,9 +83,6 @@ export default function SummaryPanel({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200">
-        หากระบบตรวจจับไม่ครบ สามารถปรับระดับการวิเคราะห์ หรือกด “เพิ่มจุดเสียหาย” บนภาพ
-      </div>
     </>
   );
 }

@@ -3,7 +3,7 @@ import { Search, FilePlus2, Users } from "lucide-react";
 
 type Props = {
   titleMode: "customers" | "policies";
-  viewMode: "customers" | "policies";
+    viewMode: "customers" | "policies";
   setViewMode: (m: "customers" | "policies") => void;
   q: string;
   setQ: (v: string) => void;
@@ -15,7 +15,7 @@ export default function PageHeader({
 }: Props) {
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
+      <h1 className="text-xl sm:text-2xl font-semibold text-black flex items-center gap-2">
         <Users size={20} /> {titleMode === "customers" ? "บัญชีลูกค้า" : "กรมธรรม์ประกันภัย"}
       </h1>
 

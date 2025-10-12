@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Prompt, Noto_Sans_Thai } from 'next/font/google';
 const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
 const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+import LoadingScreen from "@/app/components/LoadingScreen";
 
 import CarSelection from './CarSelection';
 import AccidentStep1 from './AccidentDetails';
@@ -69,18 +70,9 @@ export default function DetectPage() {
     if (isAuthenticated === false) router.replace('/login');
   }, [isAuthenticated, router]);
 
-  if (isAuthenticated === null) {
-    return (
-      <div
-        className={`${bodyFont.className} grid min-h-screen place-items-center bg-gradient-to-b from-[#F1F5FF] via-[#F7FAFF] to-white`}
-      >
-        <div className="rounded-2xl bg-white px-4 py-3 text-zinc-700 ring-1 ring-zinc-200 shadow-sm">
-          กำลังตรวจสอบสิทธิ์…
-        </div>
-      </div>
-    );
-  }
-  if (!isAuthenticated) return null;
+ if (isAuthenticated === null) {
+  return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
+}
 
   // -------- Steps --------
   const renderStep = () => {
@@ -109,8 +101,10 @@ export default function DetectPage() {
         return <div className="text-zinc-700">ไม่พบขั้นตอน</div>;
     }
   };
+  
 
   return (
+
     <div className={`${bodyFont.className} relative w-full overflow-x-hidden`}>
       <div className="fixed inset-0 -z-10 bg-white" />
 

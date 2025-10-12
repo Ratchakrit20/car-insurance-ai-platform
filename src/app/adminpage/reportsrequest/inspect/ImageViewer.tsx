@@ -1,8 +1,15 @@
 "use client";
 import React, { useLayoutEffect, useRef, useState, useCallback } from "react";
 import type { Annotation } from "@/types/claim";
-
-
+import { CirclePlus } from "lucide-react";
+import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
+const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
+const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 type Props = {
   imageUrl?: string;
   imageLabel?: string;
@@ -93,14 +100,14 @@ export default function ImageViewer({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+    <div className={`${thaiFont.className} rounded-[8px] border border-zinc-200 bg-white p-3 shadow-sm`}>
+
       <div className="mb-2 text-sm text-zinc-600">ภาพ · {imageLabel ?? "ไม่ระบุ"}</div>
 
       <div
         ref={wrapRef}
-        className={`relative w-full overflow-hidden rounded-xl bg-zinc-100 select-none ${
-          drawMode ? "cursor-crosshair" : ""
-        }`}
+        className={`relative w-full overflow-hidden rounded-xl bg-zinc-100 select-none ${drawMode ? "cursor-crosshair" : ""
+          }`}
         style={{ touchAction: "none" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -154,7 +161,7 @@ export default function ImageViewer({
       {imageNote && (
         <div className="mt-2 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 text-zinc-400">📝</span>
+
             <p className="whitespace-pre-wrap">{imageNote}</p>
           </div>
         </div>
@@ -164,11 +171,14 @@ export default function ImageViewer({
         <div className="text-xs text-zinc-500">
           หากระบบตรวจจับไม่ครบ คุณสามารถกด “เพิ่มจุดเสียหาย” แล้วแก้ไขจากตารางด้านล่าง
         </div>
+
         <button
           onClick={() => setDrawMode(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 hover:bg-zinc-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#6D5BD0] px-4 py-2 text-sm font-medium text-white shadow-sm 
+               hover:bg-[#433D8B] active:scale-[0.97] transition-all duration-150 ease-in-out"
         >
-          ➕ เพิ่มจุดเสียหาย
+          <CirclePlus className="w-4 h-4" />
+          เพิ่มจุดเสียหาย
         </button>
       </div>
     </div>

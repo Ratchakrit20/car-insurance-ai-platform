@@ -1,7 +1,7 @@
 "use client";
 import type { ClaimDetail, Car, AccidentDraft } from "@/types/claim";
-import DamageDiagram from "../components/DamageDiagram";
-import AnnotatedImage from "../components/AnnotatedImage";
+import DamageDiagram from "../../../components/DamageDiagram";
+import AnnotatedImage from "../../../components/AnnotatedImage";
 /* ---------- utils ---------- */
 const thDate = (iso?: string) =>
   !iso
@@ -23,41 +23,40 @@ type Row = {
 export default function ClaimDocument({ detail }: { detail: any }) {
   // ✅ Map ฟิลด์ flat จาก detail ให้เป็น car / accident objects
   const car: Car = {
-    id: detail.selected_car_id ?? 0, // ✅ เพิ่มบรรทัดนี้
-    car_brand: detail.car_brand,
-    car_model: detail.car_model,
-    car_license_plate: detail.license_plate,
-    insurance_type: detail.insurance_type,
-    policy_number: detail.policy_number,
-    coverage_end_date: detail.coverage_end_date,
-    car_year: detail.car_year,
-    car_path: detail.car_path,
-  };
+  id: detail.car?.id ?? detail.selected_car_id ?? 0,
+  car_brand: detail.car?.car_brand ?? "-",
+  car_model: detail.car?.car_model ?? "-",
+  car_license_plate: detail.car?.car_license_plate ?? "-",
+  insurance_type: detail.car?.insurance_type ?? "-",
+  policy_number: detail.car?.policy_number ?? "-",
+  coverage_end_date: detail.car?.coverage_end_date ?? null,
+  car_year: detail.car?.car_year ?? "-",
+  car_path: detail.car?.car_path ?? "",
+};
 
 
 
-  const acc: AccidentDraft = {
-    accidentType: detail.accident_type ?? "ไม่ระบุ",
-    accident_date: detail.accident_date ?? null,
-    accident_time: detail.accident_time ?? "-",
-    province: detail.province ?? "ไม่ระบุ",
-    district: detail.district ?? "ไม่ระบุ",
-    road: detail.road ?? "ไม่ระบุ",
-    nearby: detail.nearby ?? "ไม่ระบุ",
-    areaType: detail.area_type ?? "ไม่ระบุ",
-    details: detail.details ?? "-",
-    location: {
-      lat: parseFloat(detail.latitude ?? detail.location?.lat ?? "0"),
-      lng: parseFloat(detail.longitude ?? detail.location?.lng ?? "0"),
-      accuracy: parseFloat(detail.accuracy ?? detail.location?.accuracy ?? "0"),
-    },
-    damagePhotos: detail.damage_images ?? detail.damagePhotos ?? [],
-  };
+ const acc: AccidentDraft = {
+  accidentType: detail.accident?.accidentType ?? "ไม่ระบุ",
+  accident_date: detail.accident?.accident_date ?? null,
+  accident_time: detail.accident?.accident_time ?? "-",
+  province: detail.accident?.province ?? "ไม่ระบุ",
+  district: detail.accident?.district ?? "ไม่ระบุ",
+  road: detail.accident?.road ?? "-",
+  nearby: detail.accident?.nearby ?? "-",
+  areaType: detail.accident?.areaType ?? "-",
+  details: detail.accident?.details ?? "-",
+  location: {
+    lat: parseFloat(detail.accident?.location?.lat ?? "0"),
+    lng: parseFloat(detail.accident?.location?.lng ?? "0"),
+    accuracy: parseFloat(detail.accident?.location?.accuracy ?? "0"),
+  },
+  damagePhotos: detail.accident?.damagePhotos ?? [],
+};
 
-
-  console.log("🧾 detail:", detail);
-  console.log("🚗 mapped car:", car);
-  console.log("💥 mapped accident:", acc);
+console.log("✅ Claim detail loaded:", detail);
+console.log("🚗 Car mapped:", car);
+console.log("💥 Accident mapped:", acc);
 
   /* ---------- รวมรายการความเสียหาย ---------- */
   const rows: Row[] = [];
@@ -421,7 +420,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
 
       {/* ---------- หน้าที่ 2: ภาพความเสียหาย ---------- */}
       <div className="break-before mt-6 doc-box">
-        <div className="text-center border-b border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
+        <div className="text-center border-b text-black border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
           ภาพความเสียหายของรถยนต์ (ก่อนและหลังตรวจจับ)
         </div>
 
@@ -437,7 +436,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
                 <div className="grid grid-cols-2 gap-3">
                   {/* --- ต้นฉบับ --- */}
                   <div className="border border-zinc-300 rounded-md bg-white overflow-hidden">
-                    <div className="bg-zinc-100 text-center text-[11.5px] py-1 font-semibold border-b border-zinc-200">
+                    <div className="bg-zinc-100 text-black text-center text-[11.5px] py-1 font-semibold border-b border-zinc-200">
                       ภาพต้นฉบับ
                     </div>
                     <div className="flex items-center justify-center bg-zinc-50">
@@ -454,7 +453,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
 
                   {/* --- หลังตรวจจับ --- */}
                   <div className="border border-zinc-300 rounded-md bg-white overflow-hidden">
-                    <div className="bg-zinc-100 text-center text-[11.5px] py-1 font-semibold border-b border-zinc-200">
+                    <div className="bg-zinc-100 text-black text-center text-[11.5px] py-1 font-semibold border-b border-zinc-200">
                       หลังตรวจจับความเสียหาย
                     </div>
                     <div className="flex items-center justify-center bg-zinc-50">

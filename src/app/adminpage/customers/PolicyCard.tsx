@@ -16,42 +16,42 @@ export default function PolicyCard({
     <div className="rounded-2xl ring-1 ring-indigo-200/60 bg-white shadow-sm p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="text-indigo-600" size={18} />
-          <h3 className="font-semibold text-base sm:text-lg">เลขกรมธรรม์: {p.policy_number}</h3>
+          <ShieldCheck className="text-black" size={18} />
+          <h3 className="font-semibold text-base  text-black sm:text-lg">เลขกรมธรรม์: {p.policy_number}</h3>
         </div>
-        <div className="hidden sm:flex text-xs text-zinc-500 items-center gap-1">
+        <div className="hidden sm:flex text-xs text-black items-center gap-1">
           <span>สิ้นสุด</span>
           <span className="font-medium">{thDate(p.coverage_end_date)}</span>
         </div>
       </div>
 
       <div className="text-xs text-zinc-500 mt-1">
-        ผู้เอาประกัน: <span className="font-medium text-zinc-700">{p.insured_name ?? "-"}</span>
+        ผู้เอาประกัน: <span className="font-medium text-black">{p.insured_name ?? "-"}</span>
       </div>
 
-      <dl className="mt-3 grid grid-cols-1 gap-2 text-sm">
+      <dl className="mt-3 grid grid-cols-1 text-black gap-2 text-sm">
         <div className="rounded-xl bg-zinc-50 p-3">
-          <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">บริษัทประกัน</div>
+          <div className="text-[11px] font-medium text-black uppercase tracking-wide">บริษัทประกัน</div>
           <div className="mt-1 font-medium">{p.insurance_company ?? "-"}</div>
         </div>
         <div className="rounded-xl bg-zinc-50 p-3">
-          <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">ประเภท</div>
+          <div className="text-[11px] font-medium text-black uppercase tracking-wide">ประเภท</div>
           <div className="mt-1 font-medium">{p.insurance_type ?? "-"}</div>
         </div>
         <div className="rounded-xl bg-zinc-50 p-3">
-          <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">วันเริ่มคุ้มครอง</div>
+          <div className="text-[11px] font-medium text-black uppercase tracking-wide">วันเริ่มคุ้มครอง</div>
           <div className="mt-1 font-medium">{thDate(p.coverage_start_date)}</div>
         </div>
         <div className="rounded-xl bg-zinc-50 p-3">
-          <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">วันสิ้นสุดคุ้มครอง</div>
+          <div className="text-[11px] font-medium text-black uppercase tracking-wide">วันสิ้นสุดคุ้มครอง</div>
           <div className="mt-1 font-medium">{thDate(p.coverage_end_date)}</div>
         </div>
-        <div className="rounded-xl bg-zinc-50 p-3">
-          <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">ทะเบียนรถ</div>
+        <div className="rounded-xl bg-zinc-50 text-black p-3">
+          <div className="text-[11px] font-medium text-blackuppercase text-black tracking-wide">ทะเบียนรถ</div>
           <div className="mt-1 font-medium">{p.car_license_plate ?? "-"}</div>
         </div>
         <div className="rounded-xl bg-zinc-50 p-3">
-          <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">ยี่ห้อ / รุ่น</div>
+          <div className="text-[11px] font-medium text-black uppercase tracking-wide">ยี่ห้อ / รุ่น</div>
           <div className="mt-1 font-medium">
             {p.car_brand ?? "-"}{p.car_model ? ` / ${p.car_model}` : ""}
           </div>

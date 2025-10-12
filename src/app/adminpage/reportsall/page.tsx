@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { User, ClaimItem, ClaimReportRow, ClaimStatus, Car, AccidentDraft, DamagePhoto } from "@/types/claim";
 import AccidentDetail from "@/app/adminpage/reportsall/accidentdetail";
-
+import ClaimDocument from "@/app/components/ClaimDocument";
 // ---------- Config ----------
 const URL_PREFIX =
   process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
@@ -57,23 +57,23 @@ async function fetchClaimsAll(): Promise<ClaimItem[]> {
 
   return rows.map((r: any) => {
     const status = normalizeStatus(r.status);
-            // map evaluation_images → DamagePhoto[]
+    // map evaluation_images → DamagePhoto[]
     const damagePhotos: DamagePhoto[] = Array.isArray(r.images)
       ? r.images.map((img: { id: number; original_url?: string; damage_note?: string; side?: string }) => {
-      const side: DamagePhoto["side"] =
-      img.side === "ซ้าย" ||
-      img.side === "ขวา" ||
-      img.side === "หน้า" ||
-      img.side === "หลัง"
-      ? img.side
-      : "ไม่ระบุ";
-        
-      return {
-        id: img.id,
-        url: img.original_url ?? "",
-        type: "image",
-        side,
-        note: img.damage_note ?? undefined,
+        const side: DamagePhoto["side"] =
+          img.side === "ซ้าย" ||
+            img.side === "ขวา" ||
+            img.side === "หน้า" ||
+            img.side === "หลัง"
+            ? img.side
+            : "ไม่ระบุ";
+
+        return {
+          id: img.id,
+          url: img.original_url ?? "",
+          type: "image",
+          side,
+          note: img.damage_note ?? undefined,
         };
       })
       : [];
@@ -110,6 +110,38 @@ async function fetchClaimDetail(claimId: string | number): Promise<PdfDetail> {
     accident: json.data.accident as AccidentDraft,
   };
 }
+function ClaimDocumentWrapper({ claimId }: { claimId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
+          { credentials: "include" }
+        );
+        const json = await res.json();
+        if (json.ok) {
+          setDetail(json.data);
+        }
+      } catch (err) {
+        console.error("โหลดรายละเอียดล้มเหลว", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [claimId]);
+
+  if (loading) {
+    return <div className="text-zinc-500 p-4 text-center">กำลังโหลด...</div>;
+  }
+  if (!detail) {
+    return <div className="text-rose-500 p-4 text-center">ไม่พบข้อมูลรายละเอียด</div>;
+  }
+
+  return <ClaimDocument detail={detail} />;
+}
 
 // ---------- Small UI ----------
 function StatusChip({ status }: { status: ClaimStatus }) {
@@ -121,9 +153,8 @@ function StatusChip({ status }: { status: ClaimStatus }) {
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-        map[status] || "bg-zinc-100 text-zinc-600"
-      }`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${map[status] || "bg-zinc-100 text-zinc-600"
+        }`}
     >
       {status}
     </span>
@@ -144,15 +175,15 @@ function ReviewedCard({
   const borderColor = isApproved
     ? "border-emerald-300 bg-white"
     : isRejected
-    ? "border-rose-300 bg-white"
-    : "border-amber-300 bg-white";
+      ? "border-rose-300 bg-white"
+      : "border-amber-300 bg-white";
 
   // สีปุ่มหลักตามสถานะ
   const mainButtonColor = isRejected
     ? "from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600"
     : isIncomplete
-    ? "from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600"
-    : "";
+      ? "from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600"
+      : "";
 
   return (
     <div
@@ -214,9 +245,9 @@ function ReviewedCard({
               <span className="font-medium text-zinc-800">
                 {item.damagePhotos && item.damagePhotos.length > 0
                   ? item.damagePhotos
-                      .map((d) => d.note?.trim())
-                      .filter((n) => n && n.length > 0)
-                      .join(", ") || "ไม่ระบุ"
+                    .map((d) => d.note?.trim())
+                    .filter((n) => n && n.length > 0)
+                    .join(", ") || "ไม่ระบุ"
                   : "ไม่ระบุ"}
               </span>
             </div>
@@ -228,28 +259,52 @@ function ReviewedCard({
           {/* ปุ่มแอ็กชัน */}
           <div className="flex flex-wrap justify-between items-center gap-2">
             {/* แสดงเฉพาะปุ่ม “ดูรายงาน PDF” สำหรับ ปฏิเสธ / ไม่ครบ */}
-            {(isRejected || isIncomplete) ? (
+            {(isRejected || isIncomplete || isApproved) ? (
               <button
                 onClick={() => setOpenId(item.id)}
-                className={`inline-flex items-center gap-2 rounded-full bg-gradient-to-r ${mainButtonColor} px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition`}
+                className={`inline-flex items-center gap-2 rounded-full ${isApproved
+                  ? "bg-zinc-900 hover:bg-zinc-800"
+                  : isRejected
+                    ? "bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600"
+                    : "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600"
+                  } px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition`}
               >
-                📄 ดูรายงาน PDF
+                {isApproved ? "🔍 เปิดรายละเอียด" : "📄 ดูรายงาน PDF"}
               </button>
-            ) : isApproved ? (
-              <Link
-                href={`/adminpage/reportsrequest/claim-doc?claim_id=${item.id}`}
-                className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 transition"
-                title="เปิดรายละเอียด"
-              >
-                🔍 เปิดรายละเอียด
-              </Link>
             ) : null}
+
           </div>
         </div>
       </div>
       {openId && (
-        <AccidentDetail claimId={openId} onClose={() => setOpenId(null)} />
-      )}
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div className="relative max-h-[95vh] w-full max-w-[820px] overflow-y-auto rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
+      {/* header modal */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2 backdrop-blur">
+        <div className="text-sm font-medium text-zinc-700">
+          📄 รายงานรายละเอียดเคลม
+        </div>
+        <button
+          onClick={() => setOpenId(null)}
+          className="rounded-md bg-zinc-900/5 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-900/10"
+        >
+          ปิด
+        </button>
+      </div>
+
+      {/* body modal */}
+      <div className="p-4">
+        {isApproved ? (
+          <ClaimDocumentWrapper claimId={openId} />
+        ) : (
+          <AccidentDetail claimId={openId} onClose={() => setOpenId(null)} />
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }
@@ -342,8 +397,8 @@ export default function ReportsReviewedPage() {
     tab === "approved"
       ? approvedClaims
       : tab === "rejected"
-      ? rejectedClaims
-      : incompleteClaims;
+        ? rejectedClaims
+        : incompleteClaims;
 
   // เปิด PDF
   const handleOpenPdf = async (claimId: string) => {
@@ -385,28 +440,25 @@ export default function ReportsReviewedPage() {
         />
 
         {/* Tabs */}
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex gap-2 text-black">
           <Link
             href="?tab=approved"
-            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-zinc-200 ${
-              tab === "approved" ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50"
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-zinc-200 ${tab === "approved" ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50"
+              }`}
           >
             เฉพาะอนุมัติแล้ว
           </Link>
           <Link
             href="?tab=rejected"
-            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-zinc-200 ${
-              tab === "rejected" ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50"
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-zinc-200 ${tab === "rejected" ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50"
+              }`}
           >
             เฉพาะถูกปฏิเสธ
           </Link>
           <Link
             href="?tab=incomplete"
-            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-zinc-200 ${
-              tab === "incomplete" ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50"
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium ring-1 ring-zinc-200 ${tab === "incomplete" ? "bg-zinc-900 text-white" : "bg-white hover:bg-zinc-50"
+              }`}
           >
             เฉพาะข้อมูลไม่ครบ
           </Link>
@@ -418,7 +470,7 @@ export default function ReportsReviewedPage() {
             <EmptyState label={tab === "approved" ? "ยังไม่มีรายการที่อนุมัติ" : "ยังไม่มีรายการที่ถูกปฏิเสธ"} />
           ) : (
             visible.map((item) => (
-              <ReviewedCard key={item.id} item={item}/>
+              <ReviewedCard key={item.id} item={item} />
             ))
           )}
         </div>

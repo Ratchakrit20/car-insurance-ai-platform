@@ -136,7 +136,7 @@ export default function PolicyModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[60] " role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
@@ -145,8 +145,8 @@ export default function PolicyModal({
         <div className="bg-white shadow-2xl ring-1 ring-zinc-200 rounded-t-2xl sm:rounded-2xl w-full sm:w-auto sm:max-w-3xl h-[92vh] sm:h-auto sm:max-h-[85vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 py-3 sm:px-6 bg-white/95 backdrop-blur border-b border-zinc-200">
-            <h3 className="text-base sm:text-lg font-semibold">{initial ? "แก้ไขกรมธรรม์" : "เพิ่มกรมธรรม์"}</h3>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-100" aria-label="ปิด">
+            <h3 className="text-base sm:text-lg text-black text-black font-semibold">{initial ? "แก้ไขกรมธรรม์" : "เพิ่มกรมธรรม์"}</h3>
+            <button onClick={onClose} className="p-2 rounded-full text-black hover:bg-zinc-100" aria-label="ปิด">
               <X size={18} />
             </button>
           </div>
@@ -156,7 +156,7 @@ export default function PolicyModal({
             <div className="px-4 sm:px-6 py-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {/* Left */}
-                <div className="space-y-4">
+                <div className="space-y-4 text-black">
                   <Section title="ข้อมูลกรมธรรม์"/>
                   <Field labelText="เลขกรมธรรม์">
                     <input name="policy_number" required value={form.policy_number} onChange={handleChange}
@@ -197,7 +197,7 @@ export default function PolicyModal({
                 </div>
 
                 {/* Right */}
-                <div className="space-y-4">
+                <div className="space-y-4 text-black">
                   <Section title="ระยะคุ้มครอง / รถ" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -298,7 +298,7 @@ export default function PolicyModal({
 
             {/* Footer */}
             <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-zinc-200 px-4 sm:px-6 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row  sm:justify-end sm:gap-3">
                 <button
                   type="button"
                   onClick={onClose}

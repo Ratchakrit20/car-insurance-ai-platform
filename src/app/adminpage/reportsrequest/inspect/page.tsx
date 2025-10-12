@@ -11,7 +11,6 @@ import DamageTable from "./DamageTable";
 import SummaryPanel from "./SummaryPanel";
 import SafeAreaSpacer from "@/app/components/SafeAreaSpacer";
 
-
 // ===== EN ↔ TH dictionaries =====
 const DAMAGE_EN2TH: Record<string, string> = {
   "crack": "ร้าว",
@@ -121,8 +120,45 @@ async function fetchDetail(id: string): Promise<ClaimDetail> {
   );
   const json = await res.json();
   if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
-  return json.data as ClaimDetail;
+
+  const d = json.data;
+
+  // ✅ map โครงสร้างให้ตรงกับ type ClaimDetail
+  return {
+    claim_id: d.claim_id,
+    status: d.status,
+    created_at: d.created_at,
+    car: d.car
+      ? {
+          id: d.car.id ?? 1,
+          car_brand: d.car.car_brand,
+          car_model: d.car.car_model,
+          car_year: d.car.car_year,
+          car_license_plate: d.car.car_license_plate,
+          car_path: d.car.car_path,
+          insured_name: d.car.insured_name,
+          policy_number: d.car.policy_number,
+        }
+      : null,
+    accident: d.accident
+      ? {
+          accidentType: d.accident.accidentType ?? "ไม่ระบุ",
+          accident_date: d.accident.accident_date,
+          accident_time: d.accident.accident_time,
+          province: d.accident.province,
+          district: d.accident.district,
+          road: d.accident.road,
+          nearby: d.accident.nearby,
+          details: d.accident.details,
+          location: d.accident.location,
+          // ✅ รวม evidenceMedia และ damagePhotos เข้าไปด้วย
+          evidenceMedia: d.accident.evidenceMedia ?? [],
+          damagePhotos: d.accident.damagePhotos ?? [],
+        }
+      : null,
+  } as ClaimDetail;
 }
+
 
 /** เรียก FastAPI /detect/analyze โดยส่งรูปจาก URL */
 async function analyzeImageByUrl(
@@ -296,6 +332,7 @@ function bump(s: Severity): Severity {
 
 /* ====================================================================== */
 export default function InspectPage() {
+ 
   const sp = useSearchParams();
   const router = useRouter();
   const claimId = sp.get("claim_id");
@@ -321,20 +358,56 @@ export default function InspectPage() {
       note: p.note ?? p.damage_note ?? "",
     }));
 }, [detail]);
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+     const res = await fetch(`${URL_PREFIX}/api/me`, {
+  credentials: "include",
+});
+      const data = await res.json();
+      if (cancelled) return;
+      console.log("🔐 Auth data:", data);
+      setUser(data.user ?? null);
+      setIsAuthenticated(Boolean(data.isAuthenticated));
+    } catch {
+      if (!cancelled) setIsAuthenticated(false);
+    }
+  })();
+  return () => { cancelled = true; };
+}, []);
+useEffect(() => {
+  // 🔒 รอให้ตรวจสอบสิทธิ์เสร็จก่อน
+  if (isAuthenticated !== true) return;
+  if (!claimId) {
+    setErr("ไม่พบ claim_id");
+    setLoading(false);
+    return;
+  }
 
+  let alive = true;
+  (async () => {
+    try {
+      setLoading(true);
+      const d = await fetchDetail(String(claimId));
+      if (!alive) return;
+      console.log("✅ Claim detail loaded:", d);
+      setDetail(d);
+    } catch (e: any) {
+      if (alive) setErr(e?.message ?? "เกิดข้อผิดพลาด");
+    } finally {
+      if (alive) setLoading(false);
+    }
+  })();
+
+  return () => { alive = false; };
+}, [claimId, isAuthenticated]);
 
   //เช็คว่าตรวจสอบความเสียหายครบยังก่อนดำเนินการต่อ
   const [annotatedById, setAnnotatedById] = useState<Record<string | number, boolean>>({});
 
   // เติมค่าเริ่มต้นจาก detail → images
-  useEffect(() => {
-    const m: Record<string | number, boolean> = {};
-    detail?.accident?.damagePhotos?.forEach((p: any) => {
-      if (p?.id != null) m[p.id] = !!p.is_annotated;
-    });
-    setAnnotatedById(m);
-  }, [detail]);
-
+ 
   // ใช้ annotatedById ใน canProceed
   const canProceed =
     images.length > 0 &&
@@ -384,61 +457,7 @@ export default function InspectPage() {
     void analyzeActiveImage(activeIndex, p, true); // บังคับวิเคราะห์ซ้ำด้วยพารามิเตอร์ใหม่
   };
   // -------- Auth --------
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (cancelled) return;
-        console.log('Auth data:', data.user);
-        setUser(data.user ?? null);
-        setIsAuthenticated(Boolean(data.isAuthenticated));
-      } catch {
-        if (!cancelled) setIsAuthenticated(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  useEffect(() => {
-    console.log("raw damagePhotos:", detail?.accident?.damagePhotos);
-    console.log("damagePhotos mapped:", images);
-  }, [images]);
-  useEffect(() => {
-    if (isAuthenticated === false) router.replace('/login');
-  }, [isAuthenticated, router]);
-  // โหลดรายละเอียด
-  useEffect(() => {
-    if (!claimId) { setErr("ไม่พบ claim_id"); setLoading(false); return; }
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const d = await fetchDetail(claimId);
-        if (!alive) return;
-        setDetail(d);
-      } catch (e: any) {
-        if (alive) setErr(e?.message ?? "เกิดข้อผิดพลาด");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [claimId]);
-
-  // วิเคราะห์รูปภาพอัตโนมัติเมื่อมีรูปแรก (ครั้งเดียวต่อ index)
-  useEffect(() => {
-    if (images.length === 0) return;
-    if (overlayByIndex[0]) return; // วิเคราะห์แล้ว
-    // auto วิเคราะห์รูปแรก
-    void analyzeActiveImage(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [images.length]);
-
+ 
   // เรียก FastAPI วิเคราะห์ภาพที่เลือก
   async function analyzeActiveImage(index = activeIndex, override?: Partial<ModelParams>, force = false) {
     const img = images[index];

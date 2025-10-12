@@ -3,9 +3,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReportsView from "./ReportsView";
+import LoadingScreen from "@/app/components/LoadingScreen";
+
 import PdfRequest from "@/app/reports/PdfRequest"; // เดิมของคุณ
 import type { ClaimItem, ClaimReportRow, ClaimStatus, Car, AccidentDraft, DamagePhoto, User } from "@/types/claim";
-
+import { useSearchParams } from "next/navigation";
 import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
 const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
 const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
@@ -16,7 +18,12 @@ const thaiFont = Noto_Sans_Thai({
 });
 const URL_PREFIX =
   process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
-
+type ReportsViewProps = {
+  claims: ClaimItem[];
+  selectedClaim?: ClaimItem | null;
+  onSelectClaim?: (claim: ClaimItem) => void;
+  onOpenPdf: (claimId: string) => void;
+};
 async function fetchAuth() {
   const res = await fetch(`${URL_PREFIX}/api/me`, { credentials: "include" });
   if (!res.ok) throw new Error("auth failed");
@@ -82,7 +89,7 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
       approved_at: r.approved_at ?? null,
       rejected_at: r.rejected_at ?? null,
       incomplete_history: r.incomplete_history || [],
-     resubmitted_history: r.resubmitted_history || [],
+      resubmitted_history: r.resubmitted_history || [],
       // -------- car --------
       car_path: r.car_path ?? "",
       car_brand: r.car_brand ?? "",
@@ -172,6 +179,16 @@ export default function ReportPage() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfDetail, setPdfDetail] = useState<PdfDetail | null>(null);
 
+
+  const searchParams = useSearchParams();
+  const selectedClaimId = searchParams.get("claim_id");
+  const [selectedClaim, setSelectedClaim] = useState<ClaimItem | null>(null);
+  useEffect(() => {
+    if (selectedClaimId && claims.length > 0) {
+      const match = claims.find(c => String(c.id) === String(selectedClaimId));
+      if (match) setSelectedClaim(match);
+    }
+  }, [selectedClaimId, claims]);
   // auth
   useEffect(() => {
     let cancelled = false;
@@ -224,12 +241,13 @@ export default function ReportPage() {
   };
 
   if (isAuthenticated === null) {
-    return <div className="mx-auto max-w-6xl px-4 py-10 text-zinc-200">กำลังตรวจสอบสิทธิ์…</div>;
+  return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
   }
   if (isAuthenticated === false) return null;
 
   if (loading) {
-    return <div className="mx-auto max-w-6xl px-4 py-10 text-zinc-200">กำลังโหลดข้อมูล…</div>;
+      return <LoadingScreen message="กำลังโหลดข้อมูล…." />;
+
   }
   if (error) {
     return <div className="mx-auto max-w-6xl px-4 py-10 text-rose-300">เกิดข้อผิดพลาด: {error}</div>;
@@ -269,7 +287,13 @@ export default function ReportPage() {
             </header>
           </div>
           {/* Content */}
-          <ReportsView claims={claims} onOpenPdf={handleOpenPdf} />
+          <ReportsView
+            claims={claims}
+            selectedClaim={selectedClaim}
+            hasInitialClaimId={!!selectedClaimId} // ✅ บอกว่าเปิดมาจากข้อความ
+            onSelectClaim={(c) => setSelectedClaim(c)}
+            onOpenPdf={handleOpenPdf}
+          />
         </div>
 
       </div>

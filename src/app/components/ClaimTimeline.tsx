@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import type { ClaimStatus, Car, AccidentDraft, DamagePhoto, MediaItem } from "@/types/claim";
-import ClaimReportPreview from "../reports/ClaimReportPreview";
+import ClaimReportPreview, { mapClaimData } from "../reports/ClaimReportPreview";
 import {
     FaClock,
     FaFileAlt,
@@ -13,10 +13,16 @@ import {
     FaEdit,
     FaEye,
     FaPrint,
-    FaTimes as FaXmark, // ✅ ตัวนี้เปลี่ยนชื่อ
+    FaTimes as FaXmark, // ✅ เปลี่ยนชื่อป้องกันซ้ำ
 } from "react-icons/fa";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
+/* -------------------- Props -------------------- */
 type TimelineProps = {
     claimId: string;
     status: ClaimStatus | "pending" | "incomplete" | "rejected" | "approved";
@@ -28,23 +34,24 @@ type TimelineProps = {
     admin_note?: string | null;
     incomplete_history?: Array<{ time: string; note: string }>;
     resubmitted_history?: Array<{ time: string; note: string }>;
+    car?: Car;
+    draft?: AccidentDraft;
     onOpenPdf?: () => void;
 };
 
-
+/* -------------------- Utils -------------------- */
 function formatDateTime(iso?: string | null) {
     if (!iso) return "-";
-    const d = new Date(iso);
-    return d.toLocaleString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return dayjs(iso).tz("Asia/Bangkok").format("DD/MM/YYYY HH:mm");
 }
 
-// -------------------- Mapper จาก API -> Car / AccidentDraft --------------------
+function isVideoUrl(url?: string | null) {
+    if (!url) return false;
+    const u = url.toLowerCase();
+    return u.endsWith(".mp4") || u.endsWith(".mov") || u.endsWith(".webm") || u.includes("video/upload");
+}
+
+/* -------------------- Mapper -------------------- */
 type DetailAPI = {
     claim_id: string | number;
     user_id: number;
@@ -53,7 +60,7 @@ type DetailAPI = {
     accident_detail_id: number;
     created_at?: string;
     accident_type?: string;
-    accident_date?: string;   // ISO
+    accident_date?: string;
     accident_time?: string;
     area_type?: string;
     province?: string;
@@ -66,7 +73,6 @@ type DetailAPI = {
     accuracy?: string | number | null;
     evidence_file_url?: string | null;
     media_type?: "image" | "video" | string | null;
-
     car_brand?: string;
     car_model?: string;
     car_year?: number | string;
@@ -76,7 +82,6 @@ type DetailAPI = {
     coverage_end_date?: string;
     insured_name?: string;
     car_path?: string;
-
     damage_images?: Array<{
         id: number;
         original_url: string;
@@ -86,12 +91,6 @@ type DetailAPI = {
         annotations?: any[];
     }>;
 };
-
-function isVideoUrl(url?: string | null) {
-    if (!url) return false;
-    const u = url.toLowerCase();
-    return u.endsWith(".mp4") || u.endsWith(".mov") || u.endsWith(".webm") || u.includes("video/upload");
-}
 
 function mapToCar(d: DetailAPI): Car {
     return {
@@ -105,7 +104,7 @@ function mapToCar(d: DetailAPI): Car {
         policy_number: d.policy_number ?? "-",
         coverage_end_date: d.coverage_end_date ?? "",
         car_path: d.car_path ?? "",
-        chassis_number: "", // ถ้า API ไม่มี ให้เว้นว่าง
+        chassis_number: "",
         registration_province: d.province ?? "",
     };
 }
@@ -146,7 +145,6 @@ function mapToDraft(d: DetailAPI): AccidentDraft {
         areaType: d.area_type ?? "-",
         nearby: d.nearby ?? null,
         details: d.details ?? null,
-
         location: {
             lat: !Number.isNaN(lat) ? lat : (null as any),
             lng: !Number.isNaN(lng) ? lng : (null as any),
@@ -157,182 +155,244 @@ function mapToDraft(d: DetailAPI): AccidentDraft {
     };
 }
 
-// -----------------------------------------------------------------------------
+/* -------------------- Component -------------------- */
 export default function ClaimTimeline({
     claimId,
     status,
     created_at,
-    updated_at,
     approved_at,
     rejected_at,
     incomplete_at,
     admin_note,
     incomplete_history = [],
     resubmitted_history = [],
+    car,
+    draft,
 }: TimelineProps) {
     const [open, setOpen] = useState(false);
-    const [car, setCar] = useState<Car | null>(null);
-    const [draft, setDraft] = useState<AccidentDraft | null>(null);
+    const [remote, setRemote] = useState<{ car: Car; draft: AccidentDraft } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const safeIncomplete = Array.isArray(incomplete_history)
-        ? incomplete_history
-        : [];
 
-    console.log("✅ incomplete_histor y=>", safeIncomplete);
-    console.log("status =>", status);
-    // เปิด/ปิด modal → ล็อคสกอลล์หน้าหลัง
     useEffect(() => {
         if (!open) return;
         let alive = true;
+
         (async () => {
             try {
                 setLoading(true);
-                const res = await fetch(
-                    `http://localhost:3001/api/claim-requests/detail?claim_id=${claimId}`,
-                    { credentials: "include", cache: "no-store" }
-                );
+                setError(null);
 
+                const base = process.env.NEXT_PUBLIC_URL_PREFIX || "http://localhost:3001";
+                const res = await fetch(`${base}/api/claim-requests/detail?claim_id=${claimId}`, {
+                    credentials: "include",
+                    cache: "no-store",
+                });
                 const json = await res.json();
+
                 if (!alive) return;
                 if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
-                setCar(json.data.car);
-                setDraft(json.data.draft);
+
+                const mapped = mapClaimData(json.data);
+                setRemote({ car: mapped.car, draft: mapped.draft });
             } catch (e: any) {
                 if (alive) setError(e?.message ?? "เกิดข้อผิดพลาด");
             } finally {
                 if (alive) setLoading(false);
             }
         })();
+
         return () => {
             alive = false;
         };
     }, [open, claimId]);
+    const carToUse = remote?.car ?? car ?? null;
+    const draftToUse = remote?.draft ?? draft ?? null;
+    const hasData = !!carToUse && !!draftToUse;
 
-    const steps: { icon: React.ReactNode; title: string; time?: string; desc?: string; action?: React.ReactNode }[] = [];
+    /* -------------------- รวมเหตุการณ์ -------------------- */
+    const steps = useMemo(() => {
+        const combined: {
+            icon: React.ReactNode;
+            title: string;
+            time: string;
+            desc?: string;
+            order?: number;
+            action?: React.ReactNode;
+        }[] = [];
 
-    // สร้างเอกสาร
-    if (created_at) {
-        steps.push({
-            icon: <FaFileAlt className="text-indigo-500" />,
-            title: "สร้างเอกสารการเคลม",
-            time: formatDateTime(created_at),
-            desc: "รอเจ้าหน้าที่ตรวจสอบเอกสารของคุณ",
-            action: (
-                <button
-                    onClick={() => setOpen(true)}
-                    className="flex items-center gap-2 text-sm text-indigo-600 hover:underline"
-                >
-                    <FaEye /> ดูรายงาน
-                </button>
-            ),
-        });
-    }
-
-    // การตีกลับหลายรอบ
-    // ✅ รองรับหลายรอบการแจ้งแก้ไขจากเจ้าหน้าที่
-    if ((safeIncomplete && safeIncomplete.length > 0) || admin_note) {
-        const allHistory: { time: string; note: string }[] = [];
-
-        if (admin_note && incomplete_at) {
-            allHistory.push({ time: incomplete_at, note: admin_note });
+        // 1️⃣ สร้างเอกสาร
+        if (created_at) {
+            combined.push({
+                icon: <FaFileAlt className="text-indigo-500" />,
+                title: "สร้างเอกสารการเคลม",
+                time: formatDateTime(created_at),
+                desc: "รอเจ้าหน้าที่ตรวจสอบเอกสารของคุณ",
+            });
         }
 
-        allHistory.push(...safeIncomplete);
+        // 2️⃣ แจ้งแก้ไขข้อมูล
+        const allIncomplete = [...(incomplete_history || [])];
+        if (
+            admin_note &&
+            incomplete_at &&
+            !allIncomplete.some(
+                (x) =>
+                    dayjs(x.time).isSame(incomplete_at) ||
+                    (x.note && x.note.trim() === admin_note.trim())
+            )
+        ) {
+            allIncomplete.push({ time: incomplete_at, note: admin_note });
+        }
 
-        allHistory.sort(
-            (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
-        );
-
-        allHistory.forEach((item, idx) => {
-            steps.push({
+        allIncomplete.forEach((item, i) => {
+            combined.push({
                 icon: <FaExclamationTriangle className="text-amber-500" />,
-                title: `รอบที่ ${idx + 1}: เจ้าหน้าที่แจ้งแก้ไขข้อมูล`,
+                title: `รอบที่ ${i + 1}: เจ้าหน้าที่แจ้งแก้ไขข้อมูล`,
                 time: formatDateTime(item.time),
                 desc: item.note || "-",
-                action:
-                    idx === allHistory.length - 1 ? (
-                        <button
-                            onClick={() => (window.location.href = `/claim/edit/${claimId}`)}
-                            className="flex items-center gap-2 text-sm text-amber-600 hover:underline"
-                        >
-                            <FaEdit /> ไปหน้าแก้ไขข้อมูล
-                        </button>
-                    ) : undefined,
             });
         });
-    }
 
-
-
-    // การรีซับมิตหลายรอบ
-    if (resubmitted_history.length > 0) {
-        resubmitted_history.forEach((r, idx) => {
-            steps.push({
+        // 3️⃣ ผู้ใช้ส่งกลับ
+        const allResubmit = [...(resubmitted_history || [])];
+        allResubmit.forEach((r, i) => {
+            combined.push({
                 icon: <FaRedoAlt className="text-blue-500" />,
-                title: `ผู้ใช้ส่งกลับครั้งที่ ${idx + 1}`,
+                title: `ผู้ใช้ส่งกลับครั้งที่ ${i + 1}`,
                 time: formatDateTime(r.time),
                 desc: r.note || "ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
             });
         });
-    } else if (
-        updated_at &&
-        incomplete_at &&
-        new Date(updated_at).getTime() > new Date(incomplete_at).getTime() &&
-        status !== "approved" &&
-        status !== "rejected"
-    ) {
-        steps.push({
-            icon: <FaRedoAlt className="text-blue-500" />,
-            title: "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
-            time: formatDateTime(updated_at),
-            desc: "รอเจ้าหน้าที่ตรวจสอบอีกครั้ง",
-        });
-    }
 
-    // ผลการตรวจสอบสุดท้าย
-    if (status === "approved" || status === "สำเร็จ") {
-        steps.push({
-            icon: <FaCheckCircle className="text-emerald-500" />,
-            title: "เอกสารถูกอนุมัติ",
-            time: formatDateTime(approved_at),
-            desc: "เจ้าหน้าที่ได้ยืนยันข้อมูลเรียบร้อยแล้ว",
-        });
-    } else if (status === "rejected" || status === "เอกสารไม่ผ่านการตรวจสอบ") {
-        steps.push({
-            icon: <FaTimesCircle className="text-rose-500" />,
-            title: "เอกสารถูกปฏิเสธ",
-            time: formatDateTime(rejected_at),
-            desc: admin_note || "-",
-        });
-    }
+        // 4️⃣ ผลสุดท้าย
+        if (status === "approved" || status === "สำเร็จ") {
+            combined.push({
+                icon: <FaCheckCircle className="text-emerald-500" />,
+                title: "เอกสารถูกอนุมัติ",
+                time: approved_at ?? new Date().toISOString(),
+                desc: "เจ้าหน้าที่ได้ยืนยันข้อมูลเรียบร้อยแล้ว",
+            });
+        } else if (status === "rejected" || status === "เอกสารไม่ผ่านการตรวจสอบ") {
+            combined.push({
+                icon: <FaTimesCircle className="text-rose-500" />,
+                title: "เอกสารถูกปฏิเสธ",
+                time: formatDateTime(rejected_at),
+                desc: admin_note || "-",
+            });
+        }
+
+        // ✅ เรียงลำดับเวลา
+        combined.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+        // ✅ เงื่อนไขปุ่ม "ไปหน้าแก้ไขข้อมูล"
+        const lastIncompleteIndex = combined.findLastIndex((s) =>
+            s.title.includes("เจ้าหน้าที่แจ้งแก้ไขข้อมูล")
+        );
+
+        const canEdit =
+            status !== "approved" &&
+            status !== "rejected" &&
+            status !== "สำเร็จ" &&
+            status !== "เอกสารไม่ผ่านการตรวจสอบ";
+
+        if (lastIncompleteIndex !== -1 && canEdit) {
+            combined[lastIncompleteIndex].action = (
+                <button
+                    onClick={() => (window.location.href = `/claim/edit/${claimId}`)}
+                    className="flex items-center gap-2 text-sm text-amber-600 hover:underline"
+                >
+                    <FaEdit /> ไปหน้าแก้ไขข้อมูล
+                </button>
+            );
+        }
+
+        // ✅ เงื่อนไขปุ่ม "ดูรายงาน"
+        const lastResubmitIndex = combined.findLastIndex((s) =>
+            s.title.includes("ผู้ใช้ส่งกลับครั้งที่")
+        );
+
+        const viewButton = (
+            <button
+                onClick={() => setOpen(true)}
+                className="flex items-center gap-2 text-sm text-indigo-600 hover:underline"
+            >
+                <FaEye /> ดูรายงาน
+            </button>
+        );
+
+        if (lastResubmitIndex !== -1) {
+            // เคยส่งกลับ → ใส่ปุ่มไว้ที่ "ผู้ใช้ส่งกลับครั้งล่าสุด"
+            combined[lastResubmitIndex].action = viewButton;
+        } else {
+            // ยังไม่เคยส่งกลับ → ใส่ปุ่มไว้ที่ "สร้างเอกสารการเคลม"
+            const createIndex = combined.findIndex((s) =>
+                s.title.includes("สร้างเอกสารการเคลม")
+            );
+            if (createIndex !== -1) {
+                combined[createIndex].action = viewButton;
+            }
+        }
+
+        return combined;
+    }, [
+        created_at,
+        incomplete_history,
+        resubmitted_history,
+        approved_at,
+        rejected_at,
+        status,
+        admin_note,
+        incomplete_at,
+        claimId,
+    ]);
 
 
+
+    /* -------------------- Render -------------------- */
     return (
         <>
-            {/* Timeline */}
-            <div className="space-y-5 border-l border-zinc-200 pl-5">
-                {steps.map((step, i) => (
-                    <div key={i} className="relative">
-                        {/* จุดกลม */}
-                        <div className="absolute -left-[8px] top-1.5 h-4 w-4 rounded-full bg-white ring-2 ring-zinc-300 flex items-center justify-center">
-                            {step.icon}
-                        </div>
+           {/* Timeline */}
+<div className="ml-6 mt-4">
+  <div className="relative">
+    {/* เส้นแนวหลักของ timeline */}
+    <div className="absolute left-[13px] top-0 bottom-0 w-[2px] bg-gradient-to-b from-zinc-300  to-zinc-300 animate-[drawLine_0.8s_ease-out_forwards]" />
 
-                        {/* เนื้อหา */}
-                        <div className="ml-6">
-                            <div className="flex items-center gap-2 text-sm font-medium text-zinc-800">
-                                {step.title}
-                            </div>
-                            {step.time && <div className="text-xs text-zinc-500">{step.time}</div>}
-                            {step.desc && (
-                                <div className="mt-1 text-sm text-zinc-600 leading-relaxed">{step.desc}</div>
-                            )}
-                            {step.action && <div className="mt-2">{step.action}</div>}
-                        </div>
-                    </div>
-                ))}
+    <div className="space-y-8">
+      {steps.map((step, i) => (
+        <div key={i} className="relative flex items-start gap-4">
+          {/* จุดสถานะ */}
+          <div className="relative z-10 flex flex-col items-center">
+            <div
+              className={`h-7 w-7 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                i === steps.length - 1
+                  ? "border-zinc-200 bg-white text-white shadow-lg scale-110"
+                  : "border-zinc-200 bg-white text-zinc-600"
+              }`}
+            >
+              {step.icon}
             </div>
+          </div>
+
+          {/* เนื้อหา */}
+          <div className="flex-1">
+            <div className="font-medium text-sm text-zinc-800">{step.title}</div>
+            {step.time && <div className="text-xs text-zinc-500">{step.time}</div>}
+            {step.desc && (
+              <div className="mt-1 text-sm text-zinc-600 leading-relaxed">
+                {step.desc}
+              </div>
+            )}
+            {step.action && <div className="mt-2">{step.action}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+
+
 
             {/* Modal */}
             {open && (
@@ -344,17 +404,13 @@ export default function ClaimTimeline({
                         className="relative w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-xl bg-white shadow-xl"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {/* Header */}
                         <div className="flex items-center justify-between border-b px-4 py-3">
                             <div className="font-semibold text-zinc-700 flex items-center gap-2">
                                 <FaFileAlt /> เอกสารคำขอเคลม
                             </div>
                             <div className="flex gap-2">
-                                <button
-                                    onClick={() => window.print()}
-                                    className="flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700"
-                                >
-                                    <FaPrint /> พิมพ์
-                                </button>
+                                
                                 <button
                                     onClick={() => setOpen(false)}
                                     className="flex items-center gap-2 rounded-md bg-zinc-200 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-300"
@@ -364,18 +420,27 @@ export default function ClaimTimeline({
                             </div>
                         </div>
 
+                        {/* Body */}
                         <div className="p-4">
-                            {loading ? (
-                                <div className="py-12 text-center text-zinc-500">กำลังโหลดข้อมูล…</div>
-                            ) : error ? (
+                            {error ? (
                                 <div className="py-12 text-center text-rose-600">{error}</div>
+                            ) : loading && !hasData ? (
+                                <div className="py-12 text-center text-zinc-500">กำลังโหลดข้อมูล...</div>
+                            ) : hasData ? (
+                                <ClaimReportPreview car={carToUse!} draft={draftToUse!} />
                             ) : (
-                                <ClaimReportPreview car={car} draft={draft} />
+                                <div className="py-12 text-center text-zinc-500">⚙️ ไม่มีข้อมูลในระบบ</div>
                             )}
                         </div>
+                        
                     </div>
+                    
                 </div>
+                
             )}
+            
         </>
+        
     );
+    
 }

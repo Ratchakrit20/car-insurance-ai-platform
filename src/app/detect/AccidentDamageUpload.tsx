@@ -4,10 +4,13 @@ import React, { useEffect, useState } from "react";
 import DamagePhotosPanel, { DamagePhotoItem } from "../components/DamagePhotosPanel";
 import SafeAreaSpacer from "../components/SafeAreaSpacer";
 import type {
-MediaItem
+    MediaItem
 } from "@/types/claim";
 
 const ACC_KEY = "accidentDraft";
+
+
+
 
 
 
@@ -49,7 +52,7 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
                             perClass: d.perClass ?? undefined, // 👈 เช่นเดียวกัน
                             note: d.note ?? "",
                             detecting: false,
-                            type: d.type ?? "image",    
+                            type: d.type ?? "image",
                         }))
                     );
                 }
@@ -64,44 +67,44 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
         const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
 
         const damagePhotos = await Promise.all(
-        damageItems.map(async (it) => {
-            if (it.file) {
-            const up = await uploadToCloudinary(it.file);
-            return {
-                url: up.url,
-                type: up.type,
-                publicId: up.publicId,
-                side: it.side,
-                total: it.total,
-                perClass: it.perClass,
-                note: it.note,
-            };
-            }
-            return {
-            url: it.previewUrl,
-            type: "image",
-            publicId: it.id,
-            side: it.side,
-            total: it.total,
-            perClass: it.perClass,
-            note: it.note,
-            };
-        })
+            damageItems.map(async (it) => {
+                if (it.file) {
+                    const up = await uploadToCloudinary(it.file);
+                    return {
+                        url: up.url,
+                        type: up.type,
+                        publicId: up.publicId,
+                        side: it.side,
+                        total: it.total,
+                        perClass: it.perClass,
+                        note: it.note,
+                    };
+                }
+                return {
+                    url: it.previewUrl,
+                    type: "image",
+                    publicId: it.id,
+                    side: it.side,
+                    total: it.total,
+                    perClass: it.perClass,
+                    note: it.note,
+                };
+            })
         );
 
         const payload = {
-        ...oldDraft,
-        damagePhotos,
-        // agreed,
+            ...oldDraft,
+            damagePhotos,
+            // agreed,
         };
 
         localStorage.setItem(ACC_KEY, JSON.stringify(payload));
         onNext();
     };
 
-    const isValid = damageItems.length > 0 ; //&& agreed;
+    const isValid = damageItems.length > 0; //&& agreed;
 
-    
+
 
 
 
@@ -109,10 +112,14 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
     return (
         <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
             <form onSubmit={handleSubmit} className="bg-white p-6 space-y-8">
-                <div className="mb-5 flex items-center justify-center gap-2">
-                    <h2 className="text-base sm:text-lg font-semibold text-zinc-900">
+                <div className="mb-5 text-center">
+                    <h2 className="text-lg sm:text-xl font-semibold text-zinc-900">
                         อัปโหลดภาพรถยนต์ที่เกิดความเสียหาย
                     </h2>
+
+                    <p className="mt-1 text-sm text-zinc-500">
+                        ถ่ายภาพให้เห็นชัดเจนในที่แสงสว่าง และระยะห่างประมาณ 1 เมตรจากจุดที่เสียหายบนชิ้นส่วน
+                    </p>
                 </div>
 
                 {/* Damage Photos Panel */}
@@ -141,8 +148,8 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
                         type="submit"
                         disabled={!isValid}
                         className={`w-full sm:w-auto rounded-[7px] px-6 py-2 font-medium shadow-sm ${isValid
-                                ? "bg-[#6D5BD0] hover:bg-[#433D8B] text-white"
-                                : "bg-zinc-400 cursor-not-allowed text-white"
+                            ? "bg-[#6D5BD0] hover:bg-[#433D8B] text-white"
+                            : "bg-zinc-400 cursor-not-allowed text-white"
                             }`}
                     >
                         ดำเนินการต่อ
