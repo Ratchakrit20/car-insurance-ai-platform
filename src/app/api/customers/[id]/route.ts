@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
+const BACKEND_URL =
+  process.env.BACKEND_URL || "http://localhost:3001";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/customers/${params.id}`, {
+    const { id } = context.params;
+    const res = await fetch(`${BACKEND_URL}/api/customers/${id}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
 
-    const text = await res.text(); // อ่าน raw ก่อน
+    const text = await res.text();
     try {
-      const data = JSON.parse(text); // พยายาม parse JSON
+      const data = JSON.parse(text);
       return NextResponse.json(data, { status: res.status });
     } catch {
       return NextResponse.json(
@@ -29,11 +31,13 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = context.params;
     const body = await req.json();
-    const res = await fetch(`${BACKEND_URL}/api/customers/${params.id}`, {
+
+    const res = await fetch(`${BACKEND_URL}/api/customers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
