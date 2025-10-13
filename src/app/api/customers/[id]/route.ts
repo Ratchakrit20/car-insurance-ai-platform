@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL =
-  process.env.BACKEND_URL || "http://localhost:3001";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   context: { params: { id: string } }
 ) {
   try {
@@ -30,7 +29,7 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   context: { params: { id: string } }
 ) {
   try {
