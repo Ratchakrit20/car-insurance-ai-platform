@@ -4,10 +4,10 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
 
 export async function GET(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: any // ✅ ไม่ระบุ type ตรงนี้
 ) {
   try {
-    const { id } = context.params;
+    const id = params.id;
     const res = await fetch(`${BACKEND_URL}/api/customers/${id}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
@@ -30,10 +30,10 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: any // ✅ ใช้ any เหมือนกัน
 ) {
   try {
-    const { id } = context.params;
+    const id = params.id;
     const body = await req.json();
 
     const res = await fetch(`${BACKEND_URL}/api/customers/${id}`, {
