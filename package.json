@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:api": "ts-node-dev --respawn --transpile-only --project tsconfig.api.json src/api/app.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:api\"",
-    "build": "next build",
+    "build": "next build --no-lint",
     "start": "next start",
     "lint": "next lint"
   },
