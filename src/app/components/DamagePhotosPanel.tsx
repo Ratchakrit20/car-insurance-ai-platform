@@ -30,7 +30,7 @@ type Props = {
 /** ---------- Component ---------- */
 export default function DamagePhotosPanel({
   apiBaseUrl,
-  value ,
+  value,
   onChange,
   maxTotalMB = 100,
 }: Props) {
@@ -89,7 +89,7 @@ export default function DamagePhotosPanel({
       }));
 
     mutate((prev) => [...prev, ...newOnes]);
-      // 🟣 ✅ เพิ่มตรงนี้ เพื่อเลือกภาพล่าสุดอัตโนมัติ
+    // 🟣 ✅ เพิ่มตรงนี้ เพื่อเลือกภาพล่าสุดอัตโนมัติ
     setSelectedId(newOnes[newOnes.length - 1].id);
   };
   /** ลบรูป + revoke เฉพาะ blob: */
@@ -110,7 +110,7 @@ export default function DamagePhotosPanel({
     mutate((prev) => prev.map((x) => (x.id === id ? { ...x, note } : x)));
 
   const selectedItem = items.find((x) => x.id === selectedId);
-    // 🟣 cleanup blob URL เวลา component ถูก unmount
+  // 🟣 cleanup blob URL เวลา component ถูก unmount
   useEffect(() => {
     return () => {
       items.forEach((it) => {
@@ -157,7 +157,7 @@ export default function DamagePhotosPanel({
                 }),
               }}
             >
-              <FontAwesomeIcon icon={faCamera} className="w-4 h-4 text-white" />
+              <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
               <input
                 type="file"
                 accept="image/*"
@@ -192,11 +192,10 @@ export default function DamagePhotosPanel({
                 {items.map((it) => (
                   <li
                     key={it.id}
-                    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm transition cursor-pointer ${
-                      selectedId === it.id
+                    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm transition cursor-pointer ${selectedId === it.id
                         ? "bg-violet-600 text-white"
                         : "bg-white hover:bg-violet-100 text-zinc-700"
-                    }`}
+                      }`}
                     onClick={() => setSelectedId(it.id)}
                   >
                     <ImageIcon className="w-4 h-4" />
@@ -224,11 +223,10 @@ export default function DamagePhotosPanel({
                         e.stopPropagation();
                         removeOne(it.id);
                       }}
-                      className={`absolute top-1 right-1 rounded-[8px] transition ${
-                        selectedId === it.id
+                      className={`absolute top-1 right-1 rounded-[8px] transition ${selectedId === it.id
                           ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
                           : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
-                      }`}
+                        }`}
                     >
                       <X className="w-4 h-4" />
                     </button>

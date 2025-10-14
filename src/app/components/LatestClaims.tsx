@@ -9,8 +9,8 @@ const API_PREFIX = process.env.NEXT_PUBLIC_URL_PREFIX?.replace(/\/$/, "") || "";
 const statusColor: Record<ClaimStatus, string> = {
     "กำลังตรวจสอบ": "bg-[#FFB338]",
     "สำเร็จ": "bg-[#35A638]",
-    "ปฏิเสธ": "bg-[#DB4242]",
-    "ข้อมูลไม่ครบ": "bg-orange-400",
+    "เอกสารไม่ผ่านการตรวจสอบ": "bg-[#DB4242]",
+    "เอกสารต้องแก้ไขเพิ่มเติม": "bg-orange-400",
 };
 
 function thDateTime(iso: string) {
@@ -29,8 +29,8 @@ function normalizeStatus(s?: string | null): ClaimStatus {
     const x = (s || "").toLowerCase();
     if (x.includes("pending") || x.includes("ตรวจสอบ") || x.includes("review")) return "กำลังตรวจสอบ";
     if (x.includes("approved") || x.includes("success") || x.includes("done")) return "สำเร็จ";
-    if (x.includes("rejected") || x.includes("deny")) return "ปฏิเสธ";
-    if (x.includes("incomplete") || x.includes("ข้อมูลไม่ครบ")) return "ข้อมูลไม่ครบ";
+    if (x.includes("rejected") || x.includes("deny")) return "เอกสารไม่ผ่านการตรวจสอบ";
+    if (x.includes("incomplete") || x.includes("ข้อมูลไม่ครบ")) return "เอกสารต้องแก้ไขเพิ่มเติม";
     return "กำลังตรวจสอบ";
 }
 
