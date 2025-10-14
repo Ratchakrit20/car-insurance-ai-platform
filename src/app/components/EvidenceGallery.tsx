@@ -33,9 +33,23 @@ export default function EvidenceGallery({
   thumbWidth = 800,
   className = "",
 }: Props) {
-  const items = useMemo(() => (media || []).map(asMediaItem), [media]);
+  const flattenMedia = (raw: any[]): MediaItem[] => {
+    if (!Array.isArray(raw)) return [];
+    // ตรวจจับกรณี url เป็น array
+    if (raw.length === 1 && Array.isArray(raw[0]?.url) && Array.isArray(raw[0]?.type)) {
+      return raw[0].url.map((u: string, i: number) => ({
+        url: u,
+        type: raw[0].type?.[i] ?? "image",
+      }));
+    }
+    return raw.map(asMediaItem);
+  };
+
+  const items = useMemo(() => flattenMedia(media || []), [media]);
+
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
+  console.log("items", items);
 
   useEffect(() => {
     if (!open) return;

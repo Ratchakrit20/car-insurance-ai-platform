@@ -69,10 +69,14 @@ router.post("/submit", async (req: Request, res: Response) => {
       VALUES
         ($1, $2, $3, $4,
          $5, $6, $7, $8, $9, $10,
-         $11, $12, $13, $14,
-         NOW(), NOW(), $15)
+         $11, $12, $13::jsonb, $14,
+         NOW(), NOW(), $15::jsonb)
       RETURNING id
     `;
+
+    // ✅ แปลง evidenceMedia เป็น array ของ url/type
+    const fileUrls = draft.evidenceMedia?.map(m => m.url) ?? [];
+    const mediaTypes = draft.evidenceMedia?.map(m => m.type ?? "image") ?? [];
 
     const toNum = (v: any) => (Number.isFinite(+v) ? +v : null);
     const round = (v: number, dp: number) => Math.round(v * 10 ** dp) / 10 ** dp;
@@ -102,9 +106,9 @@ router.post("/submit", async (req: Request, res: Response) => {
       latSafe,
       lngSafe,
       acc,
-      draft.evidenceMedia?.[0]?.url ?? null,
+      JSON.stringify(fileUrls),
       agreed,
-      draft.evidenceMedia?.[0]?.type ?? null,
+      JSON.stringify(mediaTypes),
     ]);
 
     const accidentDetailId: number = accRes.rows[0].id;
@@ -172,6 +176,7 @@ router.post("/submit", async (req: Request, res: Response) => {
 });
 
 // PUT /api/claim-requests/update/:id
+// PUT /api/claim-requests/update/:id
 router.put("/update/:id", async (req: Request, res: Response) => {
   const claimId = Number(req.params.id);
   const body = req.body as SubmitBody;
@@ -186,20 +191,37 @@ router.put("/update/:id", async (req: Request, res: Response) => {
   try {
     await client.query("BEGIN");
 
-    // 1) update accident_details
+    // 🟢 1) เตรียมเวลาและ array
     const accidentTime = /^\d{2}:\d{2}(:\d{2})?$/.test(draft.time)
       ? (draft.time.length === 5 ? `${draft.time}:00` : draft.time)
       : "00:00:00";
 
+    // ✅ เตรียม array สำหรับ file_url / media_type (jsonb)
+    const fileUrls = draft.evidenceMedia?.map(m => m.url) ?? [];
+    const mediaTypes = draft.evidenceMedia?.map(m => m.type ?? "image") ?? [];
+
+    // 🟢 2) อัปเดต accident_details
     await client.query(
       `
       UPDATE accident_details
-      SET accident_type=$1, accident_date=$2, accident_time=$3,
-          province=$4, district=$5, road=$6, area_type=$7, nearby=$8,
-          details=$9, latitude=$10, longitude=$11, accuracy=$12,
-          updated_at=NOW()
+      SET
+        accident_type = $1,
+        accident_date = $2,
+        accident_time = $3,
+        province = $4,
+        district = $5,
+        road = $6,
+        area_type = $7,
+        nearby = $8,
+        details = $9,
+        latitude = $10,
+        longitude = $11,
+        accuracy = $12,
+        file_url = $13::jsonb,     -- ✅ update JSONB array
+        media_type = $14::jsonb,   -- ✅ update JSONB array
+        updated_at = NOW()
       WHERE id = (
-        SELECT accident_detail_id FROM claim_requests WHERE id=$13
+        SELECT accident_detail_id FROM claim_requests WHERE id=$15
       )
       `,
       [
@@ -215,11 +237,13 @@ router.put("/update/:id", async (req: Request, res: Response) => {
         draft.location?.lat ?? null,
         draft.location?.lng ?? null,
         draft.location?.accuracy ?? null,
+        JSON.stringify(fileUrls),
+        JSON.stringify(mediaTypes),
         claimId,
       ]
     );
 
-    // 2) ลบรูปเก่า + insert ใหม่
+    // 🟢 3) ลบรูปเก่า + insert ใหม่ใน evaluation_images
     await client.query(`DELETE FROM evaluation_images WHERE claim_id=$1`, [claimId]);
     const photos: DamagePhoto[] = Array.isArray(draft.damagePhotos) ? draft.damagePhotos : [];
     for (const p of photos) {
@@ -231,21 +255,22 @@ router.put("/update/:id", async (req: Request, res: Response) => {
       );
     }
 
-    // 3) update claim_requests
+    // 🟢 4) update claim_requests
     await client.query(
       `
       UPDATE claim_requests
-      SET status = 'pending',
-          approved_by = NULL,
-          approved_at = NULL,
-          admin_note = NULL,
-          updated_at = NOW()
+      SET
+        status = 'pending',
+        approved_by = NULL,
+        approved_at = NULL,
+        admin_note = NULL,
+        updated_at = NOW()
       WHERE id = $1
       `,
       [claimId]
     );
 
-    // 4) แจ้งเตือนการแก้ไข
+    // 🟢 5) แจ้งเตือนการอัปเดต
     const userRes = await client.query(`SELECT user_id FROM claim_requests WHERE id=$1`, [claimId]);
     const userId = userRes.rows?.[0]?.user_id;
     await client.query(
@@ -273,6 +298,7 @@ router.put("/update/:id", async (req: Request, res: Response) => {
     client.release();
   }
 });
+
 
 
 export default router;

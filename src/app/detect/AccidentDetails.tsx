@@ -108,29 +108,72 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   useEffect(() => {
     setPreviewLoaded(false);
   }, [evidenceFiles, selectedIndex]);
+  // useEffect(() => {
+  //   try {
+  //     const raw = localStorage.getItem(ACC_KEY);
+  //     if (raw) {
+  //       const draft = JSON.parse(raw);
+  //       setAccidentType(draft.accidentType ?? "ชนสัตว์");
+  //       setDetails(draft.details ?? "");
+
+  //       // ✅ เติมค่าที่หายไป (normalize data)
+  //       const normalized = (draft.evidenceMedia ?? []).map((f: any, i: number) => ({
+  //         url: f.url,
+  //         type: f.type ?? "image",
+  //         publicId: f.publicId ?? "",
+  //         name: f.name ?? `ไฟล์ที่-${i + 1}`,
+  //         progress: f.progress ?? 100, // ถือว่าอัปโหลดเสร็จแล้ว
+  //       }));
+
+  //       setEvidenceFiles(normalized);
+  //     }
+  //   } catch (e) {
+  //     console.warn("load accident draft failed", e);
+  //   }
+  // }, []);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(ACC_KEY);
-      if (raw) {
-        const draft = JSON.parse(raw);
-        setAccidentType(draft.accidentType ?? "ชนสัตว์");
-        setDetails(draft.details ?? "");
+      if (!raw) return;
 
-        // ✅ เติมค่าที่หายไป (normalize data)
-        const normalized = (draft.evidenceMedia ?? []).map((f: any, i: number) => ({
-          url: f.url,
-          type: f.type ?? "image",
-          publicId: f.publicId ?? "",
-          name: f.name ?? `ไฟล์ที่-${i + 1}`,
-          progress: f.progress ?? 100, // ถือว่าอัปโหลดเสร็จแล้ว
-        }));
+      const draft = JSON.parse(raw);
+      setAccidentType(draft.accidentType ?? "ชนสัตว์");
+      setDetails(draft.details ?? "");
 
-        setEvidenceFiles(normalized);
+      // ✅ Normalize evidenceMedia ให้รองรับทั้งรูปแบบเก่าและใหม่ (array ซ้อน array)
+      let normalized: EvidenceFile[] = [];
+
+      if (Array.isArray(draft.evidenceMedia)) {
+        // กรณีใหม่: evidenceMedia = [{url,type}, ...]
+        if (draft.evidenceMedia.length && Array.isArray(draft.evidenceMedia[0]?.url)) {
+          // ❗️กรณีซ้อน array เช่น { url:[...], type:[...] }
+          const urls = draft.evidenceMedia[0].url ?? [];
+          const types = draft.evidenceMedia[0].type ?? [];
+          normalized = urls.map((u: string, i: number) => ({
+            url: u,
+            type: types[i] ?? "image",
+            publicId: "",
+            name: `ไฟล์ที่-${i + 1}`,
+            progress: 100,
+          }));
+        } else {
+          // ✅ ปกติ (array ของ object)
+          normalized = draft.evidenceMedia.map((f: any, i: number) => ({
+            url: f.url,
+            type: f.type ?? "image",
+            publicId: f.publicId ?? "",
+            name: f.name ?? `ไฟล์ที่-${i + 1}`,
+            progress: f.progress ?? 100,
+          }));
+        }
       }
+
+      setEvidenceFiles(normalized);
     } catch (e) {
       console.warn("load accident draft failed", e);
     }
   }, []);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

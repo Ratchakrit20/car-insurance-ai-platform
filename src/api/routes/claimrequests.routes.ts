@@ -714,6 +714,10 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
         ? (accident.time.length === 5 ? `${accident.time}:00` : accident.time)
         : "00:00:00";
 
+      // ✅ เตรียม array สำหรับ file_url และ media_type
+      const fileUrls = accident.evidenceMedia?.map(m => m.url) ?? [];
+      const mediaTypes = accident.evidenceMedia?.map(m => m.type ?? "image") ?? [];
+
       await client.query(
         `
         UPDATE accident_details
@@ -730,8 +734,8 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
           latitude = $10,
           longitude = $11,
           accuracy = $12,
-          file_url = $13,
-          media_type = $14,
+          file_url = $13::jsonb,     -- ✅ json array
+          media_type = $14::jsonb,   -- ✅ json array
           updated_at = NOW()
         WHERE id = $15
         `,
@@ -748,8 +752,8 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
           accident.location?.lat ?? null,
           accident.location?.lng ?? null,
           accident.location?.accuracy ?? null,
-          accident.evidenceMedia?.[0]?.url ?? null,
-          accident.evidenceMedia?.[0]?.type ?? null,
+          JSON.stringify(fileUrls),   // ✅ เก็บเป็น JSON array
+          JSON.stringify(mediaTypes), // ✅ เก็บเป็น JSON array
           accidentDetailId,
         ]
       );
@@ -772,6 +776,7 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
         );
       }
     }
+
 
     // 🟢 3) เพิ่มประวัติ resubmitted_history และตั้งสถานะกลับเป็น pending
     const newRecord = {
