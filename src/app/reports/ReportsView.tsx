@@ -67,7 +67,7 @@ export default function ReportsView({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "ทั้งหมด" | "กำลังตรวจสอบ" | "สำเร็จ" | "เอกสารไม่ผ่านการตรวจสอบ" | "เอกสารต้องแก้ไขเพิ่มเติม"
-  >("ทั้งหมด");["ทั้งหมด", "กำลังตรวจสอบ", "สำเร็จ", "เอกสารไม่ผ่านการตรวจสอบ", "เอกสารต้องแก้ไขเพิ่มเติม"] as const
+  >("ทั้งหมด");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -245,11 +245,14 @@ export default function ReportsView({
               <ReportDetail
                 claim={selected}
                 onOpenPdf={() =>
+                  // window.open(
+                  //   `http://localhost:3001/api/claim-requests/detail?claim_id=${selected.id}`,
+                  //   "_blank"
+                  // )
                   window.open(
-                    `http://localhost:3001/api/claim-requests/detail?claim_id=${selected.id}`,
+                    `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${selected.id}`,
                     "_blank"
                   )
-
                 }
               />
             </div>
@@ -405,10 +408,10 @@ export default function ReportsView({
               <ReportDetail
                 claim={selected}
                 onOpenPdf={() =>
-                  window.open(
-                    `http://localhost:3001/api/claim-requests/detail?claim_id=${selected.id}`,
-                    "_blank"
-                  )
+                     window.open(
+        `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${selected.id}`,
+        "_blank"
+      )
                 }
               />
             ) : (
