@@ -1,6 +1,5 @@
-import dynamic from "next/dynamic";
+import ReportPageWrapper from "./ReportPageWrapper";
 
-// ห่อ component จริงไว้ไม่ให้ SSR
-const ReportPage = dynamic(() => import("./ReportPage"), { ssr: false });
-
-export default ReportPage;
+export default function Page() {
+  return <ReportPageWrapper />;
+}
