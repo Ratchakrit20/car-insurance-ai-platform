@@ -311,12 +311,8 @@ export default function ReportPage() {
   }
 
   return (
-    <div className={`${thaiFont.className} relative w-full overflow-x-hidden`}>
-
-      <div className="fixed inset-0 -z-10 bg-white">
-        <div className="min-h-[100dvh]  w-full">
-
-          <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
+    <div className={`${thaiFont.className} relative w-full min-h-[100dvh] bg-white`}>
+  <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
             {/* Page Header */}
             <header className="mb-4 lg:mb-6">
               <div className="flex flex-wrap md:ml-24 items-center justify-between gap-3">
@@ -353,7 +349,7 @@ export default function ReportPage() {
           />
         </div>
 
-      </div>
+  );
 
       {/* Modal PDF */}
       {/* {pdfOpen && (
@@ -378,6 +374,6 @@ export default function ReportPage() {
           </div>
         </div>
       )} */}
-    </div>
-  );
+   
+ 
 }
