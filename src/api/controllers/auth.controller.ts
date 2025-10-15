@@ -8,7 +8,9 @@ export const register = async (req: Request, res: Response) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (full_name, email, password_hash, citizen_id, phone_number, address, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, full_name, email, citizen_id, phone_number, address, role',
+      `INSERT INTO users (full_name, email, password_hash, citizen_id, phone_number, address, role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, full_name, email, citizen_id, phone_number, address, role`,
       [full_name, email, hashedPassword, citizen_id, phone_number, address, 'customer']
     );
     res.status(201).json({ message: 'User registered', user: result.rows[0] });
@@ -17,7 +19,8 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-// controllers/auth.controller.ts
+// --------------------------- LOGIN ---------------------------
+
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -42,31 +45,35 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '1d' }
     );
 
-    res.cookie('token', token, {
+    // ✅ จุดสำคัญ 1: เปิดให้ส่ง cookie ข้ามโดเมน
+    res.header("Access-Control-Allow-Credentials", "true");
+
+    // ✅ จุดสำคัญ 2: ตั้ง cookie แบบ cross-site (Render ⇄ localhost)
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "strict",
-      maxAge: 30 * 60 * 1000,
+      secure: true,      // ✅ Render ใช้ HTTPS
+      sameSite: "none",  // ✅ ต้องใช้ none เพื่อให้ cross-domain cookie ได้
+      maxAge: 24 * 60 * 60 * 1000, // 1 วัน
     });
 
-    // ✅ ส่ง role ให้ FE รู้ทันที
+    // ✅ ป้องกัน cache
     res.setHeader('Cache-Control', 'no-store');
+
     return res.json({ message: 'Login successful', role: user.role });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 };
 
+// --------------------------- LOGOUT ---------------------------
 
 export const logout = async (req: Request, res: Response) => {
   try {
-    // เคลียร์ cookie "token"
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: true,
+      sameSite: "none", // ✅ ให้เคลียร์ cookie แบบเดียวกับตอนตั้ง
     });
-
     return res.json({ message: "Logout successful" });
   } catch (err: any) {
     return res.status(500).json({ error: "Logout failed", details: err.message });

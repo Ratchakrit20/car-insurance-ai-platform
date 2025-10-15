@@ -178,7 +178,7 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
             <div className="col-span-12 rounded-xl border border-zinc-200 p-4">
               <h3 className="text-[16px] font-bold text-zinc-900">รูปหลักฐาน</h3>
               <div className="mt-3">
-                <EvidenceGallery media={evidenceList} title="" thumbWidth={800} />
+                <EvidenceGallery media={evidenceList} thumbWidth={800} />
               </div>
             </div>
           )}
@@ -188,7 +188,7 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
             <div className="col-span-12 rounded-xl border border-zinc-200 p-4">
               <h3 className="text-[16px] font-bold text-zinc-900">รูปความเสียหาย</h3>
               <div className="mt-3">
-                <EvidenceGallery media={damageList} title="" thumbWidth={800} />
+                <EvidenceGallery media={damageList} thumbWidth={800} />
               </div>
             </div>
           )}
