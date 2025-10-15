@@ -204,68 +204,68 @@ export default function accidentCheck() {
   }, [draft?.damagePhotos]);
 
 
-async function patchStatus(
-  next: "approve" | "reject" | "incomplete",
-  note?: string
-) {
-  if (!claimId) return;
-  try {
-    setActionLoading(next);
+  async function patchStatus(
+    next: "approve" | "reject" | "incomplete",
+    note?: string
+  ) {
+    if (!claimId) return;
+    try {
+      setActionLoading(next);
 
-    const now = new Date().toISOString();
-    const adminId = user ? Number(user.id) : null;
+      const now = new Date().toISOString();
+      const adminId = user ? Number(user.id) : null;
 
-    const body: Record<string, any> = {
-      status: next,
-      admin_note: note ?? null,
-    };
+      const body: Record<string, any> = {
+        status: next,
+        admin_note: note ?? null,
+      };
 
-    if (next === "approve") {
-      body.approved_by = adminId;
-      body.approved_at = now;
-    } else if (next === "reject") {
-      body.rejected_by = adminId;
-      body.rejected_at = now;
-    } else if (next === "incomplete") {
-      body.incomplete_by = adminId;
-      body.incomplete_at = now;
+      if (next === "approve") {
+        body.approved_by = adminId;
+        body.approved_at = now;
+      } else if (next === "reject") {
+        body.rejected_by = adminId;
+        body.rejected_at = now;
+      } else if (next === "incomplete") {
+        body.incomplete_by = adminId;
+        body.incomplete_at = now;
 
-      // ✅ ดึงประวัติเก่าก่อนจะ append
-      const res = await fetch(`${URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`, {
+        // ✅ ดึงประวัติเก่าก่อนจะ append
+        const res = await fetch(`${URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json();
+        const prevHistory = json?.data?.incomplete_history || [];
+
+        body.incomplete_history = [
+          ...prevHistory,
+          { time: now, note: note || "" },
+        ];
+      }
+
+      const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        cache: "no-store",
+        body: JSON.stringify(body),
       });
-      const json = await res.json();
-      const prevHistory = json?.data?.incomplete_history || [];
 
-      body.incomplete_history = [
-        ...prevHistory,
-        { time: now, note: note || "" },
-      ];
+      const j = await resp.json();
+      if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
+
+      if (next === "incomplete") {
+        setShowIncomplete(false);
+        setIncompleteReason("");
+      }
+
+      router.push("/adminpage/reportsrequest");
+    } catch (e: any) {
+      alert(e?.message ?? "เกิดข้อผิดพลาด");
+    } finally {
+      setActionLoading(null);
     }
-
-    const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(body),
-    });
-
-    const j = await resp.json();
-    if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
-
-    if (next === "incomplete") {
-      setShowIncomplete(false);
-      setIncompleteReason("");
-    }
-
-    router.push("/adminpage/reportsrequest");
-  } catch (e: any) {
-    alert(e?.message ?? "เกิดข้อผิดพลาด");
-  } finally {
-    setActionLoading(null);
   }
-}
 
 
 
@@ -366,86 +366,25 @@ async function patchStatus(
         </div>
 
         {/* ขวา: ความเสียหาย */}
+        {/* ขวา: ความเสียหาย */}
         <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
           <h2 className="font-semibold mb-3">รูปความเสียหาย</h2>
-          {/* รูปความเสียหาย */}
-          {damageList.length > 0 && (
-            <section className="mt-6">
 
-
-              <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-                {damageList.map((d, idx) => {
-                  const classes = topClasses(d.perClass, 5);
-                  const hasNote = !!(d.note && d.note.trim().length > 0);
-
-                  return (
-                    <div
-                      key={`${d.publicId || d.url}-${idx}`}
-                      className="relative overflow-hidden rounded-xl ring-1 ring-zinc-200/70 bg-zinc-50"
-                    >
-                      <div className="aspect-video w-full bg-black/5">
-                        {d.type === "video" ? (
-                          <video
-                            src={d.url}
-                            controls
-                            className="h-full w-full object-cover"
-                            preload="metadata"
-                          />
-                        ) : (
-                          <img
-                            src={d.url}
-                            alt={`damage-${idx}`}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        )}
-                      </div>
-
-                      {/* Badges มุมบนซ้าย */}
-                      <div className="absolute left-2 top-2 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-zinc-900/80 text-white text-xs px-2 py-1">
-                          ด้าน: {formatSide(d.side)}
-                        </span>
-                        {d.total !== undefined && d.total !== null && (
-                          <span className="rounded-full bg-indigo-600 text-white text-xs px-2 py-1">
-                            รวม: {d.total} ตำแหน่ง
-                          </span>
-                        )}
-                      </div>
-
-                      {/* รายละเอียดความเสียหาย */}
-                      <div className="p-3 space-y-2">
-                        {/* {classes.length > 0 ? (
-                          <div className="space-y-1">
-                            <div className="text-xs text-zinc-500">ความเสียหายที่ตรวจพบ</div>
-                            <ul className="text-sm">
-                              {classes.map(([name, score]) => (
-                                <li key={name} className="flex items-center justify-between py-0.5">
-                                  <span className="truncate">{toTHDamage(name)}</span>
-                                  <span className="ml-3 tabular-nums text-zinc-600">{score} ตำแหน่ง</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-zinc-500">ไม่มีข้อมูลจำแนกความเสียหาย</div>
-                        )} */}
-
-                        {hasNote && (
-                          <div className="text-sm">
-                            <div className="text-xs text-zinc-500">รายระเอียดความเสียหาย</div>
-                            <div className="whitespace-pre-wrap">{d.note}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+          {damageList.length > 0 ? (
+            <EvidenceGallery
+              className="mt-4"
+              media={damageList.map((d) => ({
+                url: d.url,
+                type: d.type,
+                caption: d.side ? `ด้าน ${d.side}` : undefined,
+                note: d.note || undefined,
+              }))}
+            />
+          ) : (
+            <p className="text-sm text-zinc-500">ไม่มีข้อมูลความเสียหาย</p>
           )}
-
         </div>
+
       </div>
 
 
@@ -466,8 +405,8 @@ async function patchStatus(
           onClick={() => setShowIncomplete(true)}
           disabled={actionLoading !== null}
           className={`h-10 rounded-xl px-4 text-sm font-medium ${actionLoading === "incomplete"
-              ? "bg-amber-200 text-amber-800"
-              : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+            ? "bg-amber-200 text-amber-800"
+            : "bg-amber-50 text-amber-700 hover:bg-amber-100"
             } border border-amber-200 w-full sm:w-auto`}
         >
           {actionLoading === "incomplete" ? "กำลังบันทึก…" : "ข้อมูลไม่ครบ"}
@@ -478,8 +417,8 @@ async function patchStatus(
           onClick={() => router.push(`/adminpage/reportsrequest/inspect?claim_id=${claimId}`)}
           disabled={submitting}
           className={`rounded-lg px-4 py-2 font-medium text-white ${submitting
-              ? "bg-[#6F47E4]"
-              : "bg-[#6F47E4] hover:bg-[#6F47E4]/80"
+            ? "bg-[#6F47E4]"
+            : "bg-[#6F47E4] hover:bg-[#6F47E4]/80"
             }`}
         >
           ตรวจสอบความเสียหาย

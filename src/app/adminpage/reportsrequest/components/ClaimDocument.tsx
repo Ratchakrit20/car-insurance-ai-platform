@@ -409,7 +409,7 @@ console.log("💥 Accident mapped:", acc);
           </div>
         </div>
         {/* ---------- ลายเซ็น ---------- */}
-        <div className="mt-4 flex justify-between gap-6 avoid-break">
+        <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 avoid-break">
           <SignBox title="บริษัทประกัน" />
           <SignBox title="ผู้เอาประกันภัย / ลูกค้า" />
         </div>
@@ -503,13 +503,13 @@ function Info({
 
 function SignBox({ title }: { title: string; }) {
   return (
-    <div
-      className={`flex-1 border border-zinc-300 rounded-md p-3 text-[12px] `}
-    >
+    <div className="flex-1 w-full border border-zinc-300 rounded-md p-3 text-[12px]">
+
       <div className="mb-2 font-semibold text-zinc-700">{title}</div>
       <div>ลงชื่อ ___________________________</div>
       <div className="mt-1">วันที่ ___________/___________/___________</div>
     </div>
   );
 }
+
 

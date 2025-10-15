@@ -389,7 +389,6 @@ router.get("/detail", async (req: Request, res: Response) => {
         ip.insurance_type, ip.policy_number, ip.coverage_end_date,
         ip.car_path, ip.insured_name,
 
-        -- Images + annotations
         (
           SELECT COALESCE(
             json_agg(
@@ -423,24 +422,7 @@ router.get("/detail", async (req: Request, res: Response) => {
           )
           FROM evaluation_images ei
           WHERE ei.claim_id = cr.id
-        ) AS damage_images,
-
-        -- Timeline steps
-        (
-          SELECT COALESCE(
-            json_agg(
-              json_build_object(
-                'step_type', s.step_type,
-                'step_order', s.step_order,
-                'note', s.note,
-                'created_at', s.created_at
-              )
-              ORDER BY s.created_at ASC
-            ), '[]'::json
-          )
-          FROM claim_request_steps s
-          WHERE s.claim_request_id = cr.id
-        ) AS steps
+        ) AS damage_images
 
       FROM claim_requests cr
       JOIN accident_details ad ON ad.id = cr.accident_detail_id
@@ -451,28 +433,133 @@ router.get("/detail", async (req: Request, res: Response) => {
       [claimId, userId]
     );
 
-    if (rows.length === 0) {
+    if (rows.length === 0)
       return res.status(404).json({ ok: false, message: "claim not found" });
-    }
 
     const row = rows[0];
-    console.log("DB incomplete_history raw =>", row.incomplete_history);
+
+    // Helper parse JSON
+    const parseMaybeJson = (v: any) => {
+      if (Array.isArray(v)) return v;
+      if (typeof v === "string") {
+        try {
+          const parsed = JSON.parse(v);
+          return Array.isArray(parsed) ? parsed : [v];
+        } catch {
+          return [v];
+        }
+      }
+      return [];
+    };
+
+    const fileUrls = parseMaybeJson(row.evidence_file_url).flat();
+    const mediaTypes = parseMaybeJson(row.media_type).flat();
+
+    const evidenceMedia = fileUrls.map((url: string, i: number) => ({
+      url,
+      type:
+        mediaTypes[i] ??
+        (url.match(/\.(mp4|mov|webm|ogg)$/i) || url.includes("/video/upload/")
+          ? "video"
+          : "image"),
+    }));
+
+    // ✅ รวมทุกแหล่งมาไว้ array เดียว พร้อม label/time/role
+    const steps: any[] = [];
+
+    steps.push({
+      step_type: "created",
+      label: "สร้างเอกสารการเคลม",
+      note: "รอเจ้าหน้าที่ตรวจสอบเอกสารของคุณ",
+      created_at: row.created_at,
+      role: "user",
+    });
+
+    const incomplete = parseMaybeJson(row.incomplete_history);
+    incomplete.forEach((h: any, i: number) => {
+      steps.push({
+        step_type: `incomplete_${i + 1}`,
+        label: `รอบที่ ${i + 1}: เจ้าหน้าที่แจ้งแก้ไขข้อมูล`,
+        note: h.note || "เจ้าหน้าที่แจ้งแก้ไขข้อมูล",
+        created_at: h.time,
+        role: "admin",
+      });
+    });
+
+    const resubmitted = parseMaybeJson(row.resubmitted_history);
+    resubmitted.forEach((h: any, i: number) => {
+      steps.push({
+        step_type: `resubmitted_${i + 1}`,
+        label: `ผู้ใช้ส่งกลับครั้งที่ ${i + 1}`,
+        note: h.note || "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
+        created_at: h.time,
+        role: "user",
+      });
+    });
+
+    if (row.approved_at) {
+      steps.push({
+        step_type: "approved",
+        label: "เอกสารถูกอนุมัติ",
+        note: "เจ้าหน้าที่ได้ยืนยันข้อมูลเรียบร้อยแล้ว",
+        created_at: row.approved_at,
+        role: "admin",
+      });
+    }
+
+    if (row.rejected_at) {
+      steps.push({
+        step_type: "rejected",
+        label: "เอกสารถูกปฏิเสธ",
+        note: row.admin_note || "คำขอเคลมถูกปฏิเสธ",
+        created_at: row.rejected_at,
+        role: "admin",
+      });
+    }
+
+    // ✅ เรียงตามเวลาแน่นอน
+    steps.sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    // ✅ ส่งกลับผลลัพธ์
     const parsed = {
       ...row,
-      incomplete_history: Array.isArray(row.incomplete_history)
-        ? row.incomplete_history
-        : [],
-      resubmitted_history: Array.isArray(row.resubmitted_history)
-        ? row.resubmitted_history
-        : [],
+      accident: {
+        accidentType: row.accident_type,
+        accident_date: row.accident_date,
+        accident_time: row.accident_time,
+        areaType: row.area_type,
+        province: row.province,
+        district: row.district,
+        road: row.road,
+        nearby: row.nearby,
+        details: row.details,
+        location: {
+          lat: row.latitude,
+          lng: row.longitude,
+          accuracy: row.accuracy,
+        },
+        evidenceMedia,
+        damagePhotos: row.damage_images || [],
+      },
+      steps, // ✅ timeline ที่เรียงตามเวลาจริงแล้ว
     };
 
     return res.json({ ok: true, data: parsed });
   } catch (err) {
-    console.error("claimreport detail error:", err);
+    console.error("❌ claim detail error:", err);
     return res.status(500).json({ ok: false, message: "server error" });
   }
 });
+
+
+
+
+
+
+
 
 router.get("/listall", async (req: Request, res: Response) => {
   const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 100;
@@ -715,8 +802,15 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
         : "00:00:00";
 
       // ✅ เตรียม array สำหรับ file_url และ media_type
-      const fileUrls = accident.evidenceMedia?.map(m => m.url) ?? [];
-      const mediaTypes = accident.evidenceMedia?.map(m => m.type ?? "image") ?? [];
+      const fileUrls = (accident.evidenceMedia ?? [])
+        .map((m) => (typeof m === "string" ? m : m.url))
+        .flat()
+        .filter(Boolean);
+
+      const mediaTypes = (accident.evidenceMedia ?? [])
+        .map((m) => (typeof m === "object" && m.type ? m.type : "image"))
+        .flat();
+
 
       await client.query(
         `
@@ -797,16 +891,16 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
     );
 
     // 🟢 4) แจ้งเตือนผู้ใช้และแอดมิน
-   await client.query(
-  `
+    await client.query(
+      `
   INSERT INTO notifications (user_id, title, message, type, link_to)
   VALUES 
     ($1, 'ส่งเอกสารแก้ไขเรียบร้อย ',
      'คุณได้ส่งคำขอเคลมหมายเลข #' || $2 || ' กลับมาให้เจ้าหน้าที่ตรวจสอบอีกครั้ง',
      'claim', '/reports/' || $2)
   `,
-  [userId, claimId]
-);
+      [userId, claimId]
+    );
 
     await client.query("COMMIT");
 

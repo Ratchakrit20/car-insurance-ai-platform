@@ -41,9 +41,7 @@ function normalizeStatus(s?: string | null): ClaimStatus {
 
 
 async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
-  const url = `${URL_PREFIX}/api/claim-requests/list?user_id=${encodeURIComponent(
-    String(userId)
-  )}`;
+  const url = `${URL_PREFIX}/api/claim-requests/list?user_id=${encodeURIComponent(String(userId))}`;
   const res = await fetch(url, { cache: "no-store", credentials: "include" });
   if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
 
@@ -53,30 +51,60 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
   return rows.map((r) => {
     const status = normalizeStatus(r.status);
 
-    // map evaluation_images → DamagePhoto[]
+    // ✅ 1) ภาพความเสียหายจาก r.images
     const damagePhotos: DamagePhoto[] = Array.isArray(r.images)
-      ? r.images.map((img) => {
-        const side: DamagePhoto["side"] =
-          img.side === "ซ้าย" ||
-            img.side === "ขวา" ||
-            img.side === "หน้า" ||
-            img.side === "หลัง"
-            ? img.side
-            : "ไม่ระบุ";
-
-        return {
-          id: img.id,
-          url: img.original_url ?? "",
-          type: "image",
-          side,
-          note: img.damage_note ?? undefined,
-          total: null,
-          perClass: null,
-          annotations: [],
-
-        };
-      })
+      ? r.images
+          .filter((img) => !!img?.original_url)
+          .map((img) => {
+            const side: DamagePhoto["side"] =
+              ["ซ้าย", "ขวา", "หน้า", "หลัง"].includes(String(img.side))
+                ? (img.side as DamagePhoto["side"])
+                : "ไม่ระบุ";
+            return {
+              id: img.id,
+              url: img.original_url ?? "",
+              type: "image",
+              side,
+              note: img.damage_note ?? undefined,
+              total: null,
+              perClass: null,
+              annotations: [],
+            };
+          })
       : [];
+
+    // ✅ 2) หลักฐานเหตุการณ์ (image/video)
+    const evidenceMedia: { id: number; url: string; type: "image" | "video"; note?: string }[] = [];
+
+    // 🟣 (1) ถ้ามี evidence_media (รองรับหลายอัน)
+    const evidenceArray = (r as any).evidence_media;
+    if (Array.isArray(evidenceArray) && evidenceArray.length > 0) {
+      for (const e of evidenceArray) {
+        if (e.url) {
+          evidenceMedia.push({
+            id: e.id ?? Math.random(),
+            url: e.url,
+            type: e.type ?? (isVideoUrl(e.url) ? "video" : "image"),
+            note: e.note ?? "หลักฐานเพิ่มเติม",
+          });
+        }
+      }
+    }
+
+    // 🟣 (2) ถ้ามี thumbnail_url (string เดียว) → แปลงให้เป็น 1 หลักฐาน
+    if (r.thumbnail_url) {
+      evidenceMedia.push({
+        id: r.accident_detail_id ?? 0,
+        url: r.thumbnail_url,
+        type: (r.media_type as "image" | "video") ?? (isVideoUrl(r.thumbnail_url) ? "video" : "image"),
+        note: "หลักฐานตอนเกิดเหตุ",
+      });
+    }
+
+    // 🟣 (3) ป้องกันซ้ำ URL (เผื่อ backend ส่งทั้ง evidence_media และ thumbnail_url ซ้ำกัน)
+    const uniqueEvidence = Array.from(
+      new Map(evidenceMedia.map((e) => [e.url, e])).values()
+    );
 
     return {
       // -------- base --------
@@ -90,14 +118,14 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
       rejected_at: r.rejected_at ?? null,
       incomplete_history: r.incomplete_history || [],
       resubmitted_history: r.resubmitted_history || [],
+
       // -------- car --------
       car_path: r.car_path ?? "",
       car_brand: r.car_brand ?? "",
       car_model: r.car_model ?? "",
       carTitle:
         r.car_title ??
-        `${r.car_brand ?? "รถ"} ${r.car_model ?? ""} ทะเบียน ${r.license_plate ?? "-"
-        }`,
+        `${r.car_brand ?? "รถ"} ${r.car_model ?? ""} ทะเบียน ${r.license_plate ?? "-"}`,
 
       // -------- accident --------
       incidentDate: r.accident_date ?? new Date().toISOString(),
@@ -117,18 +145,10 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
         accuracy: r.accuracy ?? null,
       },
 
-      // ---- media ----
-      photoUrl: r.thumbnail_url ?? (damagePhotos[0]?.url ?? undefined),
-      evidenceMedia: r.thumbnail_url
-        ? [
-          {
-            id: r.accident_detail_id ?? 0, // generate id
-            url: r.thumbnail_url,
-            type: (r.media_type as "image" | "video") ?? "image",
-          },
-        ]
-        : [],
-      damagePhotos,
+      // ✅ ---- media ----
+      photoUrl: damagePhotos[0]?.url ?? uniqueEvidence[0]?.url ?? undefined,
+      evidenceMedia: uniqueEvidence, // ✅ หลักฐานได้หลายไฟล์ (image/video)
+      damagePhotos,                  // ✅ ความเสียหายแยกต่างหาก
 
       // -------- meta --------
       userId: r.user_id,
@@ -139,6 +159,13 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
     };
   });
 }
+
+// ✅ helper ตรวจว่าเป็นวิดีโอหรือไม่
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|mov|webm|ogg)$/i.test(url);
+}
+
+
 
 
 

@@ -14,34 +14,39 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-        credentials: "include", // ✅ สำคัญ!
-      });
+  e.preventDefault();
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      credentials: "include",
+    });
 
-      const data = await res.json();
-      console.log('Login response:', data);
-      if (!res.ok) {
-        setError(data.error || "Login failed");
-        return;
-      }
+    const data = await res.json();
+    console.log("Login response:", data);
 
-
-      if (data.role === "admin") {
-        // ✅ Redirect on successful login
-        router.replace("/adminpage/reportsall");
-        router.refresh();
-      } else {
-        router.replace("/");
-      }
-    } catch (err) {
-      setError("Something went wrong");
+    if (!res.ok) {
+      setError(data.error || "Login failed");
+      return;
     }
-  };
+
+    setError("");
+
+    // ✅ ตรวจ role แล้ว redirect พร้อม refresh
+    if (data.role === "admin") {
+      router.push("/adminpage/reportsall");
+    } else {
+      router.push("/");
+    }
+
+    router.refresh(); // ✅ refresh state ให้แน่ใจว่าหน้าแรกโหลดใหม่
+  } catch (err) {
+    console.error(err);
+    setError("Something went wrong");
+  }
+};
+
 
   return (
     <div className={`${bodyFont.className} min-h-screen flex items-center justify-center bg-gray-100`}>
