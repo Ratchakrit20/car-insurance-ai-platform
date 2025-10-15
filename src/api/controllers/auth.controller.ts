@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import pool from '../models/db';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 export const register = async (req: Request, res: Response) => {
