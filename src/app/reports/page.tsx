@@ -301,11 +301,7 @@ export default function ReportPage() {
     }
   };
 
-  if (isAuthenticated === null) {
-  return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
-  }
-  if (isAuthenticated === false) return null;
-
+ 
   if (loading) {
       return <LoadingScreen message="กำลังโหลดข้อมูล…." />;
 
