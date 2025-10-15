@@ -1,6 +1,8 @@
+"use client";
+
 import dynamic from "next/dynamic";
 
-// ✅ โหลด ReportPage แบบ client-only (ไม่ SSR)
+// ✅ โหลด ReportPage แบบ client-only
 const ReportPage = dynamic(() => import("./ReportPage"), { ssr: false });
 
 export default function ReportPageWrapper() {
