@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ReportsView from "./ReportsView";
 import LoadingScreen from "@/app/components/LoadingScreen";
 import PdfRequest from "@/app/reports/PdfRequest";
-import dynamic from "next/dynamic";
 import type {
   ClaimItem,
   ClaimReportRow,
@@ -17,7 +16,7 @@ import type {
 } from "@/types/claim";
 
 // ---------- Fonts ----------
-import { Prompt, Noto_Sans_Thai } from "next/font/google";
+import { Noto_Sans_Thai } from "next/font/google";
 const thaiFont = Noto_Sans_Thai({
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
@@ -25,8 +24,7 @@ const thaiFont = Noto_Sans_Thai({
 });
 
 // ---------- Config ----------
-const URL_PREFIX =
-  process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
+const URL_PREFIX = process.env.NEXT_PUBLIC_URL_PREFIX ?? "";
 
 // ---------- Utils ----------
 function normalizeStatus(s?: string | null): ClaimStatus {
@@ -58,32 +56,24 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
   return rows.map((r) => {
     const status = normalizeStatus(r.status);
 
-    // ✅ Damage photos
     const damagePhotos: DamagePhoto[] = Array.isArray(r.images)
       ? r.images
-          .filter((img) => !!img?.original_url)
-          .map((img) => ({
-            id: img.id,
-            url: img.original_url ?? "",
-            type: "image",
-            side: ["ซ้าย", "ขวา", "หน้า", "หลัง"].includes(String(img.side))
-              ? (img.side as DamagePhoto["side"])
-              : "ไม่ระบุ",
-            note: img.damage_note ?? undefined,
-            total: null,
-            perClass: null,
-            annotations: [],
-          }))
+        .filter((img) => !!img?.original_url)
+        .map((img) => ({
+          id: img.id,
+          url: img.original_url ?? "",
+          type: "image",
+          side: ["ซ้าย", "ขวา", "หน้า", "หลัง"].includes(String(img.side))
+            ? (img.side as DamagePhoto["side"])
+            : "ไม่ระบุ",
+          note: img.damage_note ?? undefined,
+          total: null,
+          perClass: null,
+          annotations: [],
+        }))
       : [];
 
-    // ✅ Evidence media
-    const evidenceMedia: {
-      id: number;
-      url: string;
-      type: "image" | "video";
-      note?: string;
-    }[] = [];
-
+    const evidenceMedia: { id: number; url: string; type: "image" | "video"; note?: string }[] = [];
     const evidenceArray = (r as any).evidence_media;
     if (Array.isArray(evidenceArray) && evidenceArray.length > 0) {
       for (const e of evidenceArray) {
@@ -123,8 +113,7 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
       car_model: r.car_model ?? "",
       carTitle:
         r.car_title ??
-        `${r.car_brand ?? "รถ"} ${r.car_model ?? ""} ทะเบียน ${
-          r.license_plate ?? "-"
+        `${r.car_brand ?? "รถ"} ${r.car_model ?? ""} ทะเบียน ${r.license_plate ?? "-"
         }`,
       incidentDate: r.accident_date ?? new Date().toISOString(),
       incidentType: r.accident_type ?? undefined,
@@ -150,59 +139,34 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
   });
 }
 
-// ---------- Fetch claim detail ----------
-async function fetchClaimDetail(
-  claimId: string | number
-): Promise<{
-  claim_id: number | string;
-  status?: string;
-  created_at?: string;
-  car: Car | null;
-  accident: AccidentDraft;
-}> {
-  const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(
-    String(claimId)
-  )}`;
-  const res = await fetch(url, { cache: "no-store", credentials: "include" });
-  const json = await res.json();
-  if (!res.ok || !json?.ok)
-    throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
-  return {
-    claim_id: json.data.claim_id,
-    status: json.data.status,
-    created_at: json.data.created_at,
-    car: json.data.car ?? null,
-    accident: json.data.accident as AccidentDraft,
-  };
-}
-
 // ---------- Component ----------
 export default function ReportPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [isClient, setIsClient] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [claims, setClaims] = useState<ClaimItem[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<ClaimItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [pdfOpen, setPdfOpen] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfDetail, setPdfDetail] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   const selectedClaimId = searchParams.get("claim_id");
-
-  // ---------- 1. Ensure client only ----------
-  useEffect(() => setIsClient(true), []);
-
-  // ---------- 2. Auth check ----------
+  const [pdfLoading, setPdfLoading] = useState(false);
+const [pdfOpen, setPdfOpen] = useState(false);
+const [pdfDetail, setPdfDetail] = useState<any>(null);
+  // ✅ 1. Run only on client
   useEffect(() => {
-    if (!isClient) return;
-    let cancelled = false;
+    setReady(true);
+  }, []);
 
+  // ✅ 2. Return nothing until client mounted
+  if (!ready) return null;
+
+  // ✅ 3. Auth check
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const token = localStorage.getItem("token");
@@ -232,19 +196,23 @@ export default function ReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [isClient]);
-
-  // ---------- 3. Redirect unauth ----------
+  }, []);
+  
+  // ✅ 4. Redirect unauthenticated users
   useEffect(() => {
     if (isAuthenticated === false) router.replace("/login");
   }, [isAuthenticated, router]);
+    
 
-  // ---------- 4. Guard before render ----------
-  if (!isClient || isAuthenticated === null)
+
+    
+  // ✅ 5. Wait for auth
+  if (isAuthenticated === null) {
     return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
+  }
   if (isAuthenticated === false) return null;
 
-  // ---------- 5. Fetch claims ----------
+  // ✅ 6. Fetch claims
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -263,16 +231,40 @@ export default function ReportPage() {
       cancelled = true;
     };
   }, [user?.id]);
-
-  // ---------- 6. Select claim from query ----------
+// ---------- Fetch claim detail ----------
+async function fetchClaimDetail(
+  claimId: string | number
+): Promise<{
+  claim_id: number | string;
+  status?: string;
+  created_at?: string;
+  car: Car | null;
+  accident: AccidentDraft;
+}> {
+  const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(
+    String(claimId)
+  )}`;
+  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  const json = await res.json();
+  if (!res.ok || !json?.ok)
+    throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
+  return {
+    claim_id: json.data.claim_id,
+    status: json.data.status,
+    created_at: json.data.created_at,
+    car: json.data.car ?? null,
+    accident: json.data.accident as AccidentDraft,
+  };
+}
+  // ✅ 7. Select claim
   useEffect(() => {
     if (!selectedClaimId || claims.length === 0) return;
     const found = claims.find((c) => String(c.id) === String(selectedClaimId));
     if (found) setSelectedClaim(found);
   }, [selectedClaimId, claims]);
 
-  // ---------- 7. PDF handler ----------
-  const handleOpenPdf = async (claimId: string) => {
+
+const handleOpenPdf = async (claimId: string) => {
     try {
       setPdfLoading(true);
       const detail = await fetchClaimDetail(claimId);
@@ -285,7 +277,9 @@ export default function ReportPage() {
     }
   };
 
-  // ---------- Render ----------
+
+  
+  // ✅ 8. Render guards
   if (loading) return <LoadingScreen message="กำลังโหลดข้อมูล…" />;
   if (error)
     return (
@@ -293,7 +287,8 @@ export default function ReportPage() {
         เกิดข้อผิดพลาด: {error}
       </div>
     );
-
+  
+  // ✅ 9. Render main view
   return (
     <div className={`${thaiFont.className} relative w-full min-h-[100dvh] bg-white`}>
       <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
@@ -316,7 +311,6 @@ export default function ReportPage() {
           <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
         </header>
       </div>
-
       <ReportsView
         claims={claims ?? []}
         selectedClaim={selectedClaim ?? null}
@@ -327,3 +321,5 @@ export default function ReportPage() {
     </div>
   );
 }
+
+
