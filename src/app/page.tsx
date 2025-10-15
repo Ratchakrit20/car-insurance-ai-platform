@@ -1,76 +1,68 @@
-// app/page.tsx
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import type { ClaimItem } from "@/types/claim";
-import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Prompt, Noto_Sans_Thai, Inter } from "next/font/google";
 import ScrollButton from "@/app/components/ScrollButton";
-import CarList from "@/app/components/CarList";
-import LatestClaims from "@/app/components/LatestClaims";
-const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
-const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
-const interFont = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
+import { ChevronRight } from "lucide-react";
+
+const headingFont = Prompt({ subsets: ["thai", "latin"], weight: ["600", "700"], display: "swap" });
+const bodyFont = Noto_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500"], display: "swap" });
+const interFont = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
 const thaiFont = Noto_Sans_Thai({
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
-type CarItem = {
-  id: number;
-  car_path: string;
-  car_brand: string;
-  car_model: string;
-  car_year: number | string;
-  car_license_plate: string;
-};
-import {
-  PlusCircle,
-  Car,
-  FileText,
-  Mail,
-  ChevronRight,
-} from "lucide-react";
 
-/** เรียก /api/me เพื่อรู้ user.id จาก server component */
-async function getMe(token: string): Promise<{ id: number; citizen_id?: string } | null> {
+export default function Page() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ id: number; name?: string } | null>(null);
 
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-      headers: { Cookie: `token=${token}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          router.push("/login");
+          return;
+        }
 
-    const json = await res.json();
-    const id = Number(json?.user?.id ?? json?.user_id);
-    const citizen_id = json?.user?.citizen_id ?? json?.citizen_id;
-    return Number.isFinite(id) ? { id, citizen_id } : null;
-  } catch {
-    return null;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json();
+        if (!data.isAuthenticated) {
+          localStorage.removeItem("token");
+          router.push("/login");
+        } else {
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error("Auth check error:", err);
+        router.push("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-lg text-gray-600">
+        กำลังโหลด...
+      </div>
+    );
   }
-}
-
-
-
-
-
-export default async function Page() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-  if (!token) redirect("/login");
-
-  const me = await getMe(token);
-  if (!me?.id) redirect("/login");
-
 
   return (
-
     <div className={`${thaiFont.className} relative min-h-screen`}>
       <div className="fixed inset-0 -z-10 bg-white" />
-      <div className="mx-auto max-w-6xl p-6  space-y-8  ">
+      <div className="mx-auto max-w-6xl p-6 space-y-8">
         {/* Hero */}
         <section
           className="rounded-[7px] text-black px-6 py-8 md:px-10 md:py-10 relative overflow-hidden 
@@ -79,18 +71,19 @@ export default async function Page() {
         >
           {/* ฝั่งข้อความ */}
           <div className="flex-1">
-            <h1 className={`${interFont.className}text-[36px]  md:text-[64px] leading-none font-extrabold tracking-tigh`}>
-              <span className="text-[#6F47E4]">Ai</span> Car Damage Detection
+            <h1
+              className={`${interFont.className} text-[36px] md:text-[64px] leading-none font-extrabold tracking-tight`}
+            >
+              <span className="text-[#6F47E4]">AI</span> Car Damage Detection
             </h1>
             <div className="mt-10">
-              <p className="mt-3 text-sm  opacity-95 max-w-xl mx-auto md:mx-0">
+              <p className="mt-3 text-sm opacity-95 max-w-xl mx-auto md:mx-0">
                 ประหยัดเวลา รวดเร็ว ติดตามสถานะได้แบบเรียลไทม์
               </p>
               <p className="mt-1 text-base">เคลมง่ายๆเพียง 5 ขั้นตอน</p>
             </div>
 
-
-            <div className="mt-10 flex flex-row  gap-4 justify-center md:justify-start">
+            <div className="mt-10 flex flex-row gap-4 justify-center md:justify-start">
               {/* ปุ่ม ดูขั้นตอน */}
               <ScrollButton
                 targetId="steps"
@@ -102,7 +95,6 @@ export default async function Page() {
               >
                 ดูขั้นตอน
               </ScrollButton>
-
 
               {/* ปุ่ม เริ่มสร้างเคลม */}
               <a
@@ -117,7 +109,6 @@ export default async function Page() {
                 <ChevronRight size={18} />
               </a>
             </div>
-
           </div>
 
           {/* ฝั่งรูป */}
@@ -125,85 +116,47 @@ export default async function Page() {
             <img
               src="elements/insure-car.png"
               alt="car"
-              className="max-h-64  md:max-h-100 drop-shadow-[0_6px_24px_rgba(0,0,0,0.25)]"
+              className="max-h-64 md:max-h-100 drop-shadow-[0_6px_24px_rgba(0,0,0,0.25)]"
             />
           </div>
         </section>
 
-        {/* why us */}
-        <section className="px-6 md:px-10  max-w-6xl mx-auto">
-          {/* หัวข้อ */}
+        {/* จุดเด่นของเรา */}
+        <section className="px-6 md:px-10 max-w-6xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-extrabold text-center mb-10 text-black">
             จุดเด่นของเรา
           </h2>
 
-          {/* Grid Card */}
-          <div className="grid grid-cols-1  md:grid-cols-3 gap-6 text-black">
-            {/* Card 1 */}
-            <div className=" bg-[#DEDCFF]/30 rounded-xl shadow-md p-6 flex flex-col items-center text-center 
-                    transition-all duration-300 hover:-translate-y-2 hover:shadow-lg">
-              <img
-                src="/elements/whyus/ai.png"
-                alt="AI"
-                className="h-24 md:h-36 mb-4"
-              />
-              <h3 className="text-lg font-semibold mb-2">AI ช่วยตรวจจับความเสียหาย</h3>
-              <p className="text-sm text-zinc-600">
-                วิเคราะห์จากภาพถ่ายเพื่อลดความผิดพลาด
-              </p>
-            </div>
-
-            {/* Card 2 */}
-            <div className="bg-[#DEDCFF]/30 rounded-xl shadow-md p-6 flex flex-col items-center text-center 
-                    transition-all duration-300 hover:-translate-y-2 hover:shadow-lg">
-              <img
-                src="/elements/whyus/report.png"
-                alt="Report"
-                className="h-24 md:h-36 mb-4"
-              />
-              <h3 className="text-lg font-semibold mb-2">สร้างรายงานเคลมได้ง่าย</h3>
-              <p className="text-sm text-zinc-600">
-                ดำเนินการง่าย เพียง 5 ขั้นตอน
-              </p>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-[#DEDCFF]/30 rounded-xl shadow-md p-6 flex flex-col items-center text-center 
-                    transition-all duration-300 hover:-translate-y-2 hover:shadow-lg">
-              <img
-                src="/elements/whyus/fast.png"
-                alt="Fast"
-                className="h-24 md:h-36 mb-4"
-              />
-              <h3 className="text-lg font-semibold mb-2">จัดทำเอกสารเคลมอย่างรวดเร็ว</h3>
-              <p className="text-sm text-zinc-600">
-                ระบบช่วยเตรียมเอกสารเพื่อส่งต่อให้เจ้าหน้าที่อุบัติเหตุ
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-black">
+            <FeatureCard
+              img="/elements/whyus/ai.png"
+              title="AI ช่วยตรวจจับความเสียหาย"
+              desc="วิเคราะห์จากภาพถ่ายเพื่อลดความผิดพลาด"
+            />
+            <FeatureCard
+              img="/elements/whyus/report.png"
+              title="สร้างรายงานเคลมได้ง่าย"
+              desc="ดำเนินการง่าย เพียง 5 ขั้นตอน"
+            />
+            <FeatureCard
+              img="/elements/whyus/fast.png"
+              title="จัดทำเอกสารเคลมอย่างรวดเร็ว"
+              desc="ระบบช่วยเตรียมเอกสารเพื่อส่งต่อให้เจ้าหน้าที่อุบัติเหตุ"
+            />
           </div>
         </section>
 
-
-
-
-
+        {/* ขั้นตอนการเคลม */}
         <section id="steps" className="mt-16 max-w-6xl mx-auto px-6">
-          {/* หัวข้อ */}
           <h2 className="text-2xl md:text-3xl font-extrabold text-center mb-12 text-black">
             ขั้นตอนการเคลม
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-            {/* ฝั่งรูป */}
             <div className="flex justify-center">
-              <img
-                src="/elements/car-insurance.png"
-                alt="car-check"
-                className="w-72 md:w-96"
-              />
+              <img src="/elements/car-insurance.png" alt="car-check" className="w-72 md:w-96" />
             </div>
 
-            {/* ฝั่งข้อความ */}
             <div>
               <h3 className="text-lg md:text-xl font-semibold text-zinc-900 mb-6">
                 เริ่มต้นการเคลมง่ายๆ เพียง 5 ขั้นตอน
@@ -217,8 +170,7 @@ export default async function Page() {
                 <StepItem n={5} title="ตรวจสอบยืนยัน" desc="ตรวจสอบข้อมูลทั้งหมดก่อนกดยืนยัน" />
               </ol>
 
-              {/* ปุ่มอยู่ล่างสุด */}
-              <div className="mt-8 mt-8 flex justify-center md:justify-start">
+              <div className="mt-8 flex justify-center md:justify-start">
                 <a
                   href="/detect"
                   className="inline-flex items-center gap-2 rounded-full bg-[#6F47E4] 
@@ -233,23 +185,21 @@ export default async function Page() {
             </div>
           </div>
         </section>
-        <section className="mt-16 px-6 md:px-10  max-w-6xl mx-auto">
-          {/* หัวข้อ */}
-          <h2 className="text-2xl md:text-3xl font-extrabold text-center mb-10 text-black">
-            ตัวอย่างการเคลม
-          </h2>
-
-
-        </section>
-
       </div>
     </div>
-
   );
 }
 
-
-
+function FeatureCard({ img, title, desc }: { img: string; title: string; desc: string }) {
+  return (
+    <div className="bg-[#DEDCFF]/30 rounded-xl shadow-md p-6 flex flex-col items-center text-center 
+      transition-all duration-300 hover:-translate-y-2 hover:shadow-lg">
+      <img src={img} alt={title} className="h-24 md:h-36 mb-4" />
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <p className="text-sm text-zinc-600">{desc}</p>
+    </div>
+  );
+}
 
 function StepItem({ n, title, desc }: { n: number; title: string; desc: string }) {
   return (
