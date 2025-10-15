@@ -1,8 +1,6 @@
-"use client";
-
 import dynamic from "next/dynamic";
 
-// ✅ ตอนนี้ dynamic อยู่ใน client component แล้ว → ใช้ ssr:false ได้
+// ✅ โหลด ReportPage แบบ client-only (ไม่ SSR)
 const ReportPage = dynamic(() => import("./ReportPage"), { ssr: false });
 
 export default function ReportPageWrapper() {
