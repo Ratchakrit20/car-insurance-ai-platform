@@ -158,16 +158,12 @@ export default function ReportPage() {
 
   const selectedClaimId = searchParams.get("claim_id");
 
-  // ✅ 1. Run only on client
-  useEffect(() => {
-    setReady(true);
-  }, []);
-
+  // ---------- useEffects ----------
+  useEffect(() => setReady(true), []);
 
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
-
     (async () => {
       try {
         const token = localStorage.getItem("token");
@@ -175,13 +171,11 @@ export default function ReportPage() {
           setIsAuthenticated(false);
           return;
         }
-
         const res = await fetch(`${URL_PREFIX}/api/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         if (cancelled) return;
-
         if (data.isAuthenticated) {
           setUser(data.user);
           setIsAuthenticated(true);
@@ -193,24 +187,16 @@ export default function ReportPage() {
         setIsAuthenticated(false);
       }
     })();
-
     return () => { cancelled = true; };
   }, [ready]);
 
-  // ✅ 4. Redirect unauthenticated users
   useEffect(() => {
     if (isAuthenticated === false) router.replace("/login");
   }, [isAuthenticated, router]);
 
-
-
-
-
-  // ✅ 6. Fetch claims
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-
     (async () => {
       try {
         setLoading(true);
@@ -222,55 +208,40 @@ export default function ReportPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  // ✅ guards หลัง hooks ทั้งหมด
-  if (!ready) return null;
-  if (isAuthenticated === null)
-    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
-  if (isAuthenticated === false) return null;
-  if (loading) return <LoadingScreen message="กำลังโหลดข้อมูล…" />;
-  if (error)
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-10 text-rose-400">
-        เกิดข้อผิดพลาด: {error}
-      </div>
-    );
-  // ---------- Fetch claim detail ----------
-  async function fetchClaimDetail(
-    claimId: string | number
-  ): Promise<{
-    claim_id: number | string;
-    status?: string;
-    created_at?: string;
-    car: Car | null;
-    accident: AccidentDraft;
-  }> {
-    const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(
-      String(claimId)
-    )}`;
-    const res = await fetch(url, { cache: "no-store", credentials: "include" });
-    const json = await res.json();
-    if (!res.ok || !json?.ok)
-      throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
-    return {
-      claim_id: json.data.claim_id,
-      status: json.data.status,
-      created_at: json.data.created_at,
-      car: json.data.car ?? null,
-      accident: json.data.accident as AccidentDraft,
-    };
-  }
-  // ✅ 7. Select claim
   useEffect(() => {
     if (!selectedClaimId || claims.length === 0) return;
     const found = claims.find((c) => String(c.id) === String(selectedClaimId));
     if (found) setSelectedClaim(found);
   }, [selectedClaimId, claims]);
+  async function fetchClaimDetail(
+  claimId: string | number
+): Promise<{
+  claim_id: number | string;
+  status?: string;
+  created_at?: string;
+  car: Car | null;
+  accident: AccidentDraft;
+}> {
+  const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(
+    String(claimId)
+  )}`;
+  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  const json = await res.json();
+  if (!res.ok || !json?.ok)
+    throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
 
-
+  return {
+    claim_id: json.data.claim_id,
+    status: json.data.status,
+    created_at: json.data.created_at,
+    car: json.data.car ?? null,
+    accident: json.data.accident as AccidentDraft,
+  };
+}
+  // ---------- handlers ----------
   const handleOpenPdf = async (claimId: string) => {
     try {
       setPdfLoading(true);
@@ -284,49 +255,52 @@ export default function ReportPage() {
     }
   };
 
-
-
-  // ✅ 8. Render guards
-  if (loading) return <LoadingScreen message="กำลังโหลดข้อมูล…" />;
-  if (error)
-    return (
+  // ---------- guards ----------
+  let content: React.ReactNode = null;
+  if (!ready || isAuthenticated === null) {
+    content = <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
+  } else if (isAuthenticated === false) {
+    content = null;
+  } else if (loading) {
+    content = <LoadingScreen message="กำลังโหลดข้อมูล…" />;
+  } else if (error) {
+    content = (
       <div className="mx-auto max-w-6xl px-4 py-10 text-rose-400">
         เกิดข้อผิดพลาด: {error}
       </div>
     );
-
-  // ✅ 9. Render main view
-  return (
-    <div className={`${thaiFont.className} relative w-full min-h-[100dvh] bg-white`}>
-      <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
-        <header className="mb-4 lg:mb-6">
-          <div className="flex flex-wrap md:ml-24 items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
-                รายการขอเคลมทั้งหมด
-              </h1>
-              <p className="mt-1 text-sm text-zinc-600">
-                ดูสถานะการเคลมทั้งหมดของคุณแบบเรียลไทม์ พร้อมเปิดรายงาน PDF ได้ทันที
-              </p>
+  } else {
+    content = (
+      <div className={`${thaiFont.className} relative w-full min-h-[100dvh] bg-white`}>
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
+          <header className="mb-4 lg:mb-6">
+            <div className="flex flex-wrap md:ml-24 items-center justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
+                  รายการขอเคลมทั้งหมด
+                </h1>
+                <p className="mt-1 text-sm text-zinc-600">
+                  ดูสถานะการเคลมทั้งหมดของคุณแบบเรียลไทม์ พร้อมเปิดรายงาน PDF ได้ทันที
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 shadow-sm">
+                  ทั้งหมด {claims.length} รายการ
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 shadow-sm">
-                ทั้งหมด {claims.length} รายการ
-              </span>
-            </div>
-          </div>
-          <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
-        </header>
+          </header>
+        </div>
+        <ReportsView
+          claims={claims ?? []}
+          selectedClaim={selectedClaim ?? null}
+          hasInitialClaimId={!!selectedClaimId}
+          onSelectClaim={(c) => setSelectedClaim(c)}
+          onOpenPdf={handleOpenPdf}
+        />
       </div>
-      <ReportsView
-        claims={claims ?? []}
-        selectedClaim={selectedClaim ?? null}
-        hasInitialClaimId={!!selectedClaimId}
-        onSelectClaim={(c) => setSelectedClaim(c)}
-        onOpenPdf={handleOpenPdf}
-      />
-    </div>
-  );
+    );
+  }
+
+  return content;
 }
-
-
