@@ -45,34 +45,57 @@ export default function DetectPage() {
   const [user, setUser] = useState<User | null>(null);
 
   // -------- Auth --------
-  useEffect(() => {
+    useEffect(() => {
     let cancelled = false;
+
     (async () => {
       try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
+
         const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
+
         const data = await res.json();
         if (cancelled) return;
-        console.log('Auth data:', data.user);
-        setUser(data.user ?? null);
-        setIsAuthenticated(Boolean(data.isAuthenticated));
-      } catch {
+
+        console.log("Auth data:", data.user);
+
+        if (data.isAuthenticated) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
         if (!cancelled) setIsAuthenticated(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // ✅ ถ้าไม่ผ่านสิทธิ์ → กลับหน้า login
   useEffect(() => {
-    if (isAuthenticated === false) router.replace('/login');
+    if (isAuthenticated === false) {
+      router.replace('/login');
+    }
   }, [isAuthenticated, router]);
 
- if (isAuthenticated === null) {
-  return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
-}
+  // ✅ ระหว่างตรวจสอบสิทธิ์ → แสดง LoadingScreen
+  if (isAuthenticated === null) {
+    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
+  }
 
   // -------- Steps --------
   const renderStep = () => {
