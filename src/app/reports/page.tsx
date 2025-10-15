@@ -54,23 +54,23 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
     // ✅ 1) ภาพความเสียหายจาก r.images
     const damagePhotos: DamagePhoto[] = Array.isArray(r.images)
       ? r.images
-          .filter((img) => !!img?.original_url)
-          .map((img) => {
-            const side: DamagePhoto["side"] =
-              ["ซ้าย", "ขวา", "หน้า", "หลัง"].includes(String(img.side))
-                ? (img.side as DamagePhoto["side"])
-                : "ไม่ระบุ";
-            return {
-              id: img.id,
-              url: img.original_url ?? "",
-              type: "image",
-              side,
-              note: img.damage_note ?? undefined,
-              total: null,
-              perClass: null,
-              annotations: [],
-            };
-          })
+        .filter((img) => !!img?.original_url)
+        .map((img) => {
+          const side: DamagePhoto["side"] =
+            ["ซ้าย", "ขวา", "หน้า", "หลัง"].includes(String(img.side))
+              ? (img.side as DamagePhoto["side"])
+              : "ไม่ระบุ";
+          return {
+            id: img.id,
+            url: img.original_url ?? "",
+            type: "image",
+            side,
+            note: img.damage_note ?? undefined,
+            total: null,
+            perClass: null,
+            annotations: [],
+          };
+        })
       : [];
 
     // ✅ 2) หลักฐานเหตุการณ์ (image/video)
@@ -217,58 +217,47 @@ export default function ReportPage() {
     }
   }, [selectedClaimId, claims]);
   // auth
- // -------- Auth --------
-     useEffect(() => {
-     let cancelled = false;
- 
-     (async () => {
-       try {
-         const token = localStorage.getItem("token");
-         if (!token) {
-           setIsAuthenticated(false);
-           return;
-         }
- 
-         const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-           headers: {
-             Authorization: `Bearer ${token}`,
-           },
-         });
- 
-         const data = await res.json();
-         if (cancelled) return;
- 
-         console.log("Auth data:", data.user);
- 
-         if (data.isAuthenticated) {
-           setUser(data.user);
-           setIsAuthenticated(true);
-         } else {
-           localStorage.removeItem("token");
-           setIsAuthenticated(false);
-         }
-       } catch (err) {
-         console.error("Auth check failed:", err);
-         if (!cancelled) setIsAuthenticated(false);
-       }
-     })();
- 
-     return () => {
-       cancelled = true;
-     };
-   }, []);
- 
-   // ✅ ถ้าไม่ผ่านสิทธิ์ → กลับหน้า login
-   useEffect(() => {
-     if (isAuthenticated === false) {
-       router.replace('/login');
-     }
-   }, [isAuthenticated, router]);
- 
-   // ✅ ระหว่างตรวจสอบสิทธิ์ → แสดง LoadingScreen
-   if (isAuthenticated === null) {
-     return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
-   }
+  // -------- Auth --------
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return setIsAuthenticated(false);
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.isAuthenticated) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
+        }
+      } catch {
+        setIsAuthenticated(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated === false) router.replace("/login");
+  }, [isAuthenticated, router]);
+
+  // ✅ guard ก่อน render
+  if (isAuthenticated === null)
+    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
+
+  if (isAuthenticated === false) return null;
+
 
   // fetch claims
   useEffect(() => {
@@ -301,9 +290,9 @@ export default function ReportPage() {
     }
   };
 
- 
+
   if (loading) {
-      return <LoadingScreen message="กำลังโหลดข้อมูล…." />;
+    return <LoadingScreen message="กำลังโหลดข้อมูล…." />;
 
   }
   if (error) {
@@ -312,47 +301,47 @@ export default function ReportPage() {
 
   return (
     <div className={`${thaiFont.className} relative w-full min-h-[100dvh] bg-white`}>
-  <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
-            {/* Page Header */}
-            <header className="mb-4 lg:mb-6">
-              <div className="flex flex-wrap md:ml-24 items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
+      <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
+        {/* Page Header */}
+        <header className="mb-4 lg:mb-6">
+          <div className="flex flex-wrap md:ml-24 items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
 
-                  <div>
-                    <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
-                      รายการขอเคลมทั้งหมด
-                    </h1>
-                    <p className="mt-1 text-sm text-zinc-600">
-                      ดูสถานะการเคลมทั้งหมดของคุณแบบเรียลไทม์ พร้อมเปิดรายงาน PDF ได้ทันที
-                    </p>
-                  </div>
-                </div>
-
-                {/* Summary badge */}
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 shadow-sm">
-                    ทั้งหมด {claims.length} รายการ
-                  </span>
-                </div>
+              <div>
+                <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
+                  รายการขอเคลมทั้งหมด
+                </h1>
+                <p className="mt-1 text-sm text-zinc-600">
+                  ดูสถานะการเคลมทั้งหมดของคุณแบบเรียลไทม์ พร้อมเปิดรายงาน PDF ได้ทันที
+                </p>
               </div>
+            </div>
 
-              <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
-            </header>
+            {/* Summary badge */}
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 ring-1 ring-zinc-200 shadow-sm">
+                ทั้งหมด {claims.length} รายการ
+              </span>
+            </div>
           </div>
-          {/* Content */}
-          <ReportsView
-            claims={claims}
-            selectedClaim={selectedClaim}
-            hasInitialClaimId={!!selectedClaimId} // ✅ บอกว่าเปิดมาจากข้อความ
-            onSelectClaim={(c) => setSelectedClaim(c)}
-            onOpenPdf={handleOpenPdf}
-          />
-        </div>
+
+          <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
+        </header>
+      </div>
+      {/* Content */}
+      <ReportsView
+        claims={claims ?? []}
+        selectedClaim={selectedClaim ?? null}
+        hasInitialClaimId={!!selectedClaimId}
+        onSelectClaim={(c) => setSelectedClaim(c)}
+        onOpenPdf={handleOpenPdf}
+      />
+    </div>
 
   );
 
-      {/* Modal PDF */}
-      {/* {pdfOpen && (
+  {/* Modal PDF */ }
+  {/* {pdfOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
             <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200/70 bg-white/90 px-4 py-3 backdrop-blur">
@@ -374,6 +363,6 @@ export default function ReportPage() {
           </div>
         </div>
       )} */}
-   
- 
+
+
 }
