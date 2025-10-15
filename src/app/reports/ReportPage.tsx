@@ -152,21 +152,22 @@ export default function ReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  const selectedClaimId = searchParams.get("claim_id");
   const [pdfLoading, setPdfLoading] = useState(false);
-const [pdfOpen, setPdfOpen] = useState(false);
-const [pdfDetail, setPdfDetail] = useState<any>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfDetail, setPdfDetail] = useState<any>(null);
+
+  const selectedClaimId = searchParams.get("claim_id");
+
   // ✅ 1. Run only on client
   useEffect(() => {
     setReady(true);
   }, []);
 
-  // ✅ 2. Return nothing until client mounted
-  if (!ready) return null;
 
-  // ✅ 3. Auth check
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
+
     (async () => {
       try {
         const token = localStorage.getItem("token");
@@ -193,29 +194,23 @@ const [pdfDetail, setPdfDetail] = useState<any>(null);
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  
+    return () => { cancelled = true; };
+  }, [ready]);
+
   // ✅ 4. Redirect unauthenticated users
   useEffect(() => {
     if (isAuthenticated === false) router.replace("/login");
   }, [isAuthenticated, router]);
-    
 
 
-    
-  // ✅ 5. Wait for auth
-  if (isAuthenticated === null) {
-    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
-  }
-  if (isAuthenticated === false) return null;
+
+
 
   // ✅ 6. Fetch claims
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
+
     (async () => {
       try {
         setLoading(true);
@@ -227,35 +222,47 @@ const [pdfDetail, setPdfDetail] = useState<any>(null);
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+
+    return () => { cancelled = true; };
   }, [user?.id]);
-// ---------- Fetch claim detail ----------
-async function fetchClaimDetail(
-  claimId: string | number
-): Promise<{
-  claim_id: number | string;
-  status?: string;
-  created_at?: string;
-  car: Car | null;
-  accident: AccidentDraft;
-}> {
-  const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(
-    String(claimId)
-  )}`;
-  const res = await fetch(url, { cache: "no-store", credentials: "include" });
-  const json = await res.json();
-  if (!res.ok || !json?.ok)
-    throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
-  return {
-    claim_id: json.data.claim_id,
-    status: json.data.status,
-    created_at: json.data.created_at,
-    car: json.data.car ?? null,
-    accident: json.data.accident as AccidentDraft,
-  };
-}
+
+  // ✅ guards หลัง hooks ทั้งหมด
+  if (!ready) return null;
+  if (isAuthenticated === null)
+    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
+  if (isAuthenticated === false) return null;
+  if (loading) return <LoadingScreen message="กำลังโหลดข้อมูล…" />;
+  if (error)
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-10 text-rose-400">
+        เกิดข้อผิดพลาด: {error}
+      </div>
+    );
+  // ---------- Fetch claim detail ----------
+  async function fetchClaimDetail(
+    claimId: string | number
+  ): Promise<{
+    claim_id: number | string;
+    status?: string;
+    created_at?: string;
+    car: Car | null;
+    accident: AccidentDraft;
+  }> {
+    const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(
+      String(claimId)
+    )}`;
+    const res = await fetch(url, { cache: "no-store", credentials: "include" });
+    const json = await res.json();
+    if (!res.ok || !json?.ok)
+      throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
+    return {
+      claim_id: json.data.claim_id,
+      status: json.data.status,
+      created_at: json.data.created_at,
+      car: json.data.car ?? null,
+      accident: json.data.accident as AccidentDraft,
+    };
+  }
   // ✅ 7. Select claim
   useEffect(() => {
     if (!selectedClaimId || claims.length === 0) return;
@@ -264,7 +271,7 @@ async function fetchClaimDetail(
   }, [selectedClaimId, claims]);
 
 
-const handleOpenPdf = async (claimId: string) => {
+  const handleOpenPdf = async (claimId: string) => {
     try {
       setPdfLoading(true);
       const detail = await fetchClaimDetail(claimId);
@@ -278,7 +285,7 @@ const handleOpenPdf = async (claimId: string) => {
   };
 
 
-  
+
   // ✅ 8. Render guards
   if (loading) return <LoadingScreen message="กำลังโหลดข้อมูล…" />;
   if (error)
@@ -287,7 +294,7 @@ const handleOpenPdf = async (claimId: string) => {
         เกิดข้อผิดพลาด: {error}
       </div>
     );
-  
+
   // ✅ 9. Render main view
   return (
     <div className={`${thaiFont.className} relative w-full min-h-[100dvh] bg-white`}>
