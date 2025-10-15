@@ -17,11 +17,15 @@ export default function LoginPage() {
   e.preventDefault();
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      credentials: "include",
-    });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json", // ✅ เพิ่มบรรทัดนี้
+  },
+  body: JSON.stringify({ email, password }),
+  credentials: "include",
+});
+console.log("API base:", process.env.NEXT_PUBLIC_URL_PREFIX);
 
     const data = await res.json();
     console.log("Login response:", data);
