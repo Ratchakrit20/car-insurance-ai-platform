@@ -269,7 +269,9 @@ export default function AccidentDetail({
                   ? `${draft.province || ""} ${draft.district || ""} ${
                       draft.road || ""
                     }`.trim()
-                  : "ไม่ระบุ"}
+                  : "ไม่ระบุ" + " (" + (draft.location?.lat && draft.location?.lng
+                      ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
+                      : "ไม่มีพิกัด") + ")"}
               </p>
               <p className="text-sm">
                 <span className="font-medium">ประเภทพื้นที่:</span>{" "}

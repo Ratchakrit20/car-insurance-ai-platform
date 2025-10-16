@@ -146,7 +146,13 @@ export default function ReportDetail({
               <div>
                 <dt className="font-medium text-black mb-1">สถานที่</dt>
                 <dd className="pl-2 text-zinc-600">
-                  {claim.province ?? "-"} {claim.district ?? ""} {claim.road ?? ""}
+                  {claim.province || claim.district || claim.road
+                  ? `${claim.province || ""} ${claim.district || ""} ${
+                      claim.road || ""
+                    }`.trim()
+                  : "ไม่ระบุ" + " (" + (claim.location?.lat && claim.location?.lng
+                      ? `พิกัด: ${claim.location.lat}, ${claim.location.lng}`
+                      : "ไม่มีพิกัด") + ")"}
                 </dd>
               </div>
 

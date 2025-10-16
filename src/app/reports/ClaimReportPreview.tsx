@@ -138,7 +138,13 @@ export default function ClaimReportPreview({ car, draft }: Props) {
           </p>
           <p className="text-sm">
             <span className="font-medium">สถานที่:</span>{" "}
-            {draft.province} {draft.district} {draft.road}
+                {draft.province || draft.district || draft.road
+                  ? `${draft.province || ""} ${draft.district || ""} ${
+                      draft.road || ""
+                    }`.trim()
+                  : "ไม่ระบุ" + " (" + (draft.location?.lat && draft.location?.lng
+                      ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
+                      : "ไม่มีพิกัด") + ")"}
           </p>
           <p className="text-sm">
             <span className="font-medium">ประเภทพื้นที่:</span>{" "}
@@ -148,12 +154,12 @@ export default function ClaimReportPreview({ car, draft }: Props) {
             <span className="font-medium">จุดสังเกต:</span>{" "}
             {draft.nearby}
           </p>
-          {draft.details && (
+          {/* {draft.details && (
             <p className="text-sm">
               <span className="font-medium">รายละเอียด:</span>{" "}
               {draft.details}
             </p>
-          )}
+          )} */}
         </div>
 
         {/* กลาง: รายละเอียดอุบัติเหตุ */}
@@ -163,6 +169,12 @@ export default function ClaimReportPreview({ car, draft }: Props) {
             <span className="font-medium">ประเภทอุบัติเหตุ:</span>{" "}
             {draft.accidentType}
           </p>
+          {draft.details && (
+            <p className="text-sm">
+              <span className="font-medium">รายละเอียด:</span>{" "}
+              {draft.details}
+            </p>
+          )}
           {draft.evidenceMedia?.length ? (
             <>
               <p className="text-sm font-medium mb-1">
