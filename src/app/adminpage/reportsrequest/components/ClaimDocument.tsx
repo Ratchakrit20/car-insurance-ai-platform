@@ -19,44 +19,53 @@ type Row = {
   severity: "A" | "B" | "C" | "D" | string;
   side?: string;
 };
-
+const SIDE_OVERRIDE: Record<string, string> = {
+  "กระจกบังลมหน้า": "หน้า",
+  "ฝากระโปรงหน้า": "หน้า",
+  "กันชนหน้า": "หน้า",
+  "กระจกบังลมหลัง": "หลัง",
+  "ฝากระโปรงหลัง": "หลัง",
+  "กันชนหลัง": "หลัง",
+  "หลังคา": "บน",
+  "ป้ายทะเบียน": "หลัง",
+};
 export default function ClaimDocument({ detail }: { detail: any }) {
   // ✅ Map ฟิลด์ flat จาก detail ให้เป็น car / accident objects
   const car: Car = {
-  id: detail.car?.id ?? detail.selected_car_id ?? 0,
-  car_brand: detail.car?.car_brand ?? "-",
-  car_model: detail.car?.car_model ?? "-",
-  car_license_plate: detail.car?.car_license_plate ?? "-",
-  insurance_type: detail.car?.insurance_type ?? "-",
-  policy_number: detail.car?.policy_number ?? "-",
-  coverage_end_date: detail.car?.coverage_end_date ?? null,
-  car_year: detail.car?.car_year ?? "-",
-  car_path: detail.car?.car_path ?? "",
-};
+    id: detail.car?.id ?? detail.selected_car_id ?? 0,
+    car_brand: detail.car?.car_brand ?? "-",
+    car_model: detail.car?.car_model ?? "-",
+    car_license_plate: detail.car?.car_license_plate ?? "-",
+    insurance_type: detail.car?.insurance_type ?? "-",
+    policy_number: detail.car?.policy_number ?? "-",
+    coverage_end_date: detail.car?.coverage_end_date ?? null,
+    car_year: detail.car?.car_year ?? "-",
+    car_path: detail.car?.car_path ?? "",
+  };
 
 
 
- const acc: AccidentDraft = {
-  accidentType: detail.accident?.accidentType ?? "ไม่ระบุ",
-  accident_date: detail.accident?.accident_date ?? null,
-  accident_time: detail.accident?.accident_time ?? "-",
-  province: detail.accident?.province ?? "ไม่ระบุ",
-  district: detail.accident?.district ?? "ไม่ระบุ",
-  road: detail.accident?.road ?? "-",
-  nearby: detail.accident?.nearby ?? "-",
-  areaType: detail.accident?.areaType ?? "-",
-  details: detail.accident?.details ?? "-",
-  location: {
-    lat: parseFloat(detail.accident?.location?.lat ?? "0"),
-    lng: parseFloat(detail.accident?.location?.lng ?? "0"),
-    accuracy: parseFloat(detail.accident?.location?.accuracy ?? "0"),
-  },
-  damagePhotos: detail.accident?.damagePhotos ?? [],
-};
+  const acc: AccidentDraft = {
+    accidentType: detail.accident?.accidentType ?? "ไม่ระบุ",
+    accident_date: detail.accident?.accident_date ?? null,
+    accident_time: detail.accident?.accident_time ?? "-",
+    province: detail.accident?.province ?? "ไม่ระบุ",
+    district: detail.accident?.district ?? "ไม่ระบุ",
+    road: detail.accident?.road ?? "-",
+    nearby: detail.accident?.nearby ?? "-",
+    areaType: detail.accident?.areaType ?? "-",
+    details: detail.accident?.details ?? "-",
+    location: {
+      lat: parseFloat(detail.accident?.location?.lat ?? "0"),
+      lng: parseFloat(detail.accident?.location?.lng ?? "0"),
+      accuracy: parseFloat(detail.accident?.location?.accuracy ?? "0"),
+    },
+    damagePhotos: detail.accident?.damagePhotos ?? [],
+  };
 
-console.log("✅ Claim detail loaded:", detail);
-console.log("🚗 Car mapped:", car);
-console.log("💥 Accident mapped:", acc);
+  console.log("✅ Claim detail loaded:", detail);
+  console.log("🚗 Car mapped:", car);
+  console.log("💥 Accident mapped:", acc);
 
   /* ---------- รวมรายการความเสียหาย ---------- */
   const rows: Row[] = [];
@@ -64,15 +73,31 @@ console.log("💥 Accident mapped:", acc);
   for (const p of acc.damagePhotos ?? []) {
     for (const a of p.annotations ?? []) {
       const dmg = Array.isArray(a.damage) ? a.damage.join(", ") : a.damage || "-";
+      // ✅ ตรวจและปรับด้านให้ถูกต้องอัตโนมัติ
+      let side = p.side || "-";
+      const partName = a.part?.trim() || "-";
+      if (SIDE_OVERRIDE[partName]) {
+        // ถ้ามีใน map → ใช้ด้านที่ถูกต้องแทน
+        side = SIDE_OVERRIDE[partName];
+      } else if (!["ซ้าย", "ขวา", "หน้า", "หลัง", "บน"].includes(side)) {
+        // ถ้าไม่ได้ระบุหรือระบุผิด → ตั้งเป็น "-"
+        side = "-";
+      }
+      if (SIDE_OVERRIDE[partName] && SIDE_OVERRIDE[partName] !== p.side) {
+        console.warn(`⚠️ ด้านของ "${partName}" (${p.side}) ถูกปรับเป็น "${SIDE_OVERRIDE[partName]}"`);
+      }
+      // ✅ push ลง rows
       rows.push({
         no: i++,
-        part: a.part || "-",
+        part: partName,
         damages: dmg,
         severity: a.severity || "-",
-        side: p.side,
+        side,
       });
+
     }
   }
+
   console.log("🖼️ damagePhotos:", acc.damagePhotos);
   const uniqueParts = Array.from(new Set(rows.map((r) => r.part))).filter(Boolean);
 
@@ -343,6 +368,7 @@ console.log("💥 Accident mapped:", acc);
 
 
         {/* ---------- ตาราง ---------- */}
+        {/* ---------- ตาราง ---------- */}
         <div className="mt-4 doc-box avoid-break">
           <div className="text-center border-b border-zinc-200 bg-[#F6F8FB] px-2 py-1.5 text-[12px] font-semibold">
             รายการชิ้นส่วนที่เสียหาย
@@ -354,6 +380,7 @@ console.log("💥 Accident mapped:", acc);
                 <tr>
                   <th className="doc-th text-center w-[30px] py-[2px]">ลำดับ</th>
                   <th className="doc-th py-[2px]">รายการ</th>
+                  <th className="doc-th w-[12%] text-center py-[2px]">ด้าน</th> {/* ✅ เพิ่มคอลัมน์ด้าน */}
                   <th className="doc-th w-[30%] py-[2px]">สภาพ</th>
                   <th className="doc-th text-center py-[2px]" colSpan={4}>
                     ระดับความเสียหาย
@@ -363,8 +390,11 @@ console.log("💥 Accident mapped:", acc);
                   <th />
                   <th />
                   <th />
+                  <th />
                   {["A", "B", "C", "D"].map((lv) => (
-                    <th key={lv} className="doc-th w-8 py-[1px] text-[10px]">{lv}</th>
+                    <th key={lv} className="doc-th w-8 py-[1px] text-[10px]">
+                      {lv}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -375,6 +405,7 @@ console.log("💥 Accident mapped:", acc);
                     <tr key={r.no} className="even:bg-[#fafafa]">
                       <td className="text-center py-[1px]">{r.no}</td>
                       <td className="py-[1px]">{r.part}</td>
+                      <td className="text-center py-[1px]">{r.side || "-"}</td> {/* ✅ แสดงด้าน */}
                       <td className="py-[1px]">{r.damages}</td>
                       {["A", "B", "C", "D"].map((lv) => (
                         <td key={lv} className="text-center align-middle py-[1px]">
@@ -399,7 +430,7 @@ console.log("💥 Accident mapped:", acc);
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-3 text-center text-zinc-500 text-[11px]">
+                    <td colSpan={8} className="py-3 text-center text-zinc-500 text-[11px]">
                       ไม่มีข้อมูลความเสียหาย
                     </td>
                   </tr>
@@ -408,6 +439,7 @@ console.log("💥 Accident mapped:", acc);
             </table>
           </div>
         </div>
+
         {/* ---------- ลายเซ็น ---------- */}
         <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 avoid-break">
           <SignBox title="บริษัทประกัน" />

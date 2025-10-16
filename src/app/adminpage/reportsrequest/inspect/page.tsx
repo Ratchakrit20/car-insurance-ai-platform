@@ -76,8 +76,8 @@ type ClaimDetail = {
 const URL_PREFIX =
   process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
 const DETECT_API_BASE =
-  process.env.NEXT_PUBLIC_DETECT_API_BASE || "http://localhost:8000";
-
+  process.env.NEXT_PUBLIC_DETECT_API_BASE ;
+// process.env.NEXT_PUBLIC_DETECT_API_BASE || "http://localhost:8000";
 /* ------------ Types: API /detect/analyze ------------ */
 // ใกล้ ๆ บรรทัด type AnalyzeDamageResponse
 type AnalyzeDamageResponse = {
