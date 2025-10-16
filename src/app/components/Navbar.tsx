@@ -68,7 +68,6 @@ function isActivePath(pathname: string, href: string) {
 const BRAND = {
   base: "#ffffff",
   primary: "#6D5BD0",
-  primaryDark: "#5F4CC8",
   railBg: "rgba(255, 255, 255, 1)",
 };
 
@@ -76,39 +75,81 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [notifCount, setNotifCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [notifCount, setNotifCount] = useState<number>(0); // ✅ ตัวนับแจ้งเตือน
 
-  /* 🔹 โหลดข้อมูลผู้ใช้ */
+  // 🟣 โหลดข้อมูลผู้ใช้ + แจ้งเตือน
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setMe({ isAuthenticated: false });
+          setLoading(false);
+          return;
+        }
+
+        // ✅ ดึงข้อมูลผู้ใช้
         const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-          credentials: "include",
+          headers: { Authorization: `Bearer ${token}` },
         });
         const data: MeResponse = await res.json();
+
+        if (!data?.isAuthenticated) {
+          localStorage.removeItem("token");
+          setMe({ isAuthenticated: false });
+          router.replace("/login");
+          return;
+        }
+
         setMe(data);
 
-        // ✅ โหลดจำนวนแจ้งเตือน
-        if (data?.isAuthenticated && data.user?.id) {
-          const resNotif = await fetch(
+        // ✅ โหลดแจ้งเตือนเฉพาะผู้ใช้ปัจจุบัน
+        if (data.user?.id) {
+          const notifRes = await fetch(
             `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/notifications/${data.user.id}`,
-            { credentials: "include" }
+            { headers: { Authorization: `Bearer ${token}` } }
           );
-          const notifData = await resNotif.json();
-          // นับเฉพาะอันที่ยังไม่อ่าน
-          const unread = Array.isArray(notifData)
+          const notifData = await notifRes.json();
+          const unreadCount = Array.isArray(notifData)
             ? notifData.filter((n: any) => !n.is_read).length
             : 0;
-          setNotifCount(unread);
+          setNotifCount(unreadCount);
         }
-      } catch {
+      } catch (err) {
+        console.error("โหลดข้อมูลผู้ใช้ล้มเหลว:", err);
         setMe({ isAuthenticated: false });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  // 🕒 refresh badge ทุก 10 วินาที
+  useEffect(() => {
+    if (!me?.user?.id) return;
+    const token = localStorage.getItem("token");
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/notifications/${me.user!.id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json();
+        const unread = Array.isArray(data)
+          ? data.filter((n: any) => !n.is_read).length
+          : 0;
+        setNotifCount(unread);
+      } catch {}
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [me?.user?.id]);
 
   const resolvedRole: Role =
     roleProp ?? (me?.user?.role ?? (me?.isAuthenticated ? "customer" : "customer"));
@@ -116,20 +157,14 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
   const isAdmin = resolvedRole === "admin";
   const items = isAdmin ? navItemsAdmin : navItemsCustomer;
 
-  /* 🔹 Logout */
+  // 🚪 Logout
   const handleLogout = async () => {
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (e) {
-      console.error("Logout failed", e);
-    } finally {
-      router.replace("/login");
-      router.refresh();
-    }
+    localStorage.removeItem("token");
+    router.replace("/login");
+    router.refresh();
   };
+
+  if (loading) return null;
 
   return (
     <>
@@ -140,7 +175,6 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
           style={{
             background: BRAND.railBg,
             backdropFilter: "blur(6px)",
-            overflowX: "hidden",
           }}
         >
           {/* Logo */}
@@ -151,7 +185,7 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
             </span>
           </div>
 
-          {/* Nav */}
+          {/* Navigation */}
           <nav className="flex flex-col gap-2 px-2 py-2 m-2">
             {items.map((item) => {
               const active = isActivePath(pathname, item.href);
@@ -161,13 +195,13 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
                 <Link key={item.href} href={item.href} className="relative block">
                   <div
                     className={[
-                      "relative flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer",
-                      "transition-all duration-300 hover:bg-black/10",
-                      active ? "bg-[#6D5BD0] text-white shadow-md" : "text-black",
+                      "relative flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-300",
+                      active
+                        ? "bg-[#6D5BD0] text-white shadow-md"
+                        : "text-black hover:bg-black/10",
                     ].join(" ")}
                   >
                     <div className="flex items-center gap-3 relative">
-                      {/* 📨 ไอคอน + Badge */}
                       <div className="relative flex items-center justify-center w-6 h-6 text-[#17153B]">
                         {item.icon}
                         {isMessage && notifCount > 0 && (
@@ -192,7 +226,7 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
               );
             })}
 
-            {/* 🚪 Logout */}
+            {/* Logout */}
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/30 text-black transition-all duration-300 mt-4"
@@ -247,7 +281,6 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
         <button
           onClick={handleLogout}
           className="p-2 rounded-full hover:scale-110 transition-all duration-200"
-          style={{ backgroundColor: "transparent" }}
         >
           <LogOut size={20} />
         </button>

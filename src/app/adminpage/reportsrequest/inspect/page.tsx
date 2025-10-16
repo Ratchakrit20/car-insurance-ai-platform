@@ -114,10 +114,15 @@ type ModelParams = {
 
 /* ------------ API ------------ */
 async function fetchDetail(id: string): Promise<ClaimDetail> {
-  const res = await fetch(
-    `${URL_PREFIX}/api/claim-requests/admin/detail?claim_id=${encodeURIComponent(id)}`,
-    { credentials: "include", cache: "no-store" }
-  );
+  const token = localStorage.getItem("token");
+const res = await fetch(
+  `${URL_PREFIX}/api/claim-requests/admin/detail?claim_id=${encodeURIComponent(id)}`,
+  {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  }
+);
+
   const json = await res.json();
   if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
 
@@ -359,24 +364,28 @@ export default function InspectPage() {
       }));
   }, [detail]);
   // -------- โหลดข้อมูลผู้ใช้ (me) --------
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-      const res = await fetch(`${URL_PREFIX}/api/me`, {
-    credentials: "include",
-  });
-        const data = await res.json();
-        if (cancelled) return;
-        console.log("🔐 Auth data:", data);
-        setUser(data.user ?? null);
-        setIsAuthenticated(Boolean(data.isAuthenticated));
-      } catch {
-        if (!cancelled) setIsAuthenticated(false);
+ useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setIsAuthenticated(false);
+        return;
       }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+      const res = await fetch(`${URL_PREFIX}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (cancelled) return;
+      setUser(data.user ?? null);
+      setIsAuthenticated(Boolean(data.isAuthenticated));
+    } catch {
+      if (!cancelled) setIsAuthenticated(false);
+    }
+  })();
+  return () => { cancelled = true; };
+}, []);
 
   useEffect(() => {
     // 🔒 รอให้ตรวจสอบสิทธิ์เสร็จก่อน
@@ -546,12 +555,13 @@ export default function InspectPage() {
   }
 
   async function fetchSavedBoxes(imageId: number | string) {
-    const r = await fetch(`${URL_PREFIX}/api/image-annotations?image_id=${encodeURIComponent(String(imageId))}`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!r.ok) return [];
-    const j = await r.json();
+      const token = localStorage.getItem("token");
+  const r = await fetch(`${URL_PREFIX}/api/image-annotations?image_id=${encodeURIComponent(String(imageId))}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!r.ok) return [];
+  const j = await r.json();
     const rows = j?.data ?? [];
 
     return rows.map((row: any, i: number) => ({
@@ -570,83 +580,86 @@ export default function InspectPage() {
   }
 
   async function saveCurrentImage(merged?: Annotation[]) {
-    const img = images[activeIndex];
-    const boxesRaw = boxesByIndex[activeIndex] ?? [];
-    const boxes = merged ?? boxesRaw; // ✅ ใช้ merged ที่ส่งมาถ้ามี
+  const img = images[activeIndex];
+  const boxesRaw = boxesByIndex[activeIndex] ?? [];
+  const boxes = merged ?? boxesRaw;
 
-    if (!img?.id) {
-      alert("ไม่พบ image id");
-      return;
-    }
-
-    // ✅ รวมกล่องที่มีชิ้นส่วน (part_name) เดียวกันก่อนบันทึก
-    const mergedBoxes = Object.values(
-      boxes.reduce((acc, b) => {
-        const key = b.part?.trim() || `__id_${b.id}`;
-        if (!acc[key]) {
-          acc[key] = { ...b, damage: Array.isArray(b.damage) ? b.damage : [b.damage] };
-        } else {
-          // รวมความเสียหาย (ไม่ซ้ำ)
-          const combined = Array.from(
-            new Set([
-              ...(Array.isArray(acc[key].damage) ? acc[key].damage : [acc[key].damage]),
-              ...(Array.isArray(b.damage) ? b.damage : [b.damage]),
-            ])
-          );
-          acc[key] = { ...acc[key], damage: combined };
-        }
-        return acc;
-      }, {} as Record<string, Annotation>)
-    );
-
-    // ✅ สร้าง payload จาก mergedBoxes แทน boxes ดิบ
-    const payload = {
-      image_id: img.id, // = evaluation_image_id
-      boxes: mergedBoxes.map((b) => ({
-        part_name: b.part,
-        damage_name: b.damage,
-        severity: b.severity,
-        area_percent: b.areaPercent ?? null,
-        x: round3(b.x),
-        y: round3(b.y),
-        w: round3(b.w),
-        h: round3(b.h),
-      })),
-    };
-
-    // ✅ ส่งข้อมูลรวมแล้วไป backend
-    const resp = await fetch(`${URL_PREFIX}/api/image-annotations/save`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-
-    if (!resp.ok) {
-      const t = await resp.text();
-      alert(`บันทึกไม่สำเร็จ: ${t}`);
-      return;
-    }
-
-    const j = await resp.json();
-    console.log("Saving image:", img);
-    console.log("saved:", j);
-    console.log("📦 mergedBoxes sent:", mergedBoxes);
-
-    setAnnotatedById((m) => ({ ...m, [img.id]: mergedBoxes.length > 0 }));
-    alert("บันทึกเรียบร้อย");
+  if (!img?.id) {
+    alert("ไม่พบ image id");
+    return;
   }
+
+  const mergedBoxes = Object.values(
+    boxes.reduce((acc, b) => {
+      const key = b.part?.trim() || `__id_${b.id}`;
+      if (!acc[key]) {
+        acc[key] = { ...b, damage: Array.isArray(b.damage) ? b.damage : [b.damage] };
+      } else {
+        const combined = Array.from(
+          new Set([
+            ...(Array.isArray(acc[key].damage) ? acc[key].damage : [acc[key].damage]),
+            ...(Array.isArray(b.damage) ? b.damage : [b.damage]),
+          ])
+        );
+        acc[key] = { ...acc[key], damage: combined };
+      }
+      return acc;
+    }, {} as Record<string, Annotation>)
+  );
+
+  const payload = {
+    image_id: img.id,
+    boxes: mergedBoxes.map((b) => ({
+      part_name: b.part,
+      damage_name: b.damage,
+      severity: b.severity,
+      area_percent: b.areaPercent ?? null,
+      x: round3(b.x),
+      y: round3(b.y),
+      w: round3(b.w),
+      h: round3(b.h),
+    })),
+  };
+
+  // ✅ แก้ตรงนี้
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("ไม่พบ token, กรุณาเข้าสู่ระบบใหม่");
+    return;
+  }
+
+  const resp = await fetch(`${URL_PREFIX}/api/image-annotations/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    const t = await resp.text();
+    alert(`บันทึกไม่สำเร็จ: ${t}`);
+    return;
+  }
+
+  const j = await resp.json();
+  console.log("📦 mergedBoxes sent:", mergedBoxes);
+  setAnnotatedById((m) => ({ ...m, [img.id]: mergedBoxes.length > 0 }));
+  alert("บันทึกเรียบร้อย");
+}
+
 
 
   // ✅ ตรวจสอบสิทธิ์ผู้ใช้ก่อน render หน้า
   if (isAuthenticated === null) {
     return <div className="p-6 text-zinc-500">กำลังตรวจสอบสิทธิ์ผู้ใช้…</div>;
   }
-
-  if (isAuthenticated === false) {
-    router.replace("/login");
-    return null;
-  }
+if (isAuthenticated === false) {
+  localStorage.removeItem("token");
+  router.replace("/login");
+  return null;
+}
   // States
   if (!claimId) return <div className="p-6 text-rose-600">ไม่พบ claim_id</div>;
   if (loading) return <div className="p-6 text-zinc-600">กำลังโหลด…</div>;

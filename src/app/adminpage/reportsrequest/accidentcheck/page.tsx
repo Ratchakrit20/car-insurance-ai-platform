@@ -104,9 +104,15 @@ export default function accidentCheck() {
     let cancelled = false;
     (async () => {
       try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
         const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-          credentials: "include",
+          headers: { Authorization: `Bearer ${token}` },
         });
+
         const data = await res.json();
         if (cancelled) return;
         setUser(data.user ?? null);
@@ -119,14 +125,25 @@ export default function accidentCheck() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+  if (isAuthenticated === false) {
+    router.replace("/login");
+  }
+}, [isAuthenticated, router]);
   // ดึงจาก API
   useEffect(() => {
     const fetchDetail = async () => {
       try {
+        const token = localStorage.getItem("token");
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
-          { credentials: "include", cache: "no-store" }
+          {
+            cache: "no-store",
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
+
         const json = await res.json();
         if (json.ok) {
           const d = json.data;
@@ -231,10 +248,12 @@ export default function accidentCheck() {
         body.incomplete_at = now;
 
         // ✅ ดึงประวัติเก่าก่อนจะ append
+        const token = localStorage.getItem("token");
         const res = await fetch(`${URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`, {
-          credentials: "include",
           cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
         });
+
         const json = await res.json();
         const prevHistory = json?.data?.incomplete_history || [];
 
@@ -244,10 +263,13 @@ export default function accidentCheck() {
         ];
       }
 
+      const token = localStorage.getItem("token");
       const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(body),
       });
 
@@ -314,7 +336,7 @@ export default function accidentCheck() {
         </div>
 
         {/* ขวา: รูปรถ */}
-        <div className="rounded-[7px] h-[15opxaaaaaaaaaa] flex items-center justify-center">
+<div className="rounded-[7px] h-[150px] flex items-center justify-center">
           <img
             src={car.car_path}
             alt="Car"

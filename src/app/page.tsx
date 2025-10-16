@@ -53,7 +53,7 @@ export default function Page() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-lg text-gray-600">
+      <div className="flex items-center justify-center bg-white h-screen text-lg text-gray-600">
         กำลังโหลด...
       </div>
     );
@@ -147,7 +147,7 @@ export default function Page() {
         </section>
 
         {/* ขั้นตอนการเคลม */}
-        <section id="steps" className="mt-16 max-w-6xl mx-auto px-6">
+        <section id="steps" className="mt-16 max-w-6xl mx-auto px-6 mb-30">
           <h2 className="text-2xl md:text-3xl font-extrabold text-center mb-12 text-black">
             ขั้นตอนการเคลม
           </h2>

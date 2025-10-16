@@ -56,14 +56,22 @@ function normalizeStatus(s?: string | null): ClaimStatus {
 
 // ---------- API ----------
 async function fetchAuth(): Promise<ApiAuth> {
-  const res = await fetch(`${URL_PREFIX}/api/me`, { credentials: "include" });
-  if (!res.ok) throw new Error("auth failed");
+  const token = localStorage.getItem("token");
+if (!token) return { isAuthenticated: false, user: null };
+const res = await fetch(`${URL_PREFIX}/api/me`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
   return res.json();
 }
 
 async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
   const url = `${URL_PREFIX}/api/claim-requests/listall`;
-  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  const token = localStorage.getItem("token");
+const res = await fetch(url, {
+  cache: "no-store",
+  headers: { Authorization: `Bearer ${token}` },
+});
+
   if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
   const json = await res.json();
   const rows: ClaimReportRow[] = json?.data ?? [];
@@ -109,7 +117,11 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
 
 async function fetchClaimDetail(claimId: string | number): Promise<PdfDetail> {
   const url = `${URL_PREFIX}/api/claim-requests/admin/detail?claim_id=${encodeURIComponent(String(claimId))}`;
-  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  const token = localStorage.getItem("token");
+const res = await fetch(url, {
+  cache: "no-store",
+  headers: { Authorization: `Bearer ${token}` },
+});
   const json = await res.json();
   if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
   return json.data;

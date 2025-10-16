@@ -30,15 +30,19 @@ function formatTime(timeStr?: string) {
 export default function AdminClaimReportPreview({ car, draft }: Props) {
   if (!car || !draft) {
     return (
-      
+
       <div className="p-6 text-center text-zinc-500">
         ไม่พบข้อมูลสำหรับแสดงรายงาน
       </div>
     );
   }
-  
- const mappedDraft = mapAccidentDraft(draft);
- 
+
+ let mappedDraft = draft;
+try {
+  mappedDraft = mapAccidentDraft(draft);
+} catch {
+  console.warn("⚠️ mapAccidentDraft failed, using raw draft");
+}
   return (
     <div className="mx-auto max-w-6xl bg-white rounded-2xl shadow-lg p-6">
       {/* Header */}
@@ -128,7 +132,9 @@ export default function AdminClaimReportPreview({ car, draft }: Props) {
           {draft.evidenceMedia?.length ? (
             <>
               <p className="text-sm font-medium mb-1">หลักฐานภาพ/วิดีโอ</p>
-              <EvidenceGallery media={draft.evidenceMedia} />
+              <EvidenceGallery
+                media={draft.evidenceMedia?.filter(p => p?.url) ?? []}
+              />
             </>
           ) : (
             <p className="text-sm text-zinc-500">ไม่มีหลักฐาน</p>
@@ -139,7 +145,10 @@ export default function AdminClaimReportPreview({ car, draft }: Props) {
         <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
           <h2 className="font-semibold mb-3">รูปความเสียหาย</h2>
           {draft.damagePhotos?.length ? (
-            <EvidenceGallery media={draft.damagePhotos} />
+            <EvidenceGallery
+              media={draft.damagePhotos?.filter(p => p?.url) ?? []}
+            />
+
           ) : (
             <p className="text-sm text-zinc-500">ไม่มีข้อมูลความเสียหาย</p>
           )}

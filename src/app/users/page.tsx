@@ -1,15 +1,21 @@
-// src/app/users/page.tsx
 "use client";
-import CarList from "../components/CarList"; // ✅ import
+
 import React, { useEffect, useState } from "react";
-import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
-const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
-const bodyFont = Noto_Sans_Thai({ subsets: ['thai', 'latin'], weight: ['400', '500'], display: 'swap' });
+import { Prompt, Noto_Sans_Thai } from "next/font/google";
+import { useRouter } from "next/navigation";
+import LoadingScreen from "@/app/components/LoadingScreen";
+
+const headingFont = Prompt({
+  subsets: ["thai", "latin"],
+  weight: ["600", "700"],
+  display: "swap",
+});
 const thaiFont = Noto_Sans_Thai({
   subsets: ["thai", "latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
+
 type User = {
   id: string;
   fullName: string;
@@ -26,52 +32,52 @@ type User = {
 };
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [savingInfo, setSavingInfo] = useState(false);
 
-  // password form
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
   const [savingPw, setSavingPw] = useState(false);
 
-  const [data, setData] = useState<any>(null);
-  // cars (ตัวอย่าง mock data — ถ้าไม่มีจริงสามารถลบออก)
+  const [cars, setCars] = useState<any[]>([]);
 
-  const [cars, setCars] = useState<
-    {
-      id: string;
-      title: string;
-      plate: string;
-      year?: string;
-      color?: string;
-      thumb?: string;
-      policyNo?: string;
-      company?: string;
-      insuranceType?: string;
-      startDate?: string;
-      endDate?: string;
-    }[]
-  >([]);
-  // โหลด user จาก backend จริง
-
+  // ✅ ตรวจสอบ token และโหลดข้อมูล user
   useEffect(() => {
-    async function loadUser() {
+    let cancelled = false;
+
+    (async () => {
       try {
-        const meRes = await fetch(`http://localhost:3001/api/me`, {
-          credentials: "include",
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
+
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
+
         const meData = await meRes.json();
+        if (cancelled) return;
+
         if (meData?.isAuthenticated) {
           const userId = meData.user.id;
-          const res = await fetch(`http://localhost:3001/api/customers/${userId}`, {
-            credentials: "include",
-          });
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/customers/${userId}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
           const json = await res.json();
+
           if (json) {
             setUser({
               id: json.id,
@@ -88,38 +94,56 @@ export default function ProfilePage() {
             });
             setCars(json.cars || []);
           }
+
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error("❌ Error loading user:", err);
+        setIsAuthenticated(false);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    loadUser();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  // ✅ ถ้าไม่ได้ล็อกอิน → กลับหน้า login
+  useEffect(() => {
+    if (isAuthenticated === false) router.replace("/login");
+  }, [isAuthenticated, router]);
 
+  // ✅ Loading state
+  if (isAuthenticated === null || loading)
+    return <LoadingScreen message="กำลังโหลดข้อมูล..." />;
 
+  // ✅ บันทึกข้อมูลติดต่อ
   async function saveContact() {
-    if (!user) {
-      alert("ยังไม่ได้โหลดข้อมูลผู้ใช้");
-      return;
-    }
+    if (!user) return alert("ยังไม่ได้โหลดข้อมูลผู้ใช้");
     setSavingInfo(true);
+
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/customers/${user.id}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ phone_number: phone, address }),
         }
       );
 
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.message || "Failed");
+
       setUser((u) => (u ? { ...u, phone, address } : u));
       alert("อัปเดตข้อมูลเรียบร้อย");
     } catch (err: any) {
@@ -129,32 +153,34 @@ export default function ProfilePage() {
     }
   }
 
+  // ✅ ตรวจสอบฟอร์มรหัสผ่าน
   function validatePasswordForm() {
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordMsg("กรุณากรอกข้อมูลให้ครบ");
       return false;
     }
-
     if (newPassword !== confirmPassword) {
-      setPasswordMsg("รหัสผ่านใหม่และยืนยันรหัสไม่ตรงกัน");
+      setPasswordMsg("รหัสผ่านใหม่และยืนยันไม่ตรงกัน");
       return false;
     }
-
-    // ❌ ไม่ตรวจความยาวหรือรูปแบบแล้ว
     setPasswordMsg("");
     return true;
   }
 
+  // ✅ เปลี่ยนรหัสผ่าน
   async function changePassword() {
     if (!validatePasswordForm() || !user) return;
     setSavingPw(true);
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/customers/${user.id}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             currentPassword,
             newPassword,
@@ -173,10 +199,11 @@ export default function ProfilePage() {
       setSavingPw(false);
     }
   }
+
   function formatDate(dateStr?: string | null) {
     if (!dateStr) return "-";
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "-"; // ✅ ป้องกัน Invalid Date
+    if (isNaN(d.getTime())) return "-";
     return d.toLocaleDateString("th-TH", {
       year: "numeric",
       month: "long",
@@ -184,14 +211,9 @@ export default function ProfilePage() {
     });
   }
 
-  if (loading) {
-    return (
-      <div className="p-6 text-center text-zinc-500">กำลังโหลดข้อมูล...</div>
-    );
-  }
-
+  // ✅ แสดงหน้า Profile
   return (
-    <div className={`${thaiFont.className} relative w-full overflow-x-hidden`}>
+    <div className={`${thaiFont.className} relative w-full overflow-x-hidden mb-20`}>
       <div className="fixed inset-0 -z-10 bg-white"></div>
       <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 lg:px-6 py-4 lg:py-8">
 
@@ -433,4 +455,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

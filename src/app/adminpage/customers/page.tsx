@@ -33,7 +33,10 @@ export default function CustomersPage() {
 
   // auth
   const fetchAuth = async (): Promise<ApiAuth> => {
-    const res = await fetch(`${API_BASE}/api/me`, { credentials: "include" });
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/api/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!res.ok) throw new Error("auth failed");
     return res.json();
   };
@@ -54,12 +57,15 @@ export default function CustomersPage() {
   }, [isAuthenticated, router]);
 
   // customers
-  useEffect(() => {
+    useEffect(() => {
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`${LIST_ENDPOINT}&withPolicyCount=1`, { credentials: "include" });
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${LIST_ENDPOINT}&withPolicyCount=1`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
         const rows: (User & { policy_count?: number })[] = await res.json();
         setCustomers(rows.filter((r) => (r.role ?? "customer") === "customer"));
@@ -72,11 +78,14 @@ export default function CustomersPage() {
   }, []);
 
   // policies
-  const fetchPolicies = async () => {
+    const fetchPolicies = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(POLICIES_ENDPOINT, { credentials: "include" });
+      const token = localStorage.getItem("token");
+      const res = await fetch(POLICIES_ENDPOINT, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
       const rows: InsurancePolicy[] = await res.json();
       setPolicies(rows);
@@ -89,7 +98,6 @@ export default function CustomersPage() {
 
   useEffect(() => {
     if (viewMode === "policies" && policies.length === 0) fetchPolicies();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
 
   const filteredCustomers = useMemo(() => {
@@ -133,20 +141,27 @@ export default function CustomersPage() {
     setPolicyModalOpen(true);
   };
   const submitPolicy = async (payload: InsurancePolicy) => {
-    const base = `${API_BASE}/api/policy`;
-    const res = editingPolicy?.id
-      ? await fetch(`${base}/${editingPolicy.id}`, {
-          method: "PUT",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-      : await fetch(base, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+    const token = localStorage.getItem("token");
+const base = `${API_BASE}/api/policy`;
+
+const res = editingPolicy?.id
+  ? await fetch(`${base}/${editingPolicy.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  : await fetch(base, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
     if (!res.ok) {
       const msg = (await res.json().catch(() => ({})))?.message || `Save failed (${res.status})`;
       throw new Error(msg);

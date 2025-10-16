@@ -78,10 +78,14 @@ export default function CustomerPoliciesPage() {
   const [editItem, setEditItem] = useState<InsurancePolicy | null>(null);
 
   async function fetchAuth(): Promise<ApiAuth> {
-    const res = await fetch(`${URL_PREFIX}/api/me`, { credentials: "include" });
-    if (!res.ok) throw new Error("auth failed");
-    return res.json();
-    }
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${URL_PREFIX}/api/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("auth failed");
+  return res.json();
+}
+
 
   // โหลดสิทธิ์
   useEffect(() => {
@@ -109,13 +113,17 @@ export default function CustomerPoliciesPage() {
         setLoading(true);
         setError(null);
 
-        const resU = await fetch(`${URL_PREFIX}/api/customers/${userId}`, { credentials: "include" });
+        const token = localStorage.getItem("token");
+        const resU = await fetch(`${URL_PREFIX}/api/customers/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!resU.ok) throw new Error("โหลดข้อมูลผู้ใช้ไม่สำเร็จ");
         const u: User = await resU.json();
         setUser(u);
 
-        const resP = await fetch(`${URL_PREFIX}/api/policy/${encodeURIComponent(u.citizen_id)}`, { credentials: "include" });
-        if (resP.status === 404) {
+        const resP = await fetch(`${URL_PREFIX}/api/policy/${encodeURIComponent(u.citizen_id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }); if (resP.status === 404) {
           setPolicies([]);
         } else if (!resP.ok) {
           throw new Error("โหลดกรมธรรม์ไม่สำเร็จ");
@@ -134,92 +142,99 @@ export default function CustomerPoliciesPage() {
   }, [userId]);
 
   const handleAdd = async (payload: InsurancePolicy) => {
-    const res = await fetch(`${URL_PREFIX}/api/policy`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
+    const token = localStorage.getItem("token");
+const res = await fetch(`${URL_PREFIX}/api/policy`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify(payload),
+});
     if (!res.ok) throw new Error("เพิ่มกรมธรรม์ล้มเหลว");
     const created = await res.json();
     setPolicies((cur) => [created, ...cur]);
   };
 
-  const handleEdit = async (payload: InsurancePolicy) => {
-    if (!payload.id) return;
-    const res = await fetch(`${URL_PREFIX}/api/policy/${payload.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error("อัปเดตกกรมธรรม์ล้มเหลว");
-    const updated = await res.json();
-    setPolicies((cur) => cur.map((p) => (p.id === updated.id ? updated : p)));
-  };
+ const handleEdit = async (payload: InsurancePolicy) => {
+  if (!payload.id) return;
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${URL_PREFIX}/api/policy/${payload.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("อัปเดตกกรมธรรม์ล้มเหลว");
+  const updated = await res.json();
+  setPolicies((cur) => cur.map((p) => (p.id === updated.id ? updated : p)));
+};
 
+   
   const count = policies.length;
 
   return (
-     <div className="min-h-screen w-full bg-white">
-    <div className="mx-auto w-full max-w-6xl p-3 sm:p-6">
-      {/* Header bar */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => router.push("/adminpage/customers")}
-            className="h-10 rounded-2xl text-black px-3 ring-1 ring-zinc-300 hover:bg-zinc-50 inline-flex items-center gap-2 text-sm"
-          >
-            <ArrowLeft size={16} /> กลับ
-          </button>
-          <h1 className="text-xl sm:text-2xl text-black font-semibold flex items-center gap-2">
-            <ShieldCheck size={20} /> กรมธรรม์ของลูกค้า
-            {user && (
-              <span className="ml-1 inline-flex items-center justify-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-emerald-200 min-w-[1.75rem]">
-                {count}
-              </span>
-            )}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {user && (
-            <button onClick={() => setOpenAdd(true)} className="h-10 rounded-2xl px-4 bg-emerald-600 text-white hover:bg-emerald-700 text-sm inline-flex items-center gap-2">
-              <FilePlus2 size={16} /> เพิ่มกรมธรรม์
+    <div className="min-h-screen w-full bg-white">
+      <div className="mx-auto w-full max-w-6xl p-3 sm:p-6">
+        {/* Header bar */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push("/adminpage/customers")}
+              className="h-10 rounded-2xl text-black px-3 ring-1 ring-zinc-300 hover:bg-zinc-50 inline-flex items-center gap-2 text-sm"
+            >
+              <ArrowLeft size={16} /> กลับ
             </button>
+            <h1 className="text-xl sm:text-2xl text-black font-semibold flex items-center gap-2">
+              <ShieldCheck size={20} /> กรมธรรม์ของลูกค้า
+              {user && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-emerald-200 min-w-[1.75rem]">
+                  {count}
+                </span>
+              )}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {user && (
+              <button onClick={() => setOpenAdd(true)} className="h-10 rounded-2xl px-4 bg-emerald-600 text-white hover:bg-emerald-700 text-sm inline-flex items-center gap-2">
+                <FilePlus2 size={16} /> เพิ่มกรมธรรม์
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* User summary */}
+        {user && <UserSummary user={user} />}
+
+        {/* Policies list */}
+        <div className="mt-6">
+          {loading ? (
+            <div className="p-8 flex items-center justify-center text-zinc-600 gap-2">
+              <Loader2 className="animate-spin" /> Loading...
+            </div>
+          ) : error ? (
+            <div className="rounded-2xl ring-1 ring-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+          ) : policies.length === 0 ? (
+            <div className="rounded-2xl ring-1 ring-zinc-200 bg-white p-6 text-sm text-zinc-600 text-center">ยังไม่มีข้อมูลกรมธรรม์สำหรับลูกค้าคนนี้</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {policies.map((p) => (
+                <PolicyCard key={p.id} p={p} onEdit={(x) => setEditItem(x)} />
+              ))}
+            </div>
           )}
         </div>
-      </div>
 
-      {/* User summary */}
-      {user && <UserSummary user={user} />}
-
-      {/* Policies list */}
-      <div className="mt-6">
-        {loading ? (
-          <div className="p-8 flex items-center justify-center text-zinc-600 gap-2">
-            <Loader2 className="animate-spin" /> Loading...
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl ring-1 ring-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-        ) : policies.length === 0 ? (
-          <div className="rounded-2xl ring-1 ring-zinc-200 bg-white p-6 text-sm text-zinc-600 text-center">ยังไม่มีข้อมูลกรมธรรม์สำหรับลูกค้าคนนี้</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {policies.map((p) => (
-              <PolicyCard key={p.id} p={p} onEdit={(x) => setEditItem(x)} />
-            ))}
-          </div>
+        {/* Modals */}
+        {user && (
+          <>
+            <PolicyModal open={openAdd} citizenId={user.citizen_id} onClose={() => setOpenAdd(false)} onSubmit={handleAdd} />
+            <PolicyModal open={!!editItem} initial={editItem ?? undefined} citizenId={user.citizen_id} onClose={() => setEditItem(null)} onSubmit={handleEdit} />
+          </>
         )}
       </div>
-
-      {/* Modals */}
-      {user && (
-        <>
-          <PolicyModal open={openAdd} citizenId={user.citizen_id} onClose={() => setOpenAdd(false)} onSubmit={handleAdd} />
-          <PolicyModal open={!!editItem} initial={editItem ?? undefined} citizenId={user.citizen_id} onClose={() => setEditItem(null)} onSubmit={handleEdit} />
-        </>
-      )}
     </div>
-     </div>
   );
 }

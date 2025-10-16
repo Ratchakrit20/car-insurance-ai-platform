@@ -8,8 +8,7 @@ import type { User, ClaimItem, ClaimReportRow, ClaimStatus, Car, AccidentDraft, 
 import AccidentDetail from "@/app/adminpage/reportsall/accidentdetail";
 import ClaimDocument from "@/app/components/ClaimDocument";
 // ---------- Config ----------
-const URL_PREFIX =
-  process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
+const URL_PREFIX = process.env.NEXT_PUBLIC_URL_PREFIX || "";
 
 // ---------- Types ----------
 type ApiAuth = { user: User | null; isAuthenticated: boolean };
@@ -20,6 +19,7 @@ type PdfDetail = {
   car: Car | null;
   accident: AccidentDraft;
 };
+
 
 // ---------- Helpers ----------
 const thDate = (iso?: string) => {
@@ -40,17 +40,22 @@ function normalizeStatus(s?: string | null): ClaimStatus {
 
 // ---------- API ----------
 async function fetchAuth(): Promise<ApiAuth> {
-  const res = await fetch(`${URL_PREFIX}/api/me`, { credentials: "include" });
+  const token = localStorage.getItem("token");
+  if (!token) return { isAuthenticated: false, user: null };
+  const res = await fetch(`${URL_PREFIX}/api/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error("auth failed");
   return res.json();
 }
 
 async function fetchClaimsAll(): Promise<ClaimItem[]> {
   // ใช้ listall เดิม แล้ว normalize ฟิลด์ให้เป็น ClaimItem
-  const res = await fetch(`${URL_PREFIX}/api/claim-requests/listall`, {
-    cache: "no-store",
-    credentials: "include",
-  });
+  const token = localStorage.getItem("token");
+const res = await fetch(`${URL_PREFIX}/api/claim-requests/listall`, {
+  cache: "no-store",
+  headers: { Authorization: `Bearer ${token}` },
+});
   if (!res.ok) throw new Error("โหลดรายการไม่สำเร็จ");
   const json = await res.json();
   const rows: ClaimReportRow[] = json?.data ?? [];
@@ -98,8 +103,12 @@ async function fetchClaimsAll(): Promise<ClaimItem[]> {
 }
 
 async function fetchClaimDetail(claimId: string | number): Promise<PdfDetail> {
+  const token = localStorage.getItem("token");
   const url = `${URL_PREFIX}/api/claim-requests/detail?claim_id=${encodeURIComponent(String(claimId))}`;
-  const res = await fetch(url, { cache: "no-store", credentials: "include" });
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const json = await res.json();
   if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
   return {
@@ -110,6 +119,7 @@ async function fetchClaimDetail(claimId: string | number): Promise<PdfDetail> {
     accident: json.data.accident as AccidentDraft,
   };
 }
+
 function ClaimDocumentWrapper({ claimId }: { claimId: string }) {
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
@@ -117,10 +127,11 @@ function ClaimDocumentWrapper({ claimId }: { claimId: string }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
-          { credentials: "include" }
-        );
+        const token = localStorage.getItem("token");
+const res = await fetch(
+  `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);
         const json = await res.json();
         if (json.ok) {
           setDetail(json.data);
@@ -330,7 +341,23 @@ export default function ReportsReviewedPage() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfDetail, setPdfDetail] = useState<PdfDetail | null>(null);
-
+useEffect(() => {
+  (async () => {
+    try {
+      const data = await fetchAuth();
+      if (!data.isAuthenticated) {
+        localStorage.removeItem("token");
+        router.replace("/login");
+        return;
+      }
+      setUser(data.user ?? null);
+      setIsAuthenticated(true);
+    } catch {
+      localStorage.removeItem("token");
+      router.replace("/login");
+    }
+  })();
+}, [router]);
   // โหลดสิทธิ์
   useEffect(() => {
     let cancelled = false;
@@ -347,26 +374,19 @@ export default function ReportsReviewedPage() {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated === false) router.replace("/login");
-  }, [isAuthenticated, router]);
-
-  // โหลดทั้งหมด → กรองใน client
-  useEffect(() => {
+   useEffect(() => {
     if (isAuthenticated !== true) return;
-    let cancelled = false;
     (async () => {
       try {
         setLoading(true);
         const list = await fetchClaimsAll();
-        if (!cancelled) setAllClaims(list);
+        setAllClaims(list);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Load error");
+        setError(e?.message ?? "Load error");
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
   }, [isAuthenticated]);
 
   // filter เฉพาะที่พิจารณาแล้ว → approved / rejected / incomplete
@@ -418,7 +438,7 @@ export default function ReportsReviewedPage() {
   if (isAuthenticated === null) {
     return <div className="mx-auto max-w-6xl px-4 py-10 text-zinc-500">กำลังตรวจสอบสิทธิ์…</div>;
   }
-  if (isAuthenticated === false) return null;
+ 
 
   if (loading) return <PageSkeleton />;
 

@@ -128,7 +128,7 @@ export default function DetectPage() {
 
   return (
 
-    <div className={`${bodyFont.className} relative w-full overflow-x-hidden`}>
+    <div className={`${bodyFont.className} relative w-full overflow-x-hidden mb-20`}>
       <div className="fixed inset-0 -z-10 bg-white" />
 
       <div className="min-h-[100dvh] sm:min-h-[100svh] w-full">

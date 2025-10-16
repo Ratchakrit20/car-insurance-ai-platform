@@ -52,7 +52,14 @@ export default function ClaimDocPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${URL_PREFIX}/api/me`, { credentials: "include" });
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
+        const res = await fetch(`${URL_PREFIX}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         if (cancelled) return;
         setUser(data.user ?? null);
@@ -67,8 +74,12 @@ export default function ClaimDocPage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated === false) router.replace("/login");
-  }, [isAuthenticated, router]);
+  if (isAuthenticated === false) {
+    localStorage.removeItem("token");
+    router.replace("/login");
+  }
+}, [isAuthenticated, router]);
+
 
   // -------- โหลดรายละเอียดเคลม --------
   useEffect(() => {
@@ -82,10 +93,15 @@ export default function ClaimDocPage() {
     (async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem("token");
         const res = await fetch(
           `${URL_PREFIX}/api/admin/detail?claim_id=${encodeURIComponent(claimId)}`,
-          { credentials: "include", cache: "no-store" }
+          {
+            cache: "no-store",
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
+
         const json = await res.json();
         if (!alive) return;
         if (!res.ok || !json?.ok)
@@ -135,19 +151,23 @@ export default function ClaimDocPage() {
         body.incomplete_at = now;
       }
 
+      const token = localStorage.getItem("token");
       const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${detail.claim_id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(body),
       });
 
-      const j = await resp.json();
-    if (!resp.ok || !j?.ok)
-      throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
 
-    // ✅ เก็บ status เป็นภาษาอังกฤษตาม type เดิม
-    setDetail((d) => (d ? { ...d, status: next as ClaimDetail["status"] } : d));
+      const j = await resp.json();
+      if (!resp.ok || !j?.ok)
+        throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
+
+      // ✅ เก็บ status เป็นภาษาอังกฤษตาม type เดิม
+      setDetail((d) => (d ? { ...d, status: next as ClaimDetail["status"] } : d));
 
 
       if (next === "rejected") {

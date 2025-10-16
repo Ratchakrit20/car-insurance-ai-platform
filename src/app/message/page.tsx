@@ -1,10 +1,11 @@
-  "use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Inbox, Loader2 } from "lucide-react";
+import { Bell, Inbox } from "lucide-react";
 import { Prompt, Noto_Sans_Thai } from "next/font/google";
 import LoadingScreen from "@/app/components/LoadingScreen";
+import { useRouter } from "next/navigation";
 
 const headingFont = Prompt({
   subsets: ["thai", "latin"],
@@ -27,64 +28,109 @@ type Notification = {
   created_at: string;
 };
 
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export default function MessagePage() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
-  // 🟢 ดึง user id จาก /api/me
+  // 🟢 ตรวจสอบ token และดึงข้อมูล user
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
-          credentials: "include",
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        const meData = await meRes.json();
-        if (meData.isAuthenticated) {
-          setUserId(meData.user.id);
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.isAuthenticated) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+        } else {
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
         }
       } catch (err) {
-        console.error("โหลดผู้ใช้ล้มเหลว:", err);
+        console.error("Auth check failed:", err);
+        if (!cancelled) setIsAuthenticated(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // 🟢 โหลดข้อความแจ้งเตือน
+  // 🟡 Redirect ถ้าไม่ได้ล็อกอิน
   useEffect(() => {
-    if (!userId) return;
+    if (isAuthenticated === false) router.replace("/login");
+  }, [isAuthenticated, router]);
+
+  // 🟣 โหลดข้อความแจ้งเตือน
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
     (async () => {
       try {
+        const token = localStorage.getItem("token");
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/notifications/${userId}`,
-          { credentials: "include" }
+          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/notifications/${user.id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
+
         const data = await res.json();
-        setMessages(data);
+        if (!cancelled) setMessages(data);
       } catch (err) {
         console.error("โหลดข้อความล้มเหลว:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [userId]);
 
-  // 🕓 Loading state
- if (loading) return <LoadingScreen message="กำลังโหลดข้อความ..." />;
-  // 🧠 ฟังก์ชันเมื่อคลิกข้อความ
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  // 🕓 Loading
+  if (isAuthenticated === null || loading) {
+    return <LoadingScreen message="กำลังโหลดข้อความ..." />;
+  }
+
+  // 🧠 เมื่อคลิกข้อความ
   const handleClick = async (msg: Notification) => {
     try {
-      // 🟣 1) อัปเดตสถานะข้อความใน DB
+      const token = localStorage.getItem("token");
       await fetch(
         `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/notifications/${msg.id}/read`,
-        { method: "PATCH", credentials: "include" }
+        { method: "PATCH", headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 🟣 2) อัปเดต state ให้จางลงทันที
       setMessages((prev) =>
         prev.map((m) => (m.id === msg.id ? { ...m, is_read: true } : m))
       );
 
-      // 🟣 3) รอให้เห็น transition จางลงก่อนค่อย redirect
+      // redirect ไปยังหน้าที่ลิงก์ถึง
       setTimeout(() => {
         if (msg.link_to) {
           let link = msg.link_to.startsWith("/") ? msg.link_to : `/${msg.link_to}`;
@@ -100,10 +146,10 @@ export default function MessagePage() {
     }
   };
 
+  // 🖥️ Render UI
   return (
     <div className={`${thaiFont.className} relative min-h-screen bg-white`}>
       <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:py-10">
-        {/* Header */}
         <div className="flex items-center gap-2 mb-6">
           <Bell className="w-6 h-6 text-indigo-600" />
           <h2 className={`${headingFont.className} text-2xl font-bold text-zinc-800`}>
@@ -111,7 +157,6 @@ export default function MessagePage() {
           </h2>
         </div>
 
-        {/* Empty State */}
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
             <Inbox className="w-14 h-14 text-zinc-300 mb-4" />
