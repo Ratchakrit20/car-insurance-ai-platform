@@ -448,8 +448,8 @@ export default function accidentCheck() {
       </div>
       {showIncomplete && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 print:hidden">
-          <div className="w-[calc(100%-2rem)] max-w-lg rounded-xl bg-white p-4 shadow sm:p-5">
-            <h4 className="text-base font-semibold">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
+          <div className="w-[calc(100%-2rem)] max-w-lg rounded-xl bg-white p-4 text-black shadow sm:p-5">
+            <h4 className="text-base font-semibold ">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
             <p className="mt-1 text-sm text-zinc-600">
               โปรดระบุสาเหตุหรือสิ่งที่ต้องการให้ลูกค้าแก้ไขเพิ่มเติม
             </p>

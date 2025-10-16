@@ -228,19 +228,19 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
 
             {/* Logout */}
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/30 text-black transition-all duration-300 mt-4"
-            >
-              <LogOut size={20} />
-              <span
-                className={`${bodyFont.className}
-                  whitespace-nowrap transition-all duration-300
-                  group-hover:opacity-100 opacity-0
-                  group-hover:ml-0 ml-[-100px]`}
-              >
-                ออกจากระบบ
-              </span>
-            </button>
+  onClick={handleLogout}
+  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-black hover:bg-black/10 transition-all duration-300 mt-4"
+>
+  <LogOut size={20} />
+  <span
+    className={`${bodyFont.className}
+      whitespace-nowrap transition-all duration-300
+      group-hover:opacity-100 opacity-0
+      group-hover:ml-0 ml-[-100px]`}
+  >
+    ออกจากระบบ
+  </span>
+</button>
           </nav>
         </aside>
       </div>
