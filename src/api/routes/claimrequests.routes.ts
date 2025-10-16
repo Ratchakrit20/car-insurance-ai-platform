@@ -387,7 +387,7 @@ router.get("/detail", async (req: Request, res: Response) => {
         ip.car_license_plate AS license_plate,
         ip.registration_province,
         ip.insurance_type, ip.policy_number, ip.coverage_end_date,
-        ip.car_path, ip.insured_name,
+        ip.car_path, ip.insured_name, ip.insurance_company,
 
         (
           SELECT COALESCE(

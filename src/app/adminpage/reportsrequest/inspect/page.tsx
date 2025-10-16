@@ -75,8 +75,9 @@ type ClaimDetail = {
 /* ------------ Config ------------ */
 const URL_PREFIX =
   process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
-const DETECT_API_BASE =
-  process.env.NEXT_PUBLIC_DETECT_API_BASE ;
+const DETECT_API =
+  process.env.NEXT_PUBLIC_DETECT_API_URL ||
+  process.env.DETECT_API_URL;
 // process.env.NEXT_PUBLIC_DETECT_API_BASE || "http://localhost:8000";
 /* ------------ Types: API /detect/analyze ------------ */
 // ใกล้ ๆ บรรทัด type AnalyzeDamageResponse
@@ -187,7 +188,7 @@ async function analyzeImageByUrl(
   const form = new FormData();
   form.append("file", file);
 
-  const resp = await fetch(`${DETECT_API_BASE}/detect/analyze?${qs}`, {
+  const resp = await fetch(`${DETECT_API}/detect/analyze?${qs}`, {
     method: "POST",
     body: form,
   });

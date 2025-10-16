@@ -32,6 +32,7 @@ export default function ClaimDocPage() {
         if (!alive) return;
         if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
         setDetail(json.data as ClaimDetail);
+        console.log("claim detail buttton:", json.data);
       } catch (e: any) {
         if (alive) setErr(e?.message ?? "เกิดข้อผิดพลาด");
       } finally {

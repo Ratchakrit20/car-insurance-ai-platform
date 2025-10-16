@@ -38,7 +38,7 @@ router.get("/detail", async (req: Request, res: Response) => {
         ip.car_brand, ip.car_model, ip.car_year,
         ip.car_license_plate AS license_plate,
         ip.insurance_type, ip.policy_number, ip.coverage_end_date,
-        ip.car_path, ip.insured_name,
+        ip.car_path, ip.insurance_company, ip.insured_name,
         ip.registration_province, ip.chassis_number,
 
         -- images + annotations
@@ -122,6 +122,7 @@ router.get("/detail", async (req: Request, res: Response) => {
 
         car: {
           insured_name: r.insured_name,
+          insurance_company: r.insurance_company,
           policy_number: r.policy_number,
           car_brand: r.car_brand,
           car_model: r.car_model,
