@@ -131,6 +131,37 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
     };
   }, [router]);
 
+  // 🟣 ตรวจจับ token เปลี่ยน (เช่น login / logout)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = localStorage.getItem("token");
+
+      // ถ้าไม่มี token (เช่น logout)
+      if (!token) {
+        setMe({ isAuthenticated: false });
+        setNotifCount(0);
+        return;
+      }
+
+      // ถ้ามี token (เช่น login)
+      (async () => {
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data: MeResponse = await res.json();
+          setMe(data);
+        } catch (err) {
+          console.error("รีโหลดข้อมูลผู้ใช้ล้มเหลว:", err);
+        }
+      })();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+
   // 🕒 refresh badge ทุก 10 วินาที
   useEffect(() => {
     if (!me?.user?.id) return;
@@ -160,6 +191,7 @@ export default function Navbar({ role: roleProp }: { role?: Role }) {
   // 🚪 Logout
   const handleLogout = async () => {
     localStorage.removeItem("token");
+    window.dispatchEvent(new Event("storage")); // ✅ แจ้งว่า token หาย
     router.replace("/login");
     router.refresh();
   };

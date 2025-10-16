@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       // ✅ เก็บ token ลง localStorage
       localStorage.setItem("token", data.token);
-
+      window.dispatchEvent(new Event("storage")); // ✅ แจ้งให้ Navbar รู้ว่า token เปลี่ยน
       // ✅ redirect ตาม role
       if (data.role === "admin") router.push("/adminpage/reportsall");
       else router.push("/");
