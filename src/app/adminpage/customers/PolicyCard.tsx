@@ -48,7 +48,7 @@ export default function PolicyCard({
         </div>
         <div className="rounded-xl bg-zinc-50 text-black p-3">
           <div className="text-[11px] font-medium text-blackuppercase text-black tracking-wide">ทะเบียนรถ</div>
-          <div className="mt-1 font-medium">{p.car_license_plate ?? "-"}</div>
+          <div className="mt-1 font-medium">{p.car_license_plate+ " " + p.registration_province}</div>
         </div>
         <div className="rounded-xl bg-zinc-50 p-3">
           <div className="text-[11px] font-medium text-black uppercase tracking-wide">ยี่ห้อ / รุ่น</div>

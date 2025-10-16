@@ -90,7 +90,7 @@ export default function PolicyCard({
         <InfoRow icon={<Hash size={14} />} labelText="ประเภทประกัน" value={p.insurance_type || "-"} />
         <InfoRow icon={<Calendar size={14} />} labelText="ระยะคุ้มครอง" value={periodText} />
         <InfoRow icon={<CarIcon size={14} />} labelText="รถ" value={[p.car_brand, p.car_model].filter(Boolean).join(" ") || "-"} />
-        <InfoRow icon={<CarIcon size={14} />} labelText="ทะเบียน" value={p.car_license_plate || "-"} />
+        <InfoRow icon={<CarIcon size={14} />} labelText="ทะเบียน" value={p.car_license_plate + " " + p.registration_province || "-"} />
         <InfoRow icon={<CarIcon size={14} />} labelText="เลขตัวถัง" value={p.chassis_number || "-"} />
         <InfoRow icon={<CarIcon size={14} />} labelText="สีรถ" value={p.car_color || "-"} />
         <InfoRow icon={<CarIcon size={14} />} labelText="จังหวัดจดทะเบียน" value={p.registration_province || "-"} />
