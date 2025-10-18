@@ -42,7 +42,7 @@ type NavItem = {
 
 const navItemsCustomer: NavItem[] = [
   { icon: <Home size={20} />, href: "/", label: "หน้าหลัก" },
-  { icon: <Car size={20} />, href: "/detect", label: "การตรวจจับ" },
+  { icon: <Car size={20} />, href: "/detect", label: "เริ่มสร้างเคลม" },
   { icon: <FileText size={20} />, href: "/reports", label: "การเคลมของฉัน" },
   {
     icon: <Mail size={20} />,
