@@ -75,6 +75,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
     car_brand: detail.car?.car_brand ?? "-",
     car_model: detail.car?.car_model ?? "-",
     car_license_plate: detail.car?.car_license_plate ?? "-",
+    registration_province: detail.car?.registration_province ?? "-",
     insurance_type: detail.car?.insurance_type ?? "-",
     policy_number: detail.car?.policy_number ?? "-",
     coverage_end_date: detail.car?.coverage_end_date ?? null,
@@ -362,7 +363,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
             <Info label="ชื่อ" value={car.insured_name} />
             <Info label="ยี่ห้อรถ" value={car.car_brand} />
             <Info label="รุ่น" value={car.car_model} />
-            <Info label="ทะเบียน" value={car.car_license_plate} />
+            <Info label="ทะเบียน" value={car.car_license_plate +" "+ car.registration_province} />
             <Info label="ประเภทประกัน" value={car.insurance_type} />
             <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
             <Info
