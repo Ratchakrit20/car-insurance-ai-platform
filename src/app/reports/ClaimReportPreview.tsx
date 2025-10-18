@@ -29,6 +29,7 @@ export function mapClaimData(d: any) {
       insurance_type: d.insurance_type ?? "-",
       policy_number: d.policy_number ?? "-",
       coverage_end_date: d.coverage_end_date ?? "",
+  coverage_start_date: d.coverage_start_date ?? d.coverage_start ??  "", // ✅
       insured_name: d.insured_name ?? "-",
       car_path: d.car_path ?? "",
       chassis_number: "",

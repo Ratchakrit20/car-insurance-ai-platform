@@ -77,7 +77,8 @@ export default function ClaimDocument({ detail }: { detail: any }) {
     car_license_plate: detail.license_plate,
     insurance_type: detail.insurance_type,
     policy_number: detail.policy_number,
-    coverage_end_date: detail.coverage_end_date,
+    coverage_start_date: detail.coverage_start_date ?? detail.coverage_start ?? null, // ✅ เพิ่มบรรทัดนี้
+    coverage_end_date: detail.coverage_end_date ?? "-",
     car_year: detail.car_year,
     car_path: detail.car_path,
     insured_name: detail.insured_name ?? "-",
@@ -359,11 +360,16 @@ export default function ClaimDocument({ detail }: { detail: any }) {
 
           {/* ข้อมูลรถยนต์ */}
           <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 text-[13px] print:grid-cols-3">
+            <Info label="ชื่อ" value={car.insured_name} />
             <Info label="ยี่ห้อรถ" value={car.car_brand} />
             <Info label="รุ่น" value={car.car_model} />
             <Info label="ทะเบียน" value={car.car_license_plate} />
             <Info label="ประเภทประกัน" value={car.insurance_type} />
             <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
+             <Info
+              label="เริ่มคุ้มครอง"
+              value={car.coverage_start_date ? thDate(car.coverage_start_date) : "-"}
+            />
             <Info
               label="คุ้มครองถึง"
               value={car.coverage_end_date ? thDate(car.coverage_end_date) : "-"}

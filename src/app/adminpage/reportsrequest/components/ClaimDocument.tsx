@@ -78,6 +78,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
     insurance_type: detail.car?.insurance_type ?? "-",
     policy_number: detail.car?.policy_number ?? "-",
     coverage_end_date: detail.car?.coverage_end_date ?? null,
+    coverage_start_date: detail.car?.coverage_start_date ?? null,
     car_year: detail.car?.car_year ?? "-",
     car_path: detail.car?.car_path ?? "",
     insured_name: detail.car?.insured_name ?? "-",
@@ -140,8 +141,8 @@ export default function ClaimDocument({ detail }: { detail: any }) {
       UNIQUE_IDS.has(partId)
         ? partId // unique → ไม่แยกซ้ายขวา
         : LR_IDS.has(partId)
-        ? `${partId}_${r.side || "ไม่ระบุ"}`
-        : partId; // default
+          ? `${partId}_${r.side || "ไม่ระบุ"}`
+          : partId; // default
 
     const existing = mergedMap.get(key);
     if (existing) {
@@ -337,7 +338,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
           <div className="grid h-10 w-10 place-items-center rounded-full border border-zinc-300">🚗</div>
           <div>
             <div className="text-[22px] font-extrabold leading-tight">
-            {car.insurance_company}
+              {car.insurance_company}
             </div>
             {/* <div className="text-[15px] font-semibold text-zinc-800">
               Insurance Public Company Limited
@@ -358,17 +359,21 @@ export default function ClaimDocument({ detail }: { detail: any }) {
 
           {/* ข้อมูลรถยนต์ */}
           <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 text-[13px] print:grid-cols-3">
+            <Info label="ชื่อ" value={car.insured_name} />
             <Info label="ยี่ห้อรถ" value={car.car_brand} />
             <Info label="รุ่น" value={car.car_model} />
             <Info label="ทะเบียน" value={car.car_license_plate} />
             <Info label="ประเภทประกัน" value={car.insurance_type} />
             <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
             <Info
+              label="เริ่มคุ้มครอง"
+              value={car.coverage_start_date ? thDate(car.coverage_start_date) : "-"}
+            />
+            <Info
               label="คุ้มครองถึง"
               value={car.coverage_end_date ? thDate(car.coverage_end_date) : "-"}
             />
           </div>
-
           <div className="my-2 h-px bg-zinc-200" />
 
           {/* ข้อมูลอุบัติเหตุ */}
