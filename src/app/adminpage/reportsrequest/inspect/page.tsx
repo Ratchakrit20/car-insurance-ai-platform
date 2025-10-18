@@ -557,7 +557,7 @@ export default function InspectPage() {
 
   async function fetchSavedBoxes(imageId: number | string) {
       const token = localStorage.getItem("token");
-  const r = await fetch(`${URL_PREFIX}/api/image-annotations?image_id=${encodeURIComponent(String(imageId))}`, {
+  const r = await fetch(`${URL_PREFIX}/api/image-annotations/by-image?image_id=${encodeURIComponent(String(imageId))}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
