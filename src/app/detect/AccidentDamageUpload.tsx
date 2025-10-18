@@ -42,20 +42,21 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
             if (rawAcc) {
                 const a = JSON.parse(rawAcc);
                 if (Array.isArray(a.damagePhotos)) {
-                    setDamageItems(
-                        a.damagePhotos.map((d: any) => ({
-                            id: d.publicId || crypto.randomUUID(),
-                            file: null, // 👈 ตรงนี้ยังใช้ null ได้ เพราะ type อนุญาต
-                            previewUrl: d.url,
-                            side: d.side ?? "ไม่ระบุ",
-                            total: d.total ?? undefined,      // 👈 แทนที่จะเป็น null ให้เป็น undefined
-                            perClass: d.perClass ?? undefined, // 👈 เช่นเดียวกัน
-                            note: d.note ?? "",
-                            detecting: false,
-                            type: d.type ?? "image",
-                        }))
-                    );
-                }
+  const normalized = a.damagePhotos.map((d: any) => ({
+    id: d.publicId || crypto.randomUUID(),
+    file: null, // ✅ ไม่ต้องอัปโหลดใหม่
+    previewUrl: d.url,
+    side: d.side ?? "ไม่ระบุ",
+    total: d.total ?? undefined,
+    perClass: d.perClass ?? undefined,
+    note: d.note ?? "",
+    detecting: false,
+    type: d.type ?? "image",
+    ready: true, // ✅ เพิ่ม flag ว่าไฟล์นี้พร้อมใช้แล้ว
+  }));
+  setDamageItems(normalized);
+}
+
                 // setAgreed(a.agreed || false);
             }
         } catch { }
@@ -102,8 +103,22 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
         onNext();
     };
 
-    const isValid = damageItems.length > 0; //&& agreed;
+    const isValid =
+  damageItems.length > 0 &&
+  damageItems.every(d => d.previewUrl || (d as any).ready);
 
+
+useEffect(() => {
+  if (damageItems.length > 0) {
+    // ตรวจว่าทุกไฟล์พร้อมใช้งาน
+    const ready = damageItems.every(d => d.previewUrl || (d as any).ready);
+    if (ready) {
+      // อัปเดต state เพื่อให้ React render ปุ่มใหม่
+      // ทำให้ isValid = true ทันที
+      setDamageItems(prev => prev.map(d => ({ ...d, ready: true })));
+    }
+  }
+}, [damageItems.length]);
 
 
 

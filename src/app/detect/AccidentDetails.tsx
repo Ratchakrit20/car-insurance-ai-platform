@@ -105,9 +105,7 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [dragOver, setDragOver] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
-  useEffect(() => {
-    setPreviewLoaded(false);
-  }, [evidenceFiles, selectedIndex]);
+ 
   // useEffect(() => {
   //   try {
   //     const raw = localStorage.getItem(ACC_KEY);
@@ -131,48 +129,48 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   //     console.warn("load accident draft failed", e);
   //   }
   // }, []);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(ACC_KEY);
-      if (!raw) return;
+ useEffect(() => {
+  try {
+    const raw = localStorage.getItem(ACC_KEY);
+    if (!raw) return;
 
-      const draft = JSON.parse(raw);
-      setAccidentType(draft.accidentType ?? "ชนสัตว์");
-      setDetails(draft.details ?? "");
+    const draft = JSON.parse(raw);
+    setAccidentType(draft.accidentType ?? "ชนสัตว์");
+    setDetails(draft.details ?? "");
 
-      // ✅ Normalize evidenceMedia ให้รองรับทั้งรูปแบบเก่าและใหม่ (array ซ้อน array)
-      let normalized: EvidenceFile[] = [];
+    let normalized: EvidenceFile[] = [];
 
-      if (Array.isArray(draft.evidenceMedia)) {
-        // กรณีใหม่: evidenceMedia = [{url,type}, ...]
-        if (draft.evidenceMedia.length && Array.isArray(draft.evidenceMedia[0]?.url)) {
-          // ❗️กรณีซ้อน array เช่น { url:[...], type:[...] }
-          const urls = draft.evidenceMedia[0].url ?? [];
-          const types = draft.evidenceMedia[0].type ?? [];
-          normalized = urls.map((u: string, i: number) => ({
-            url: u,
-            type: types[i] ?? "image",
-            publicId: "",
-            name: `ไฟล์ที่-${i + 1}`,
-            progress: 100,
-          }));
-        } else {
-          // ✅ ปกติ (array ของ object)
-          normalized = draft.evidenceMedia.map((f: any, i: number) => ({
-            url: f.url,
-            type: f.type ?? "image",
-            publicId: f.publicId ?? "",
-            name: f.name ?? `ไฟล์ที่-${i + 1}`,
-            progress: f.progress ?? 100,
-          }));
-        }
+    if (Array.isArray(draft.evidenceMedia)) {
+      if (draft.evidenceMedia.length && Array.isArray(draft.evidenceMedia[0]?.url)) {
+        const urls = draft.evidenceMedia[0].url ?? [];
+        const types = draft.evidenceMedia[0].type ?? [];
+        normalized = urls.map((u: string, i: number) => ({
+          url: u,
+          type: types[i] ?? "image",
+          publicId: "",
+          name: `ไฟล์ที่-${i + 1}`,
+          progress: 100,
+        }));
+      } else {
+        normalized = draft.evidenceMedia.map((f: any, i: number) => ({
+          url: f.url,
+          type: f.type ?? "image",
+          publicId: f.publicId ?? "",
+          name: f.name ?? `ไฟล์ที่-${i + 1}`,
+          progress: f.progress ?? 100,
+        }));
       }
-
-      setEvidenceFiles(normalized);
-    } catch (e) {
-      console.warn("load accident draft failed", e);
     }
-  }, []);
+
+    setEvidenceFiles(normalized);
+
+    // ✅ ถือว่าพร้อมแสดงผลแล้ว
+    if (normalized.length > 0) setPreviewLoaded(true);
+  } catch (e) {
+    console.warn("load accident draft failed", e);
+  }
+}, []);
+
 
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -258,8 +256,8 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   };
   const canProceed =
   evidenceFiles.length > 0 &&
-  evidenceFiles.every((f) => f.progress === 100) &&
-  previewLoaded; 
+  evidenceFiles.every((f) => f.progress === 100);
+
 
   const handleRemove = (i: number) => {
     const updated = evidenceFiles.filter((_, idx) => idx !== i);

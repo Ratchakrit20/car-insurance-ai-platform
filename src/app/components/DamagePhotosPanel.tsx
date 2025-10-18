@@ -123,56 +123,100 @@ export default function DamagePhotosPanel({
 
   return (
     <div className="rounded-[7px] p-4 bg-white">
-      {/* 🟣 ปุ่มอัปโหลด 4 ด้าน */}
-      <div className="flex justify-center my-6">
-        <div className="relative w-[300px] m-8">
-          <img src="/elements/car-top-view.png" alt="car" className="w-full" />
-          {(["หน้า", "หลัง", "ซ้าย", "ขวา"] as DamageSide[]).map((side, i) => (
-            <label
-              key={i}
-              className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
-                 bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
-                 hover:bg-[#433D8B]/80 transition-all duration-300 
-                 hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
-              style={{
-                ...(side === "หน้า" && {
-                  top: "-3rem",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                }),
-                ...(side === "หลัง" && {
-                  bottom: "-3rem",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                }),
-                ...(side === "ซ้าย" && {
-                  top: "50%",
-                  left: "-1.5rem",
-                  transform: "translateY(-50%)",
-                }),
-                ...(side === "ขวา" && {
-                  top: "50%",
-                  right: "-1.5rem",
-                  transform: "translateY(-50%)",
-                }),
-              }}
-            >
-              <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  addFiles(e.target.files, side);
-                  // ✅ reset value เพื่อให้เลือกไฟล์เดิมได้
-                  e.target.value = "";
-                }}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
+    
+     {/* 🟣 ปุ่มอัปโหลด 8 ด้าน (หน้า/หลัง/ซ้าย/ขว + มุมเฉียง) */}
+<div className="flex justify-center my-6">
+  <div className="relative w-[300px] m-8">
+    <img src="/elements/car-top-view.png" alt="car" className="w-full" />
+
+    {/* หน้า / หลัง */}
+    {(["หน้า", "หลัง"] as DamageSide[]).map((side) => (
+      <label
+        key={side}
+        className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
+          bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
+          hover:bg-[#433D8B]/80 transition-all duration-300 
+          hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
+        style={
+          side === "หน้า"
+            ? { top: "-2.5rem", left: "50%", transform: "translateX(-50%)" }
+            : { bottom: "-2.5rem", left: "50%", transform: "translateX(-50%)" }
+        }
+      >
+        <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            addFiles(e.target.files, side);
+            e.target.value = "";
+          }}
+        />
+      </label>
+    ))}
+
+    {/* ซ้ายเฉียงบน / กลาง / ล่าง */}
+    {[
+      { top: "10%", left: "-1rem" },
+      { top: "50%", left: "-1.5rem", transform: "translateY(-50%)" },
+      { bottom: "10%", left: "-1rem" },
+    ].map((style, i) => (
+      <label
+        key={`left-${i}`}
+        className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
+          bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
+          hover:bg-[#433D8B]/80 transition-all duration-300 
+          hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
+        style={style}
+      >
+        <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            addFiles(e.target.files, "ซ้าย");
+            e.target.value = "";
+          }}
+        />
+      </label>
+    ))}
+
+    {/* ขวาเฉียงบน / กลาง / ล่าง */}
+    {[
+      { top: "10%", right: "-1rem" },
+      { top: "50%", right: "-1.5rem", transform: "translateY(-50%)" },
+      { bottom: "10%", right: "-1rem" },
+    ].map((style, i) => (
+      <label
+        key={`right-${i}`}
+        className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
+          bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
+          hover:bg-[#433D8B]/80 transition-all duration-300 
+          hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
+        style={style}
+      >
+        <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            addFiles(e.target.files, "ขวา");
+            e.target.value = "";
+          }}
+        />
+      </label>
+    ))}
+  </div>
+</div>
+
+
+
 
       {/* 🟣 รายการรูป + Preview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
