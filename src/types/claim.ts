@@ -85,7 +85,9 @@ export type Car = {
   car_license_plate: string;
   insurance_type: string;
   policy_number: string;
+  coverage_start_date: string; 
   coverage_end_date: string; // ISO date
+  
   insured_name?: string;            // ชื่อผู้เอาประกัน
   insurance_company?: string;      // บริษัทประกัน
   registration_province?: string;   // จังหวัดที่จดทะเบียน
