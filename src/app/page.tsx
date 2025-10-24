@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Prompt, Noto_Sans_Thai, Inter } from "next/font/google";
 import ScrollButton from "@/app/components/ScrollButton";
 import { ChevronRight } from "lucide-react";
+import LoadingScreen from "@/app/components/LoadingScreen";
 
 const headingFont = Prompt({ subsets: ["thai", "latin"], weight: ["600", "700"], display: "swap" });
 const bodyFont = Noto_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500"], display: "swap" });
@@ -54,7 +55,7 @@ export default function Page() {
   if (loading) {
     return (
       <div className="flex items-center justify-center bg-white h-screen text-lg text-gray-600">
-        กำลังโหลด...
+    <LoadingScreen message="กำลังโหลด" />;
       </div>
     );
   }
@@ -171,16 +172,17 @@ export default function Page() {
               </ol>
 
               <div className="mt-8 flex justify-center md:justify-start">
-                <a
-                  href="/detect"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#6F47E4] 
-                     text-white font-semibold px-6 py-2 shadow-sm 
-                     hover:bg-[#6D5BD0]/90 transform transition 
-                     hover:-translate-y-1"
-                >
-                  เริ่มต้นเคลม
-                  <ChevronRight size={18} />
-                </a>
+                 <a
+                href="/detect"
+                className="inline-flex items-center justify-center gap-2 rounded-[8px] bg-[#6F47E4] 
+                   text-white font-semibold px-6 py-3 
+                   shadow-[0_8px_24px_rgba(111,71,228,0.45)]
+                   transform transition-all duration-300 ease-out 
+                   hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(111,71,228,0.6)]"
+              >
+                เริ่มสร้างเคลม
+                <ChevronRight size={18} />
+              </a>
               </div>
             </div>
           </div>
@@ -192,8 +194,8 @@ export default function Page() {
 
 function FeatureCard({ img, title, desc }: { img: string; title: string; desc: string }) {
   return (
-    <div className="bg-[#DEDCFF]/30 rounded-xl shadow-md p-6 flex flex-col items-center text-center 
-      transition-all duration-300 hover:-translate-y-2 hover:shadow-lg">
+    <div className="bg-[#DEDCFF]/30 rounded-xl shadow-md p-6 flex flex-col items-center text-center">
+
       <img src={img} alt={title} className="h-24 md:h-36 mb-4" />
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className="text-sm text-zinc-600">{desc}</p>

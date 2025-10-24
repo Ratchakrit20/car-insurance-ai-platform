@@ -67,22 +67,53 @@ export default function ClaimTimeline({
     useEffect(() => {
         const controller = new AbortController();
         const currentFetchId = ++fetchIdRef.current;
+        function resolveBaseUrl(raw?: string) {
+            // ดีฟอลต์ฝั่งโปรดักชัน
+            const DEFAULT = "https://cdd-backend-deyv.onrender.com";
+            if (!raw || !raw.trim()) return DEFAULT;
 
+            let u = raw.trim();
+
+            // ถ้าเป็น ":3001" หรือ "3001" ให้ประกอบกับ host ปัจจุบัน
+            if (u.startsWith(":") || /^\d+$/.test(u)) {
+                const { protocol, hostname } = window.location;
+                if (/^\d+$/.test(u)) u = `:${u}`;
+                return `${protocol}//${hostname}${u}`;
+            }
+
+            // ถ้าไม่มี protocol เติมให้ครบ
+            if (!/^https?:\/\//i.test(u)) return `https://${u}`;
+
+            return u;
+        }
         async function loadDetail() {
             try {
                 setLoading(true);
                 setError(null);
-                const base = process.env.NEXT_PUBLIC_URL_PREFIX || "https://cdd-backend-deyv.onrender.com";
-                const token = localStorage.getItem("token");
+                const rawBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_URL_PREFIX;
+                const base = resolveBaseUrl(rawBase);
+                const token = localStorage.getItem("token") || "";
+
                 const res = await fetch(`${base}/api/claim-requests/detail?claim_id=${claimId}`, {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
                     signal: controller.signal,
                     cache: "no-store",
                 });
-                const json = await res.json();
-                if (currentFetchId !== fetchIdRef.current) return; // ✅ ป้องกันข้อมูลเคลมเก่าซ้อน
 
-                if (!res.ok || !json.ok) throw new Error(json.message || "ไม่สามารถโหลดข้อมูลได้");
+                // เช็ค network/HTTP error ชัดๆ
+                if (!res.ok) {
+                    const text = await res.text().catch(() => "");
+                    throw new Error(`โหลดข้อมูลไม่สำเร็จ (${res.status}) ${text || ""}`);
+                }
+
+                let json: any;
+                try {
+                    json = await res.json();
+                } catch {
+                    throw new Error("รูปแบบข้อมูลตอบกลับไม่ถูกต้อง");
+                }
+
+                if (!json.ok) throw new Error(json.message || "ไม่สามารถโหลดข้อมูลได้");
                 const data = json.data;
                 const mapped = mapClaimData(data);
 

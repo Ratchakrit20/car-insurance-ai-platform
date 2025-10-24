@@ -1,8 +1,8 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState, DragEvent } from "react";
 import { FileVideo, Image as ImageIcon, Plus, X, UploadCloud, Trash2 } from "lucide-react";
-
+import { useLeaveConfirm } from "@/hooks/useLeaveConfirm";
 const ACC_KEY = "accidentDraft";
 
 type AccidentType =
@@ -98,6 +98,8 @@ async function uploadToCloudinary(file: File, onProgress: (p: number) => void): 
 }
 
 export default function AccidentStep1({ onNext, onBack }: StepProps) {
+
+  const router = useRouter();
   const [accidentType, setAccidentType] = useState<AccidentType>("ชนสัตว์");
   const [details, setDetails] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
@@ -105,7 +107,59 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [dragOver, setDragOver] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
- 
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+
+
+  const MAX_IMAGE_MB = 10;          // แนะนำ 2–5MB แต่เพดาน 10MB
+  const MAX_VIDEO_MB = 100;         // ถ้าอยากเร็ว ตั้ง 50MB
+  const MAX_FILES_PER_CASE = 20;    // หรือรวมไม่เกิน ~500MB ตามนโยบาย
+  const MAX_TOTAL_MB = 500;
+
+  const ACCEPT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+  const ACCEPT_VIDEO_TYPES = ["video/mp4"]; // (H.264/AAC)
+
+  const MAX_VIDEO_DURATION_SEC = 120; // 60–120 วินาที
+  const MAX_IMAGE_LONG_EDGE_PX = 3000; // อนุโลม 3Kpx (อัปแล้วค่อยลดเหลือ ~2048px ด้านยาวฝั่งเซิร์ฟเวอร์จะชัวร์กว่า)
+
+  const bytesToMB = (n: number) => n / (1024 * 1024);
+
+  const isAcceptedType = (file: File) => {
+    if (file.type.startsWith("image/")) return ACCEPT_IMAGE_TYPES.includes(file.type);
+    if (file.type.startsWith("video/")) return ACCEPT_VIDEO_TYPES.includes(file.type);
+    return false;
+  };
+
+  // ตรวจขนาด/จำนวนรวม
+  const calcCurrentTotalMB = (files: EvidenceFile[]) =>
+    files.reduce((sum, f) => {
+      // ไม่มี size เก็บไว้ใน EvidenceFile จึงนับเฉพาะไฟล์ใหม่จาก input ด้านล่าง
+      return sum;
+    }, 0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+  useLeaveConfirm({
+    hasUnsavedChanges: evidenceFiles.length > 0 || details.trim().length > 0,
+    onConfirmLeave: (url: string) => {
+      setNextUrl(url);
+      setShowLeaveConfirm(true);
+    },
+  });
+
   // useEffect(() => {
   //   try {
   //     const raw = localStorage.getItem(ACC_KEY);
@@ -129,52 +183,64 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   //     console.warn("load accident draft failed", e);
   //   }
   // }, []);
- useEffect(() => {
-  try {
-    const raw = localStorage.getItem(ACC_KEY);
-    if (!raw) return;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ACC_KEY);
+      if (!raw) return;
 
-    const draft = JSON.parse(raw);
-    setAccidentType(draft.accidentType ?? "ชนสัตว์");
-    setDetails(draft.details ?? "");
+      const draft = JSON.parse(raw);
+      setAccidentType(draft.accidentType ?? "ชนสัตว์");
+      setDetails(draft.details ?? "");
 
-    let normalized: EvidenceFile[] = [];
+      let normalized: EvidenceFile[] = [];
 
-    if (Array.isArray(draft.evidenceMedia)) {
-      if (draft.evidenceMedia.length && Array.isArray(draft.evidenceMedia[0]?.url)) {
-        const urls = draft.evidenceMedia[0].url ?? [];
-        const types = draft.evidenceMedia[0].type ?? [];
-        normalized = urls.map((u: string, i: number) => ({
-          url: u,
-          type: types[i] ?? "image",
-          publicId: "",
-          name: `ไฟล์ที่-${i + 1}`,
-          progress: 100,
-        }));
-      } else {
-        normalized = draft.evidenceMedia.map((f: any, i: number) => ({
-          url: f.url,
-          type: f.type ?? "image",
-          publicId: f.publicId ?? "",
-          name: f.name ?? `ไฟล์ที่-${i + 1}`,
-          progress: f.progress ?? 100,
-        }));
+      if (Array.isArray(draft.evidenceMedia)) {
+        if (draft.evidenceMedia.length && Array.isArray(draft.evidenceMedia[0]?.url)) {
+          const urls = draft.evidenceMedia[0].url ?? [];
+          const types = draft.evidenceMedia[0].type ?? [];
+          normalized = urls.map((u: string, i: number) => ({
+            url: u,
+            type: types[i] ?? "image",
+            publicId: "",
+            name: `ไฟล์ที่-${i + 1}`,
+            progress: 100,
+          }));
+        } else {
+          normalized = draft.evidenceMedia.map((f: any, i: number) => ({
+            url: f.url,
+            type: f.type ?? "image",
+            publicId: f.publicId ?? "",
+            name: f.name ?? `ไฟล์ที่-${i + 1}`,
+            progress: f.progress ?? 100,
+          }));
+        }
       }
+
+      setEvidenceFiles(normalized);
+
+      // ✅ ถือว่าพร้อมแสดงผลแล้ว
+      if (normalized.length > 0) setPreviewLoaded(true);
+    } catch (e) {
+      console.warn("load accident draft failed", e);
     }
+  }, []);
 
-    setEvidenceFiles(normalized);
 
-    // ✅ ถือว่าพร้อมแสดงผลแล้ว
-    if (normalized.length > 0) setPreviewLoaded(true);
-  } catch (e) {
-    console.warn("load accident draft failed", e);
-  }
-}, []);
+
 
 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (details.trim().length === 0) {
+      setDetailsError(true);
+      setTimeout(() => setDetailsError(false), 3000); // ให้เตือน 3 วิแล้วหาย
+      window.scrollTo({ top: 200, behavior: "smooth" });
+      return;
+    }
+    window.removeEventListener("beforeunload", () => { }); // <-- เพิ่มบรรทัดนี้
+    window.onbeforeunload = null; // <-- กัน browser popup ซ้ำ
+
     const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
     const payload = {
       ...oldDraft,
@@ -187,7 +253,63 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
   };
 
   const handleFilesUpload = async (files: File[]) => {
-    // ✅ ใช้ Promise.all เพื่ออัปโหลดหลายไฟล์พร้อมกัน
+
+    setUploadError(null);
+
+    // นับจำนวน (เดิม + ใหม่)
+    if (evidenceFiles.length + files.length > MAX_FILES_PER_CASE) {
+      setUploadError(`อัปโหลดได้ไม่เกิน ${MAX_FILES_PER_CASE} ไฟล์ต่อเคส`);
+      return;
+    }
+
+    // รวมขนาดไฟล์ใหม่ (เพราะไฟล์เดิมเราไม่มี size แล้ว)
+    const newTotalMB = files.reduce((s, f) => s + bytesToMB(f.size), 0);
+    if (newTotalMB > MAX_TOTAL_MB) {
+      setUploadError(`ขนาดรวมไฟล์ใหม่เกิน ${MAX_TOTAL_MB} MB`);
+      return;
+    }
+
+    // ตรวจไฟล์ทีละตัว
+    for (const f of files) {
+      if (!isAcceptedType(f)) {
+        setUploadError("ชนิดไฟล์ที่รับ: รูป JPEG/PNG/HEIC/WebP และวิดีโอ MP4 เท่านั้น");
+        return;
+      }
+      if (f.type.startsWith("image/") && bytesToMB(f.size) > MAX_IMAGE_MB) {
+        setUploadError(`รูปภาพต้องไม่เกิน ${MAX_IMAGE_MB} MB/ไฟล์`);
+        return;
+      }
+      if (f.type.startsWith("video/") && bytesToMB(f.size) > MAX_VIDEO_MB) {
+        setUploadError(`วิดีโอต้องไม่เกิน ${MAX_VIDEO_MB} MB/ไฟล์`);
+        return;
+      }
+    }
+
+    // (ออปชัน) ตรวจความยาววิดีโอแบบเร็ว ๆ ก่อนอัป
+    const checkVideoDuration = (file: File) =>
+
+      new Promise<void>((resolve, reject) => {
+        if (!file.type.startsWith("video/")) return resolve();
+        const url = URL.createObjectURL(file);
+        const v = document.createElement("video");
+        v.preload = "metadata";
+        v.onloadedmetadata = () => {
+          URL.revokeObjectURL(url);
+          if (v.duration > MAX_VIDEO_DURATION_SEC) {
+            reject(new Error(`วิดีโอยาวเกิน ${MAX_VIDEO_DURATION_SEC} วินาที`));
+          } else resolve();
+        };
+        v.onerror = () => reject(new Error("ไม่สามารถอ่านข้อมูลวิดีโอได้"));
+        v.src = url;
+      });
+
+    try {
+      // เช็กความยาววิดีโอก่อน
+      for (const f of files) await checkVideoDuration(f);
+    } catch (err: any) {
+      setUploadError(err?.message || "ไฟล์วิดีโอไม่ผ่านเกณฑ์");
+      return;
+    }
     const uploads = files.map((file, i) => {
       const temp: EvidenceFile = {
         url: "",
@@ -244,8 +366,6 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     await Promise.allSettled(uploads);
   };
 
-
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
@@ -255,8 +375,8 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     e.target.value = "";
   };
   const canProceed =
-  evidenceFiles.length > 0 &&
-  evidenceFiles.every((f) => f.progress === 100);
+    evidenceFiles.length > 0 &&
+    evidenceFiles.every((f) => f.progress === 100);
 
 
   const handleRemove = (i: number) => {
@@ -274,7 +394,7 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
 
   return (
     <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
-      <form onSubmit={handleSubmit} className="bg-white p-6 space-y-8">
+      <form onSubmit={handleSubmit} noValidate className="bg-white p-6 space-y-8">
         {/* Accident Type */}
         <div className="mb-5">
           <h2 className="text-base sm:text-lg font-semibold text-zinc-900 text-center mb-3">
@@ -309,129 +429,322 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
         </div>
 
         {/* Accident Details */}
-        <div>
-          {labelEl("รายละเอียดอุบัติเหตุเพิ่มเติม", true)}
-          <textarea
-            className={fieldSurface({ required: true, filled: !!details }) + " min-h-[96px]"}
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            placeholder="อธิบายเหตุการณ์โดยย่อ"
-            required
-          />
+        {/* -------------------- รายละเอียดอุบัติเหตุเพิ่มเติม -------------------- */}
+        {labelEl("รายละเอียดอุบัติเหตุเพิ่มเติม", true)}
+
+        {/* 🔹 Preset ตามประเภทอุบัติเหตุ */}
+        <div className="space-y-2 mb-3">
+          <p className="text-sm text-zinc-600">เลือกตัวอย่างข้อความที่ใกล้เคียง</p>
+
+          <div className="flex flex-wrap gap-2">
+            {accidentType === "ถูกชนขนะจอดอยู่" &&
+              [
+                "จอดรถไว้ริมถนน แล้วมีรถคันอื่นขับมาชนบริเวณด้านหลัง",
+                "จอดอยู่ในลานจอดรถ แล้วมีรถอีกคันเฉี่ยวชนแล้วหนี",
+                "ไม่เห็นเหตุการณ์ตอนเกิดชน พบว่ารถมีรอยบุบ/ขูดตอนกลับมา",
+                "กล้องหน้ารถบันทึกไว้ พบว่ามีรถเก๋งชนแล้วขับออกไป",
+              ].map((example, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setDetails(example)}
+                  className="px-3 py-1.5 rounded-[7px] bg-[#DEDCFF]/50 hover:bg-[#DEDCFF] 
+                     text-sm text-[#433D8B] transition"
+                >
+                  {example}
+                </button>
+              ))}
+
+            {accidentType === "ถูกของตกใส่" &&
+              [
+                "มีของตกจากอาคารสูงตกใส่ฝากระโปรงหน้า",
+                "ป้ายโฆษณาหล่นใส่รถขณะฝนตกหนัก",
+                "ต้นไม้หักล้มใส่หลังคารถขณะจอดอยู่",
+                "เศษวัสดุก่อสร้างตกลงมาใส่กระจกหน้า",
+              ].map((example, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setDetails(example)}
+                  className="px-3 py-1.5 rounded-[7px] bg-[#DEDCFF]/50 hover:bg-[#DEDCFF] 
+                     text-sm text-[#433D8B] transition"
+                >
+                  {example}
+                </button>
+              ))}
+
+            {accidentType === "ชนสัตว์" &&
+              [
+                "ขับรถอยู่ในเส้นทางชนบท มีสุนัขวิ่งตัดหน้าและเบรกไม่ทัน",
+                "ขณะขับรถกลางคืน มีสัตว์วิ่งตัดหน้า ทำให้เฉี่ยวชน",
+                "ขับรถบนถนนสายหลัก มีนกชนกระจกหน้า",
+                "ชนวัว/สุนัขบริเวณถนน ไม่มีคู่กรณีอื่น",
+              ].map((example, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setDetails(example)}
+                  className="px-3 py-1.5 rounded-[7px] bg-[#DEDCFF]/50 hover:bg-[#DEDCFF] 
+                     text-sm text-[#433D8B] transition"
+                >
+                  {example}
+                </button>
+              ))}
+
+            {accidentType === "ชนสิ่งของ" &&
+              [
+                "ถอยรถชนเสาไฟในลานจอดรถ",
+                "เลี้ยวแล้วเฉี่ยวกำแพงด้านข้าง",
+                "ขับชนขอบฟุตบาท ทำให้ล้อแม็กเสียหาย",
+                "เฉี่ยวแบริเออร์ขณะเปลี่ยนเลน",
+              ].map((example, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setDetails(example)}
+                  className="px-3 py-1.5 rounded-[7px] bg-[#DEDCFF]/50 hover:bg-[#DEDCFF] 
+                     text-sm text-[#433D8B] transition"
+                >
+                  {example}
+                </button>
+              ))}
+
+            {accidentType === "ยางรั่ว/ยางแตก" &&
+              [
+                "ขับรถแล้วเหยียบตะปูทำให้ยางรั่ว",
+                "ยางหลังแตกขณะขับบนทางด่วน ต้องจอดข้างทาง",
+                "สงสัยว่ายางรั่วจากเศษโลหะบนถนน",
+                "ขับมาได้สักพักยางแบนโดยไม่ทราบสาเหตุ",
+              ].map((example, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setDetails(example)}
+                  className="px-3 py-1.5 rounded-[7px] bg-[#DEDCFF]/50 hover:bg-[#DEDCFF] 
+                     text-sm text-[#433D8B] transition"
+                >
+                  {example}
+                </button>
+              ))}
+
+            {accidentType === "อื่นๆ" &&
+              [
+                "ไม่แน่ใจสาเหตุ พบว่ารถมีรอยขูดบริเวณประตูฝั่งซ้าย",
+                "เกิดเหตุเฉี่ยวชนเล็กน้อยกับสิ่งไม่ทราบชนิด",
+                "มีเสียงดังขณะขับแต่ไม่พบคู่กรณี",
+                "ต้องการให้เจ้าหน้าที่ตรวจสอบเพิ่มเติม",
+              ].map((example, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setDetails(example)}
+                  className="px-3 py-1.5 rounded-[7px] bg-[#DEDCFF]/50 hover:bg-[#DEDCFF] 
+                     text-sm text-[#433D8B] transition"
+                >
+                  {example}
+                </button>
+              ))}
+          </div>
         </div>
+
+        {/* 🔹 Textarea สำหรับแก้ไข */}
+        <textarea
+          className={
+            fieldSurface({ required: true, filled: !!details }) +
+            " min-h-[120px] rounded-[7px] border w-full p-3 " +
+            (detailsError ? "border-red-500" : "border-zinc-300")
+          }
+          value={details}
+          onChange={(e) => setDetails(e.target.value)}
+          placeholder="เช่น จอดอยู่แล้วมีรถคันอื่นมาชนด้านหลัง / ถอยชนเสาในลานจอด / ขณะขับมีสุนัขวิ่งตัดหน้า"
+        />
+        {detailsError && (
+          <p className="text-sm text-red-600 mt-1">
+            ⚠ กรุณากรอกรายละเอียดอุบัติเหตุก่อนดำเนินการต่อ
+          </p>
+        )}
+
+
+
 
         {/* Evidence Upload */}
 
-        <div>
-          {labelEl("อัปโหลดรูปหรือวิดีโอที่เกิดเหตุ", true)}
+        {/* Sidebar */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Sidebar */}
+          <div className="bg-violet-50 rounded-lg p-4 flex flex-col">
+            <h3 className="text-sm font-semibold text-zinc-800 mb-3 flex items-center gap-2">
+              <UploadCloud className="w-4 h-4 text-violet-600" /> รายการอัปโหลด
+            </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Sidebar */}
-            <div className="bg-violet-50 rounded-lg p-4 flex flex-col">
-              <h3 className="text-sm font-semibold text-zinc-800 mb-3 flex items-center gap-2">
-                <UploadCloud className="w-4 h-4 text-violet-600" /> รายการอัปโหลด
-              </h3>
+            <div className="flex-1 space-y-3 overflow-y-auto">
+              {evidenceFiles.map((f, i) => {
+                const isActive = i === selectedIndex;
+                return (
+                  <div key={i} className="relative space-y-1 group">
+                    {/* ปุ่มเลือกรูป */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIndex(i)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition relative
+                ${isActive
+                          ? "bg-violet-600 text-white ring-2 ring-violet-400"
+                          : "bg-white hover:bg-violet-100 text-zinc-700"
+                        }`}
+                      title="คลิกเพื่อดูภาพนี้ทางขวา"
+                    >
+                      {f.type === "video" ? (
+                        <FileVideo className="w-4 h-4" />
+                      ) : (
+                        <ImageIcon className="w-4 h-4" />
+                      )}
+                      <span className="truncate flex-1">{f.name}</span>
+                    </button>
 
-              <div className="flex-1 space-y-3 overflow-y-auto">
-                {evidenceFiles.map((f, i) => {
-                  const isActive = i === selectedIndex;
-                  return (
-                    <div key={i} className="relative space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedIndex(i)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${isActive ? "bg-violet-600 text-white" : "bg-white hover:bg-violet-100 text-zinc-700"
-                          }`}
-                      >
-                        {f.type === "video" ? <FileVideo className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-                        <span className="truncate flex-1">{f.name}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(i)}
-                        className={` absolute top-1 right-1  rounded-[8px] transition ${isActive
+                    {/* ปุ่มลบ */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(i)}
+                      className={`absolute top-1 right-1 rounded-[8px] transition 
+                ${isActive
                           ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
                           : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
-                          }`}
-                      >
-                        <X className="w-4 h-4  " />
-                      </button>
+                        }`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
 
+                    {/* Label แสดงภาพปัจจุบัน */}
+                    {isActive && (
+                      <span className="absolute -bottom-4 left-3 text-[11px] text-violet-600 font-medium">
+                        ภาพที่กำลังแสดงอยู่
+                      </span>
+                    )}
 
-
-                      {/* Progress */}
-                      {f.progress !== undefined && f.progress < 100 && (
-                        <div className="px-3 pb-1">
-                          <div className="w-full bg-zinc-200 h-2 rounded">
-                            <div className="bg-violet-600 h-2 rounded transition-all" style={{ width: `${f.progress}%` }} />
-                          </div>
-                          <p className="text-xs text-zinc-500 mt-1">{f.progress}%</p>
+                    {/* Progress Bar */}
+                    {f.progress !== undefined && f.progress < 100 && (
+                      <div className="px-3 pb-1">
+                        <div className="w-full bg-zinc-200 h-2 rounded">
+                          <div
+                            className="bg-violet-600 h-2 rounded transition-all"
+                            style={{ width: `${f.progress}%` }}
+                          />
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Drag area */}
-              <label
-                className={`mt-3 cursor-pointer border-2 border-dashed rounded-md py-6 flex flex-col items-center justify-center gap-2 text-sm transition ${dragOver ? "border-violet-500 bg-violet-100" : "border-violet-300 text-violet-600 hover:bg-violet-50"
-                  }`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-              >
-                <UploadCloud className="w-6 h-6" />
-                {evidenceFiles.length === 0 ? (
-                  <span>ลากไฟล์มาวาง หรือกดเพื่อเลือก</span>
-                ) : (
-                  <span>+ เพิ่มรูปภาพ</span>
-                )}
-                <input type="file" accept="image/*,video/*" multiple onChange={handleFileChange} className="hidden" />
-              </label>
-
-              <p className="text-xs text-zinc-500 mt-2">รวมทั้งหมด {evidenceFiles.length} รายการ</p>
+                        <p className="text-xs text-zinc-500 mt-1">{f.progress}%</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Preview */}
-            <div className="md:col-span-2 bg-zinc-50 rounded-lg p-3 flex items-center justify-center">
-              {evidenceFiles[selectedIndex]?.url ? (
-                evidenceFiles[selectedIndex].type === "video" ? (
+            {/* Drag area */}
+            <label
+              className={`mt-3 cursor-pointer border-2 border-dashed rounded-md py-6 flex flex-col items-center justify-center gap-2 text-sm transition
+             ${dragOver
+                  ? "border-violet-500 bg-violet-100"
+                  : "border-violet-300 text-violet-600 hover:bg-violet-50"
+                }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+
+              <UploadCloud className="w-6 h-6" />
+              {evidenceFiles.length === 0 ? (
+                <span>ลากไฟล์มาวาง หรือกดเพื่อเลือก</span>
+              ) : (
+                <span>+ เพิ่มรูปภาพ</span>
+              )}
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.heic,video/mp4"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </label>
+
+            <p className="text-xs text-zinc-500 mt-2">
+              รวมทั้งหมด {evidenceFiles.length} รายการ
+            </p>
+            {uploadError && (
+              <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+            )}
+
+            <p className="mt-3 text-xs text-zinc-500 leading-5">
+              <b>แนะนำการอัปโหลด</b><br />
+              รูป: ≤10MB (เหมาะ 2–5MB), ด้านยาว ≤3000px<br />
+              วิดีโอ: MP4 ≤100MB, ยาว 1–2 นาที, สูงสุด 1080p<br />
+              รวมต่อเคส: ≤500MB หรือ ≤20 ไฟล์<br />
+              รองรับไฟล์: JPEG/PNG/HEIC/WebP, MP4
+            </p>
+          </div>
+
+          {/* Preview (อยู่ขวา กิน 2 ช่อง) */}
+          <div className="md:col-span-2 bg-zinc-50 rounded-lg p-3 flex flex-col items-center justify-center">
+            {evidenceFiles[selectedIndex]?.url ? (
+              <div
+                key={evidenceFiles[selectedIndex].url}
+                className="animate-fadeIn scale-100 transition-all duration-300 ease-in-out flex flex-col items-center"
+              >
+
+                {/* 🔹 ชื่อไฟล์ */}
+                <p
+                  className="text-sm text-white m-3 truncate max-w-[80%] px-3  py-1 bg-[#6F47E4] rounded-full"
+                  title={evidenceFiles[selectedIndex].name}
+                >
+                  {evidenceFiles[selectedIndex].name}
+                </p>
+                {evidenceFiles[selectedIndex].type === "video" ? (
                   <video
                     src={evidenceFiles[selectedIndex].url}
-                    className="max-h-[360px] rounded"
+                    className="max-h-[360px] rounded mb-3 border-3 border-[#6F47E4]"
                     controls
-                    onCanPlayThrough={() => setPreviewLoaded(true)} // ✅ โหลดวิดีโอเสร็จ
+                    onCanPlayThrough={() => setPreviewLoaded(true)}
                   />
                 ) : (
                   <img
                     src={evidenceFiles[selectedIndex].url}
                     alt={evidenceFiles[selectedIndex].name}
-                    className="max-h-[360px] rounded object-contain"
-                    onLoad={() => setPreviewLoaded(true)} // ✅ โหลดรูปเสร็จ
+                    className="max-h-[360px] rounded object-contain mb-3 border-3 border-[#6F47E4]"
+                    onLoad={() => setPreviewLoaded(true)}
                   />
-                )
-              ) : (
-                <p className="text-sm text-zinc-500">ไฟล์ยังไม่พร้อมแสดงผล</p>
-              )}
-            </div>
+                )}
 
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">ไฟล์ยังไม่พร้อมแสดงผล</p>
+            )}
           </div>
+
         </div>
+
+
 
         {/* Buttons */}
         <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
           {onBack && (
             <button
               type="button"
-              onClick={onBack}
+              onClick={() => {
+                if (evidenceFiles.length > 0 || details.trim().length > 0) {
+                  // ถ้ามีข้อมูล → แสดง modal เดียวกัน
+                  setNextUrl("back");
+                  setShowLeaveConfirm(true);
+                } else {
+                  // ถ้าไม่มีข้อมูล → ย้อนกลับได้เลย
+                  onBack?.();
+                }
+              }}
               className="w-full sm:w-auto rounded-[7px] text-black bg-zinc-200 px-6 py-2 hover:bg-zinc-200/60"
             >
               ย้อนกลับ
             </button>
+
           )}
           <button
             type="submit"
@@ -445,6 +758,45 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
             ถัดไป
           </button>
         </div>
+        {showLeaveConfirm && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-sm text-center space-y-4">
+              <h2 className="text-lg font-semibold text-zinc-800">
+                ออกจากหน้านี้หรือไม่?
+              </h2>
+              <p className="text-sm text-zinc-600">
+                หากออกจากหน้านี้ ข้อมูลการอัปโหลดจะไม่ถูกบันทึกไว้
+              </p>
+              <div className="flex justify-center gap-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowLeaveConfirm(false);
+                    setNextUrl(null);
+                  }}
+                  className="px-5 py-2 rounded-[7px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLeaveConfirm(false);
+                    if (nextUrl) {
+                      if (nextUrl === "back") {
+                        onBack?.(); // ✅ เรียกฟังก์ชันย้อนกลับจริง ๆ
+                      } else {
+                        router.push(nextUrl);
+                      }
+                    }
+                  }}
+                  className="px-5 py-2 rounded-[7px] bg-[#6F47E4] hover:bg-[#5d3fd6] text-white"
+                >
+                  ออกจากหน้า
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </form>
     </div>
   );

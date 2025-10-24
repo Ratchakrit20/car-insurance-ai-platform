@@ -408,10 +408,10 @@ export default function ReportsView({
               <ReportDetail
                 claim={selected}
                 onOpenPdf={() =>
-                     window.open(
-        `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${selected.id}`,
-        "_blank"
-      )
+                  window.open(
+                    `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${selected.id}`,
+                    "_blank"
+                  )
                 }
               />
             ) : (

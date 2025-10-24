@@ -20,10 +20,12 @@ type CarItem = {
   policy_number: string;
   insurance_company: string;
   insurance_type: string;
-  coverage_end_date: string;
+  coverage_end_date?: string;     // ✅ อนุญาตให้ optional
+  coverage_start_date?: string;   // ✅ เพิ่มฟิลด์ start
 };
 
 const STORAGE_KEY = 'claimSelectedCar';
+const ACC_KEY = 'accidentDraft';
 
 export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
   const [cars, setCars] = useState<CarItem[]>([]);
@@ -37,10 +39,12 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
   );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-useEffect(() => {
-    // ✅ ล้างข้อมูลทุกครั้งที่เข้าหน้าเริ่มสร้างเคลม
-    localStorage.removeItem("accidentDraft");
+
+  useEffect(() => {
+    // ✅ ล้าง draft ทุกครั้งที่เข้าหน้าเริ่มสร้างเคลม
+    localStorage.removeItem(ACC_KEY);
   }, []);
+
   useEffect(() => {
     const fetchPolicies = async () => {
       if (!citizenId) {
@@ -81,12 +85,81 @@ useEffect(() => {
   const selectedCar =
     selectedCarIndex !== null && selectedCarIndex >= 0 ? cars[selectedCarIndex] : undefined;
 
-  const handleNext = () => {
+  // 🔧 helper
+  const toYMD = (x?: any) => {
+    if (!x) return '';
+    const d = new Date(x);
+    return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+  };
+
+  // 🔧 พยายามเติม coverage_start_date ถ้า API หน้าแรกไม่ส่งมา
+  const fetchCoverageIfMissing = async (carId: number) => {
+    try {
+      // 👉 เปลี่ยน endpoint ให้ตรงกับระบบจริง
+      const res = await fetch(`${API_PREFIX}/api/policies/by-car/${carId}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return { start: '', end: '' };
+      const data = await res.json();
+      const start =
+        toYMD(data?.start_date || data?.startDate || data?.coverage_start_date || data?.coverageStartDate);
+      const end =
+        toYMD(data?.end_date || data?.endDate || data?.coverage_end_date || data?.coverageEndDate);
+      return { start, end };
+    } catch {
+      return { start: '', end: '' };
+    }
+  };
+
+  const handleNext = async () => {
     if (!selectedCar) {
       alert('กรุณาเลือกรถก่อน');
       return;
     }
+
+    // 1) เก็บ selection ไว้หลายคีย์ เพื่อให้ step ถัดไปหาเจอแน่นอน
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedCar));
+    localStorage.setItem('selectedCar', JSON.stringify(selectedCar));
+    localStorage.setItem('selected_car_id', String(selectedCar.id));
+
+    // 2) เตรียมช่วงคุ้มครอง
+    let coverage_start_date = toYMD(selectedCar.coverage_start_date);
+    let coverage_end_date = toYMD(selectedCar.coverage_end_date);
+
+    // ถ้าไม่มี start (หรือ end) ลองไปดึงเพิ่มจาก API
+    if (!coverage_start_date || !coverage_end_date) {
+      const cov = await fetchCoverageIfMissing(selectedCar.id);
+      coverage_start_date = coverage_start_date || cov.start;
+      coverage_end_date = coverage_end_date || cov.end;
+    }
+
+    // 3) อัปเดต accidentDraft ตั้งแต่ต้น (ให้ AccidentLocation อ่านได้ทันที)
+    const draft = {
+      selected_car_id: selectedCar.id,
+      selected_car: {
+        id: selectedCar.id,
+        car_brand: selectedCar.car_brand,
+        car_model: selectedCar.car_model,
+        car_year: selectedCar.car_year,
+        car_license_plate: selectedCar.car_license_plate,
+        registration_province: selectedCar.registration_province,
+        policy_number: selectedCar.policy_number,
+        insurance_company: selectedCar.insurance_company,
+        insurance_type: selectedCar.insurance_type,
+        coverage_start_date,
+        coverage_end_date,
+      },
+      coverage_start_date,
+      coverage_end_date,
+    };
+    localStorage.setItem(ACC_KEY, JSON.stringify(draft));
+
+    console.log('[SelectCar] saved:', {
+      id: selectedCar.id,
+      coverage_start_date,
+      coverage_end_date,
+    });
+
     onNext();
   };
 
@@ -122,16 +195,15 @@ useEffect(() => {
       <h2 className="text-lg sm:text-xl font-semibold mb-4 text-center text-black">
         เลือกรถที่ต้องการดำเนินการ
       </h2>
-     
-      {/* แถวแนวนอน scroll ได้ */}
+
       <div className="overflow-x-auto ">
         <div className="flex justify-center">
           <div
             className="px-3 py-3 sm:px-0 chip-scroller flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth"
             style={{
-              scrollbarWidth: "thin",
-              scrollbarColor: "#6D5BD0 #E5E7EB",
-              scrollPadding: "1rem", // ✅ บังคับให้เลื่อนแล้วเห็นเต็ม
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#6D5BD0 #E5E7EB',
+              scrollPadding: '1rem',
             }}
           >
             {cars.map((car, index) => {
@@ -142,14 +214,13 @@ useEffect(() => {
                   type="button"
                   onClick={() => setSelectedCarIndex(index)}
                   className={[
-                    "w-[260px] flex-shrink-0 rounded-2xl p-4 transition-all duration-300 m-2",
-                    "flex flex-col items-center text-center",
+                    'w-[260px] flex-shrink-0 rounded-2xl p-4 transition-all duration-300 m-2',
+                    'flex flex-col items-center text-center',
                     active
-                      ? "bg-gradient-to-b from-[#6D5BD0] to-[#433D8B] text-white shadow-lg shadow-[#433D8B]/40 scale-105"
-                      : "bg-[#CAC9D2] text-zinc-800 hover:shadow-md hover:scale-105"
-                  ].join(" ")}
+                      ? 'bg-gradient-to-b from-[#6D5BD0] to-[#433D8B] text-white shadow-lg shadow-[#433D8B]/40 scale-105'
+                      : 'bg-[#CAC9D2] text-zinc-800 hover:shadow-md hover:scale-105',
+                  ].join(' ')}
                 >
-
                   <img
                     src={car.car_path?.startsWith('http') ? car.car_path : `/${car.car_path}`}
                     alt={`${car.car_brand} ${car.car_model}`}
@@ -161,14 +232,6 @@ useEffect(() => {
                   <div className={['text-sm', active ? 'text-white/90' : 'text-zinc-500'].join(' ')}>
                     ปี {car.car_year}
                   </div>
-                  {/* <span
-                    className={[
-                      'mt-2 inline-block rounded-[7px] px-3 py-1 text-sm',
-                      active ? 'bg-[#6D5BD0] text-white' : 'bg-[#CAC9D2] text-black',
-                    ].join(' ')}
-                  >
-                    {car.car_license_plate}
-                  </span> */}
                 </button>
               );
             })}
@@ -176,29 +239,32 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* รายละเอียดรถที่เลือก */}
       {selectedCar && (
-
         <div className="rounded-[7px] bg-[#DEDCFF]/30 shadow-lg p-5 mb-6 max-w-lg mx-auto mt-8">
-
-
           <h3 className="text-base text-black font-semibold mb-3 text-center">รายละเอียดรถที่เลือก</h3>
           <div className="grid grid-cols-2 gap-y-3 gap-x-3 text-sm ">
             <Info label="ยี่ห้อ" value={selectedCar.car_brand} />
             <Info label="รุ่น" value={selectedCar.car_model} />
             <Info label="ปีที่ผลิต" value={selectedCar.car_year} />
-            <Info label="ทะเบียน" value={selectedCar.car_license_plate + " " + selectedCar.registration_province} />
+            <Info
+              label="ทะเบียน"
+              value={selectedCar.car_license_plate + ' ' + selectedCar.registration_province}
+            />
             <Info label="เลขกรมธรรม์" value={selectedCar.policy_number} />
             <Info label="บริษัทประกัน" value={selectedCar.insurance_company} />
             <Info label="ประเภทประกัน" value={selectedCar.insurance_type} />
             <Info
               label="หมดอายุ"
-              value={new Date(selectedCar.coverage_end_date).toLocaleDateString('th-TH')}
+              value={
+                selectedCar.coverage_end_date
+                  ? new Date(selectedCar.coverage_end_date).toLocaleDateString('th-TH')
+                  : '-'
+              }
             />
           </div>
         </div>
       )}
-      {/* ปุ่มดำเนินการต่อ */}
+
       <div className="px-2 flex justify-end">
         <button
           onClick={handleNext}
@@ -209,11 +275,8 @@ useEffect(() => {
         </button>
       </div>
 
-
       <SafeAreaSpacer />
-
     </div>
-
   );
 }
 

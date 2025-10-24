@@ -106,9 +106,12 @@ function normalizeStatus(s?: string): string {
 
 // ---------- Component ----------
 export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfirmProps) {
-  const [agree, setAgree] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
+  const STEP4_URL = "/detect/step4"; // ← ปรับ path ให้ตรงโปรเจกต์
+  const SAFE_PREFIXES = [STEP4_URL]; // ปล่อยผ่านลิงก์ที่ขึ้นต้นแบบนี้
+const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
 
   const car: Car | null = useMemo(() => {
     try {
@@ -128,10 +131,34 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
       setDraft(null);
     }
   }, []);
+  const [isSaved, setIsSaved] = useState(false);
+  const hasUnsaved = useMemo(() => {
+    return !isSaved && !!car && !!draft;
+  }, [isSaved, car, draft]);
+
+  const [tabWarn, setTabWarn] = useState(false);
+
   const claimStatus = normalizeStatus((draft as any)?.status);
   console.log("🚗 Draft claim status:", claimStatus);
 
-
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!hasUnsaved) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsaved]);
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden" && hasUnsaved) {
+        setTabWarn(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [hasUnsaved]);
   // รูปหลักฐาน (เดิม) -> ใช้ PrettyEvidenceGallery แทน เพื่อความสวยงาม + modal
   const evidenceList: (string | MediaItem)[] = useMemo(() => {
     if (!draft) return [];
@@ -140,6 +167,61 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
     }
     return [];
   }, [draft]);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!hasUnsaved) return;
+
+      // หา <a>
+      const a = (e.target as HTMLElement)?.closest?.("a") as HTMLAnchorElement | null;
+      if (!a) return;
+
+      // ข้าม external link / download / new tab
+      const isExternal = a.target === "_blank" || a.rel.includes("external") || /^https?:\/\//.test(a.href) && !a.href.startsWith(location.origin);
+      if (isExternal || a.hasAttribute("download") || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      // url ภายใน
+      const url = a.getAttribute("href") || "";
+      if (!url) return;
+
+      // allowlist: ปล่อย step4
+      const isSafe = SAFE_PREFIXES.some(p => url.startsWith(p));
+      if (isSafe) {
+        // ยอมให้ไปต่อ โดย mark ว่าเซฟแล้วเพื่อไม่ให้เตือน
+        setIsSaved(true);
+        return;
+      }
+
+      // บล็อกแล้วเปิด modal
+      e.preventDefault();
+      setNextUrl(url);
+      setShowLeaveConfirm(true);
+    };
+
+    document.addEventListener("click", onClick, true); // capture true เพื่อดักก่อน router
+    return () => document.removeEventListener("click", onClick, true);
+  }, [hasUnsaved]);
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      if (!hasUnsaved) return;
+
+      // ปลายทางเป็น step4? → ปล่อยผ่าน
+      const dest = document.location.pathname + document.location.search;
+      const isSafe = SAFE_PREFIXES.some(p => dest.startsWith(p));
+      if (isSafe) {
+        setIsSaved(true);
+        return;
+      }
+
+      // บล็อก แล้วเด้งกลับมาหน้านี้ พร้อมเปิด modal
+      const current = window.location.href;
+      // ดัน state กลับเพื่อคงอยู่หน้านี้
+      history.pushState(null, "", current);
+      setNextUrl(dest);
+      setShowLeaveConfirm(true);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [hasUnsaved]);
 
   // รูปความเสียหาย: เก็บ metadata (side/total/perClass/note)
   const damageList: DamagePhoto[] = useMemo(() => {
@@ -161,9 +243,10 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
 
   const handleSubmit = async () => {
 
-    if (!agree || !car || !draft) return;
+    if ( !car || !draft) return;
 
     setSubmitting(true);
+    setIsSaved(true);
     try {
       const claimId = (draft as any)?.claim_id ?? null;
       const claimStatus = normalizeStatus((draft as any)?.status);
@@ -211,7 +294,7 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
           user_id: userId,
           selected_car_id: car.id,
           accident: accidentPayload,
-          agreed: agree,
+         
           note: "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
         }),
       });
@@ -247,6 +330,7 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
   }
 
   return (
+
     <div className="mx-auto max-w-6xl bg-white rounded-2xl shadow-lg p-6">
 
       <div className="bg-[#333333] h-auto text-white rounded-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -304,9 +388,7 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
           </p>
           <p className="text-sm"><span className="font-medium">ประเภทพื้นที่:</span> {draft.areaType}</p>
           <p className="text-sm"><span className="font-medium">จุดสังเกต:</span> {draft.nearby}</p>
-          {draft.details && (
-            <p className="text-sm"><span className="font-medium">รายละเอียด:</span> {draft.details}</p>
-          )}
+
         </div>
 
         {/* กลาง: ประเภทอุบัติเหตุ */}
@@ -354,40 +436,100 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
 
 
       {/* ยืนยัน */}
-      <div className="flex items-start gap-3 mt-4">
-        <input
-          id="agree"
-          type="checkbox"
-          checked={agree}
-          onChange={(e) => setAgree(e.target.checked)}
-          className="mt-1"
-        />
-        <label htmlFor="agree" className="text-sm text-black">
-          ตรวจสอบข้อมูลข้างต้นครบถ้วนแล้ว และยืนยันการส่งคำขอเคลม
-        </label>
-      </div>
+     
 
       <div className="mt-6 flex justify-end gap-3">
-        <button onClick={onBack} className=" rounded-[7px] bg-zinc-200 px-4 py-2 text-black  hover:bg-zinc-200/60">
+        <button
+          onClick={() => {
+            setIsSaved(true); // ✅ ย้อนกลับ step ก่อนหน้าโดยไม่เตือน
+            onBack();
+          }}
+          className=" rounded-[7px] bg-zinc-200 px-4 py-2 text-black  hover:bg-zinc-200/60"
+        >
           แก้ไขข้อมูล
         </button>
         <button
-          onClick={handleSubmit}
-          disabled={!agree || submitting}
-          className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${submitting
-            ? "bg-gray-400 cursor-not-allowed"
-            : agree
-              ? "bg-[#6F47E4] hover:bg-[#5A35D1]"
-              : "bg-gray-400 cursor-not-allowed"
-            }`}
+  onClick={() => setShowSubmitConfirm(true)}
+  disabled={submitting}
+  className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${
+    submitting ? "bg-gray-400 cursor-not-allowed" : "bg-[#6F47E4] hover:bg-[#5A35D1]"
+  }`}
+>
+  {submitting
+    ? "กำลังส่ง..."
+    : claimStatus === "incomplete"
+      ? "ยืนยันการแก้ไข"
+      : "ยืนยันส่งเรื่อง"}
+</button>
+      </div>
+      {tabWarn && hasUnsaved && (
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50
+                  bg-amber-500 text-white text-sm px-4 py-2 rounded-[7px] shadow">
+          คุณสลับแท็บ/หน้าต่างระหว่างกรอกข้อมูล — ข้อมูลยังไม่ได้ส่ง
+          <button className="ml-3 underline" onClick={() => setTabWarn(false)}>
+            ปิด
+          </button>
+        </div>
+      )}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-sm text-center space-y-4">
+            <h2 className="text-lg font-semibold text-zinc-800">ออกจากหน้านี้หรือไม่?</h2>
+            <p className="text-sm text-zinc-600">คุณมีข้อมูลที่ยังไม่ได้บันทึก หากออก ข้อมูลอาจสูญหาย</p>
+            <div className="flex justify-center gap-3 mt-4">
+              <button
+                onClick={() => { setShowLeaveConfirm(false); setNextUrl(null); }}
+                className="px-5 py-2 rounded-[7px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowLeaveConfirm(false);
+                  if (nextUrl) {
+                    setIsSaved(true);           // ปิดการเตือน
+                    window.location.href = nextUrl; // ไปหน้าถัดไปจริง ๆ
+                  }
+                }}
+                className="px-5 py-2 rounded-[7px] bg-[#6F47E4] hover:bg-[#5d3fd6] text-white"
+              >
+                ออกจากหน้า
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+{showSubmitConfirm && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-sm text-center space-y-4">
+      <h2 className="text-lg font-semibold text-zinc-800">
+        {claimStatus === "incomplete" ? "ยืนยันการแก้ไข" : "ยืนยันการส่งคำขอเคลม"}
+      </h2>
+      <p className="text-sm text-zinc-600">
+        โปรดตรวจสอบข้อมูลให้ถูกต้องก่อนยืนยัน ระบบจะส่งข้อมูลเพื่อดำเนินการต่อ
+      </p>
+      <div className="flex justify-center gap-3 mt-4">
+        <button
+          onClick={() => setShowSubmitConfirm(false)}
+          className="px-5 py-2 rounded-[7px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
         >
-          {submitting
-            ? "กำลังส่ง..."
-            : claimStatus === "incomplete"
-              ? "ยืนยันการแก้ไข"
-              : "ยืนยันส่งเรื่อง"}
+          ยกเลิก
+        </button>
+        <button
+          onClick={() => {
+            setShowSubmitConfirm(false);
+            handleSubmit(); // ส่งจริงที่นี่
+          }}
+          disabled={submitting}
+          className="px-5 py-2 rounded-[7px] bg-[#6F47E4] hover:bg-[#5d3fd6] text-white"
+        >
+          {submitting ? "กำลังส่ง..." : "ยืนยันส่ง"}
         </button>
       </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

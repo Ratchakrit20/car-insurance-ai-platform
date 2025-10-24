@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import SafeAreaSpacer from "../components/SafeAreaSpacer";
 import MapPickerModal from "../components/MapPickerModal";
 import MapPreview from "../components/MapPreview";
-
+import { useLeaveConfirm } from "@/hooks/useLeaveConfirm";
+import { useRouter } from "next/navigation";
 const ACC_KEY = "accidentDraft";
 
 const DISTRICTS_BY_PROVINCE: Record<string, string[]> = {
@@ -37,15 +38,8 @@ function labelEl(text: string, required?: boolean) {
     </div>
   );
 }
-function formatDateForInput(isoString?: string) {
-  if (!isoString) return "";
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return ""; // ไม่ใช่วันที่
-  return d.toISOString().split("T")[0]; // ✅ คืนค่า YYYY-MM-DD
-}
-function fieldSurface({
-  required, filled,
-}: { required?: boolean; filled?: boolean }) {
+
+function fieldSurface({ required, filled }: { required?: boolean; filled?: boolean }) {
   const base =
     "rounded-[7px] border px-3 py-2 sm:py-2.5 text-zinc-900 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)] transition outline-none w-full ";
   if (required && !filled)
@@ -53,7 +47,70 @@ function fieldSurface({
   return `${base} bg-white border-zinc-200 focus:ring-2 focus:ring-violet-500`;
 }
 
+/* ---------------- helpers ---------------- */
+const toDate = (x?: any) => {
+  const d = new Date(x ?? "");
+  return isNaN(d.getTime()) ? null : d;
+};
+const ymd = (d?: Date | null) => (d ? d.toISOString().split("T")[0] : "");
+const hm = (d?: Date | null) => {
+  if (!d) return "";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+};
+const toYMD = (x?: any) => ymd(toDate(x));
+
+/** ดึง start/end จาก object โดยลองหลายชื่อคีย์ และรองรับ nested */
+function extractCoverage(obj: any) {
+  if (!obj) return { start: "", end: "" };
+  const candidates = [
+    ["coverage_start_date", "coverage_end_date"],
+    ["coverageStartDate", "coverageEndDate"],
+    ["coverage_start", "coverage_end"],
+    ["start_date", "end_date"],
+    ["startDate", "endDate"],
+    ["policy_start_date", "policy_end_date"],
+  ] as const;
+
+  for (const [k1, k2] of candidates) {
+    const s = toYMD(obj?.[k1]);
+    const e = toYMD(obj?.[k2]);
+    if (s && e) return { start: s, end: e };
+  }
+  const nests = [obj?.policy, obj?.selected_car, obj?.car, obj?.insurance, obj?.vehicle];
+  for (const nest of nests) {
+    for (const [k1, k2] of candidates) {
+      const s = toYMD(nest?.[k1]);
+      const e = toYMD(nest?.[k2]);
+      if (s && e) return { start: s, end: e };
+    }
+  }
+  return { start: "", end: "" };
+}
+
+/** พยายาม map response จาก API ให้ได้ start/end ไม่ว่ารูปแบบไหน */
+function normalizeCoverageFromAPI(data: any) {
+  // บาง API คืนเป็น { coverage: {start_date, end_date} }
+  if (data?.coverage) return extractCoverage(data.coverage);
+  // ตรง ๆ บน root
+  const direct = extractCoverage(data);
+  if (direct.start && direct.end) return direct;
+  // รถหรือกรมธรรม์ด้านใน
+  const nests = [data?.car, data?.policy, data?.selected_car, data?.insurance, data?.vehicle];
+  for (const n of nests) {
+    const got = extractCoverage(n);
+    if (got.start && got.end) return got;
+  }
+  return { start: "", end: "" };
+}
+
+
+
 export default function AccidentStep2({ onNext, onBack }: StepProps) {
+  const router = useRouter();
+  const STEP1_URL = "/detect";
+  // form states
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [province, setProvince] = useState("");
@@ -67,41 +124,193 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [showMapPicker, setShowMapPicker] = useState(false);
 
-  useEffect(() => {
-    try {
-      const rawAcc = localStorage.getItem(ACC_KEY);
-      if (rawAcc) {
-        const a = JSON.parse(rawAcc);
-        setDate(formatDateForInput(a.accident_date));
-        setTime(a.accident_time || "");
-        setProvince(a.province || "");
-        setDistrict(a.district || "");
-        setRoad(a.road || "");
-        setAreaType(a.areaType || ""); 
-        setNearby(a.nearby || "");
-        setLat(a.location?.lat?.toString() || "");
-        setLng(a.location?.lng?.toString() || "");
-        setAccuracy(a.location?.accuracy ?? null);
+  // coverage
+  const [coverageStart, setCoverageStart] = useState<string>("");
+  const [coverageEnd, setCoverageEnd] = useState<string>("");
+  const [covLoading, setCovLoading] = useState(false);
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const localYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const localHM = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const todayYMD = useMemo(() => localYMD(new Date()), []);
+  const nowHM = useMemo(() => localHM(new Date()), [])
+
+
+  const [isSaved, setIsSaved] = useState(false);
+  const hasUnsaved = useMemo(() => {
+    // มีค่าใด ๆ ถูกกรอก/เลือก ถือว่ายังไม่เซฟ
+    return !isSaved && (
+      !!date || !!time || !!province || !!district || !!road ||
+      !!areaType || !!nearby || !!lat || !!lng
+    );
+  }, [isSaved, date, time, province, district, road, areaType, nearby, lat, lng]);
+
+  // 🔧 ใหม่: modal ยืนยันออกหน้า + url ปลายทาง
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
+  useLeaveConfirm({
+    hasUnsavedChanges: hasUnsaved,
+    onConfirmLeave: (url) => {
+      // ✅ ยกเว้นปุ่ม Back ของเบราว์เซอร์ → กลับ step1 ได้เลยโดยไม่เตือน
+      if (url === "back") {
+        setIsSaved(true);
+        onBack();
+        return;
       }
-    } catch { }
+      // ✅ ยกเว้นลิงก์/นำทางที่พาไป AccidentStep1
+      if (url && url.startsWith(STEP1_URL)) {
+        setIsSaved(true);
+        router.push(url);
+        return;
+      }
+      // อื่นๆ ค่อยเปิด modal ยืนยันตามเดิม
+      setNextUrl(url);
+      setShowLeaveConfirm(true);
+    },
+  });
+
+  // โหลด draft + ยิง API หา coverage
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = localStorage.getItem(ACC_KEY);
+        const draft = raw ? JSON.parse(raw) : {};
+
+        // เติมค่าเดิม
+        const d = toDate(draft.accident_date);
+        setDate(d ? ymd(d) : "");
+        setTime(draft.accident_time || "");
+        setProvince(draft.province || "");
+        setDistrict(draft.district || "");
+        setRoad(draft.road || "");
+        setAreaType(draft.areaType || "");
+        setNearby(draft.nearby || "");
+        setLat(draft.location?.lat?.toString() || "");
+        setLng(draft.location?.lng?.toString() || "");
+        setAccuracy(draft.location?.accuracy ?? null);
+
+        // ❌ ไม่เรียก API — ใช้เฉพาะข้อมูลใน draft/selectedCar
+        let start = "";
+        let end = "";
+        const fromDraft = extractCoverage(draft);
+        if (fromDraft.start && fromDraft.end) {
+          start = fromDraft.start;
+          end = fromDraft.end;
+        } else {
+          const rawSel = localStorage.getItem("selectedCar");
+          if (rawSel) {
+            const selectedCar = JSON.parse(rawSel);
+            const fromSel = extractCoverage(selectedCar);
+            if (fromSel.start && fromSel.end) {
+              start = fromSel.start;
+              end = fromSel.end;
+            }
+          }
+        }
+
+        setCoverageStart(start || "");
+        setCoverageEnd(end || "");
+
+        const merged = {
+          ...draft,
+          coverage_start_date: start || draft.coverage_start_date || "",
+          coverage_end_date: end || draft.coverage_end_date || "",
+        };
+        localStorage.setItem(ACC_KEY, JSON.stringify(merged));
+      } catch (e) {
+        console.warn("init failed:", e);
+      }
+    })();
   }, []);
+
+  // สำหรับคุม min/max ของ TIME เมื่อวันที่ชน start/end
+  const startDT = useMemo(() => toDate(coverageStart), [coverageStart]);
+  const endDT = useMemo(() => toDate(coverageEnd), [coverageEnd]);
+
+  // ถ้า API คืนมาเป็น date-only เราจะถือเวลาเป็น 00:00 -> 23:59 โดยปริยาย
+  const startYMD = useMemo(() => ymd(startDT), [startDT]);
+  const endYMD = useMemo(() => ymd(endDT), [endDT]);
+
+  const inferredStartHM = useMemo(() => hm(startDT), [startDT]);
+  const inferredEndHM = useMemo(() => hm(endDT), [endDT]);
+
+  // min/max ของ date
+  const dateMin = coverageStart ? startYMD : undefined;
+
+  const dateMax = useMemo(() => {
+    if (coverageEnd) return (coverageEnd < todayYMD ? coverageEnd : todayYMD);
+    return todayYMD;
+  }, [coverageEnd, todayYMD]);
+  // min/max ของ time เฉพาะตอนเลือกวันชนขอบ
+  const timeMin = useMemo(() => {
+    if (!date || !startYMD) return undefined;
+    if (date !== startYMD) return undefined;
+    return inferredStartHM || "00:00";
+  }, [date, startYMD, inferredStartHM]);
+
+  const timeMax = useMemo(() => {
+    if (!date) return undefined;
+
+    const caps: string[] = [];
+
+    // 1) ถ้าเลือก "วันนี้" → จำกัดไม่ให้เกินเวลาปัจจุบัน
+    if (date === todayYMD) caps.push(nowHM);
+
+    // 2) ถ้าเลือกวัน = วันสิ้นสุดคุ้มครอง และคุณมีเวลาสิ้นสุดของวันนั้น (เช่น coverageEndHM) ให้ push มาเทียบด้วย
+    // ถ้าไม่มีเวลาในคุ้มครอง: ปล่อย 23:59 เป็นค่าเริ่มต้น
+    // ตัวอย่าง (ถ้าวันนี้คุณยังไม่มี coverageEndHM):
+    // if (date === coverageEndYMD && coverageEndHM) caps.push(coverageEndHM);
+
+    // 3) ค่าเริ่มต้น
+    caps.push("23:59");
+
+    // คืนค่าน้อยสุด
+    return caps.sort()[0];
+  }, [date, todayYMD, nowHM /*, coverageEndHM*/]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ป้องกันเมื่อยังโหลดช่วงคุ้มครองไม่เสร็จ
+    if (covLoading) {
+      alert("กำลังโหลดช่วงคุ้มครองจากระบบ โปรดลองอีกครั้งในชั่วขณะ");
+      return;
+    }
+
+    // ตรวจเข้ม: date/time ต้องอยู่ในช่วงคุ้มครอง
+    if (startYMD && endYMD && date) {
+      const picked = toDate(`${date}T${time || "00:00"}`);
+      const startBound = toDate(`${startYMD}T${inferredStartHM || "00:00"}`)!;
+      const endBound = toDate(`${endYMD}T${inferredEndHM || "23:59"}`)!;
+
+      console.log("[Picked]", picked?.toISOString());
+      console.log("[Allowed Range]", startBound.toISOString(), "→", endBound.toISOString());
+
+      if (!picked || isNaN(picked.getTime())) {
+        alert("รูปแบบวันที่/เวลาไม่ถูกต้อง");
+        return;
+      }
+      if (picked < startBound || picked > endBound) {
+        alert("วันที่/เวลาอยู่นอกช่วงคุ้มครองของกรมธรรม์");
+        return;
+      }
+    }
+
     const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
     const payload = {
       ...oldDraft,
       accident_date: date,
-    accident_time: time,
+      accident_time: time,
       province,
       district,
       road,
-      areaType,    // ✅ บันทึกเป็น area_type
+      areaType, // map เป็น area_type ตอนส่ง backend ได้
       nearby,
-
       location: { lat: Number(lat), lng: Number(lng), accuracy },
+      coverage_start_date: coverageStart || oldDraft.coverage_start_date || "",
+      coverage_end_date: coverageEnd || oldDraft.coverage_end_date || "",
     };
     localStorage.setItem(ACC_KEY, JSON.stringify(payload));
+    setIsSaved(true);
     onNext();
   };
 
@@ -120,19 +329,39 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
               type="date"
               className={fieldSurface({ required: true, filled: !!date })}
               value={date}
+              min={startYMD}  // มีคุ้มครองเริ่มเมื่อไหร่ ใช้อันนั้น ถ้าไม่มีปล่อย undefined ก็ได้
+              max={dateMax}   // ❗ ป้องกันเลือกเกินวันนี้
               onChange={(e) => setDate(e.target.value)}
               required
             />
+            {!coverageStart || !coverageEnd ? (
+              <p className="mt-1 text-xs text-amber-600">
+                ⚠️ ยังไม่พบช่วงคุ้มครอง — โปรดเลือก/โหลดรถที่คุ้มครองก่อน
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-zinc-500">
+                เลือกได้เฉพาะช่วงคุ้มครอง: {startYMD} – {endYMD}
+              </p>
+            )}
+
           </div>
+
           <div>
             {labelEl("เวลาเกิดอุบัติเหตุ", true)}
             <input
               type="time"
               className={fieldSurface({ required: true, filled: !!time })}
               value={time}
+              min={timeMin}
+              max={timeMax}   // ❗ ถ้าเลือกวันนี้ → ห้ามเกินเวลาปัจจุบัน
               onChange={(e) => setTime(e.target.value)}
               required
             />
+            {date && (timeMin || timeMax) && (
+              <p className="mt-1 text-xs text-zinc-500">
+                เวลาในวันที่เลือกต้องอยู่ช่วง {timeMin || "00:00"}–{timeMax || "23:59"}
+              </p>
+            )}
           </div>
         </div>
 
@@ -217,9 +446,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
           >
             ระบุตำแหน่ง
           </button>
-          {lat && lng && (
-            <MapPreview lat={parseFloat(lat)} lng={parseFloat(lng)} />
-          )}
+          {lat && lng && <MapPreview lat={parseFloat(lat)} lng={parseFloat(lng)} />}
         </div>
 
         {/* ปุ่ม */}
@@ -227,7 +454,11 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
           {onBack && (
             <button
               type="button"
-              onClick={onBack}
+              onClick={() => {
+                // เซฟสถานะว่า ‘ไม่ต้องเตือน’ แล้วกลับเลย
+                setIsSaved(true);
+                onBack();
+              }}
               className="w-full sm:w-auto rounded-[7px] text-black bg-zinc-200 px-6 py-2 hover:bg-zinc-200/60"
             >
               ย้อนกลับ
@@ -241,7 +472,32 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
           </button>
         </div>
       </form>
-
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-sm text-center space-y-4">
+            <h2 className="text-lg font-semibold text-zinc-800">ออกจากหน้านี้หรือไม่?</h2>
+            <p className="text-sm text-zinc-600">คุณมีข้อมูลที่ยังไม่ได้บันทึก หากออก ข้อมูลอาจสูญหาย</p>
+            <div className="flex justify-center gap-3 mt-4">
+              <button
+                onClick={() => { setShowLeaveConfirm(false); setNextUrl(null); }}
+                className="px-5 py-2 rounded-[7px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowLeaveConfirm(false);
+                  if (nextUrl === "back") onBack();
+                  else if (nextUrl) router.push(nextUrl);
+                }}
+                className="px-5 py-2 rounded-[7px] bg-[#6F47E4] hover:bg-[#5d3fd6] text-white"
+              >
+                ออกจากหน้า
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SafeAreaSpacer />
 
       <MapPickerModal

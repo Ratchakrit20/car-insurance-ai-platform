@@ -1,6 +1,17 @@
+import { Noto_Sans_Thai } from "next/font/google";
+
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
 export default function LoadingScreen({ message = "กำลังโหลด..." }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white text-zinc-600">
+    <div
+      className={`${thaiFont.className} fixed inset-0 z-[9999] flex flex-col items-center justify-center 
+                  bg-white text-zinc-600`}
+    >
       <div className="flex gap-1 mb-3">
         <span className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce"></span>
         <span className="w-3 h-3 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
