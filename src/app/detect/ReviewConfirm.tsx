@@ -22,12 +22,34 @@ type Car = {
 type MediaItem = { url: string; type?: "image" | "video"; publicId?: string };
 
 type DamagePhoto = MediaItem & {
-  side?:  "หน้า" | "หลัง" | "ซ้าย" | "ขวา"
+  side?: "หน้า" | "หลัง" | "ซ้าย" | "ขวา"
   | "หน้าซ้าย" | "หลังซ้าย" | "หน้าขวา" | "หลังขวา"
   | "ไม่ระบุ";
   total?: number | null;
   perClass?: Record<string, number> | null;
   note?: string;
+};
+// ---- เพิ่ม type สำหรับ payload (วางไว้แถวๆ บล็อก Types) ----
+type AccidentPayload = {
+  accident_type: string;
+  date: string;
+  time: string;
+  province: string | null;
+  district: string | null;
+  road: string;
+  area_type: string;
+  nearby: string;
+  details: string;
+  location: { lat: number; lng: number; accuracy: number | null };
+  evidence_media: { url: string; type: "image" | "video" }[];
+  damage_photos: {
+    url: string;
+    type: "image" | "video";
+    side: DamagePhoto["side"];
+    total: number | null;
+    perClass: Record<string, number> | null;
+    note: string;
+  }[];
 };
 
 type AccidentDraft = {
@@ -105,13 +127,14 @@ function normalizeStatus(s?: string): string {
   }
 }
 
-
+type MediaType = "image" | "video";
+const mediaTypeFor = (url: string): MediaType => (isVideoUrl(url) ? "video" : "image");
 // ---------- Component ----------
 export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfirmProps) {
   const [submitting, setSubmitting] = useState(false);
   const STEP4_URL = "/detect/step4"; // ← ปรับ path ให้ตรงโปรเจกต์
   const SAFE_PREFIXES = [STEP4_URL]; // ปล่อยผ่านลิงก์ที่ขึ้นต้นแบบนี้
-const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
 
@@ -243,81 +266,117 @@ const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
       );
   }, [draft?.damagePhotos]);
 
-  const handleSubmit = async () => {
+const compactMediaCamel = (m?: MediaItem[]) =>
+  (m ?? [])
+    .filter(x => !!x?.url)
+    .map(x => ({
+      url: x.url,
+      type: mediaTypeFor(x.url), // ⬅️ แทนที่ as const
+    }));
 
-    if ( !car || !draft) return;
 
-    setSubmitting(true);
-    setIsSaved(true);
-    try {
-      const claimId = (draft as any)?.claim_id ?? null;
-      const claimStatus = normalizeStatus((draft as any)?.status);
 
-      let url = "";
-      let method: "POST" | "PUT" | "PATCH" = "POST";
+const compactDamageCamel = (arr?: DamagePhoto[]) =>
+  (arr ?? [])
+    .filter(d => !!d?.url)
+    .map(d => ({
+      url: d.url,
+      type: mediaTypeFor(d.url), // ⬅️ แทนที่ as const
+      side: d.side ?? "ไม่ระบุ",
+      note: d.note ?? "",
+    }));
 
-      if (claimId && claimStatus === "incomplete") {
-        // ✅ ถ้าเคยถูกแจ้งให้แก้ไข → ใช้ endpoint resubmit ใหม่
-        url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/${claimId}/resubmit`;
-        method = "PATCH";
-      } else if (claimId) {
-        // ✅ ถ้ามี claimId แต่ไม่ใช่ incomplete (กรณี edit draft อื่น ๆ)
-        url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-submit/update/${claimId}`;
-        method = "PUT";
-      } else {
-        // ✅ เคสใหม่ → สร้างเคลมใหม่
-        url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-submit/submit`;
-        method = "POST";
-      }
 
-      const accidentPayload = {
-        ...draft,
-        date: draft.accident_date,
-        time: draft.accident_time,
-        areaType: draft.areaType,
-      };
-      delete (accidentPayload as any).accident_date;
-      delete (accidentPayload as any).accident_time;
+  // ---- แทนที่ฟังก์ชัน handleSubmit ทั้งก้อนด้วยเวอร์ชันนี้ ----
+ const handleSubmit = async () => {
+  if (!car || !draft) return;
 
-      console.log("📤 Accident payload:", accidentPayload);
-      console.log("✅ กำลังส่งข้อมูลแก้ไขใหม่:", {
-        accident_date: draft.accident_date,
-        accident_time: draft.accident_time,
-        province: draft.province,
-        district: draft.district,
-        road: draft.road,
-        details: draft.details,
-      });
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          user_id: userId,
-          selected_car_id: car.id,
-          accident: accidentPayload,
-         
-          note: "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
-        }),
-      });
+  setSubmitting(true);
+  try {
+    const claimId = (draft as any)?.claim_id ?? null;
+    const _claimStatus = normalizeStatus((draft as any)?.status);
 
-      const data = await res.json();
-      if (!res.ok || !data?.ok) {
-        alert(data?.message || "ส่งคำขอไม่สำเร็จ");
-        return;
-      }
-
-      localStorage.removeItem(ACC_KEY);
-      localStorage.removeItem(CAR_KEY);
-      onFinish();
-    } catch (e) {
-      console.error(e);
-      alert("เกิดข้อผิดพลาดระหว่างส่งคำขอ");
-    } finally {
-      setSubmitting(false);
+    let url = "";
+    let method: "POST" | "PUT" | "PATCH" = "POST";
+    if (claimId && _claimStatus === "incomplete") {
+      url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/${claimId}/resubmit`;
+      method = "PATCH";
+    } else if (claimId) {
+      url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-submit/update/${claimId}`;
+      method = "PUT";
+    } else {
+      url = `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-submit/submit`;
+      method = "POST";
     }
-  };
 
+    // 🔑 ใช้ camelCase ให้ตรงกับ BE
+    const accidentPayload = {
+      accidentType: draft.accidentType,
+      date: draft.accident_date,
+      time: draft.accident_time,
+      province: draft.province ?? null,
+      district: draft.district ?? null,
+      road: draft.road ?? null,
+      areaType: draft.areaType,
+      nearby: draft.nearby ?? null,
+      details: draft.details ?? null,
+      location: {
+        lat: Number(draft.location?.lat ?? 0),
+        lng: Number(draft.location?.lng ?? 0),
+        accuracy: draft.location?.accuracy ?? null,
+      },
+      evidenceMedia: compactMediaCamel(draft.evidenceMedia),
+      damagePhotos: compactDamageCamel(draft.damagePhotos),
+    };
+
+    const body = {
+      user_id: userId ?? null,
+      selected_car_id: car.id,
+      accident: accidentPayload,
+      note:
+        _claimStatus === "incomplete"
+          ? "ผู้ใช้ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่"
+          : "ผู้ใช้ส่งคำขอเคลมใหม่",
+    };
+
+    console.log("🚀 Submit body:", JSON.stringify(body, null, 2));
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+
+    const ct = res.headers.get("content-type") || "";
+    const payload = ct.includes("application/json")
+      ? await res.json().catch(() => ({}))
+      : await res.text().catch(() => "");
+
+    if (!res.ok) {
+      console.error("❌ Submit failed:", { status: res.status, payload });
+      alert(
+        typeof payload === "string"
+          ? `ส่งคำขอไม่สำเร็จ (${res.status}): ${payload}`
+          : payload?.message ?? `ส่งคำขอไม่สำเร็จ (HTTP ${res.status})`
+      );
+      return;
+    }
+
+    setIsSaved(true);
+    localStorage.removeItem(ACC_KEY);
+    localStorage.removeItem(CAR_KEY);
+    onFinish();
+  } catch (e) {
+    console.error(e);
+    alert("เกิดข้อผิดพลาดระหว่างส่งคำขอ");
+  } finally {
+    setSubmitting(false);
+  }
+};
 
 
   if (!car || !draft) {
@@ -438,7 +497,7 @@ const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
 
       {/* ยืนยัน */}
-     
+
 
       <div className="mt-6 flex justify-end gap-3">
         <button
@@ -451,18 +510,17 @@ const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
           แก้ไขข้อมูล
         </button>
         <button
-  onClick={() => setShowSubmitConfirm(true)}
-  disabled={submitting}
-  className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${
-    submitting ? "bg-gray-400 cursor-not-allowed" : "bg-[#6F47E4] hover:bg-[#5A35D1]"
-  }`}
->
-  {submitting
-    ? "กำลังส่ง..."
-    : claimStatus === "incomplete"
-      ? "ยืนยันการแก้ไข"
-      : "ยืนยันส่งเรื่อง"}
-</button>
+          onClick={() => setShowSubmitConfirm(true)}
+          disabled={submitting}
+          className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${submitting ? "bg-gray-400 cursor-not-allowed" : "bg-[#6F47E4] hover:bg-[#5A35D1]"
+            }`}
+        >
+          {submitting
+            ? "กำลังส่ง..."
+            : claimStatus === "incomplete"
+              ? "ยืนยันการแก้ไข"
+              : "ยืนยันส่งเรื่อง"}
+        </button>
       </div>
       {tabWarn && hasUnsaved && (
         <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50
@@ -501,36 +559,36 @@ const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
           </div>
         </div>
       )}
-{showSubmitConfirm && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-sm text-center space-y-4">
-      <h2 className="text-lg font-semibold text-zinc-800">
-        {claimStatus === "incomplete" ? "ยืนยันการแก้ไข" : "ยืนยันการส่งคำขอเคลม"}
-      </h2>
-      <p className="text-sm text-zinc-600">
-        โปรดตรวจสอบข้อมูลให้ถูกต้องก่อนยืนยัน ระบบจะส่งข้อมูลเพื่อดำเนินการต่อ
-      </p>
-      <div className="flex justify-center gap-3 mt-4">
-        <button
-          onClick={() => setShowSubmitConfirm(false)}
-          className="px-5 py-2 rounded-[7px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
-        >
-          ยกเลิก
-        </button>
-        <button
-          onClick={() => {
-            setShowSubmitConfirm(false);
-            handleSubmit(); // ส่งจริงที่นี่
-          }}
-          disabled={submitting}
-          className="px-5 py-2 rounded-[7px] bg-[#6F47E4] hover:bg-[#5d3fd6] text-white"
-        >
-          {submitting ? "กำลังส่ง..." : "ยืนยันส่ง"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-[90%] max-w-sm text-center space-y-4">
+            <h2 className="text-lg font-semibold text-zinc-800">
+              {claimStatus === "incomplete" ? "ยืนยันการแก้ไข" : "ยืนยันการส่งคำขอเคลม"}
+            </h2>
+            <p className="text-sm text-zinc-600">
+              โปรดตรวจสอบข้อมูลให้ถูกต้องก่อนยืนยัน ระบบจะส่งข้อมูลเพื่อดำเนินการต่อ
+            </p>
+            <div className="flex justify-center gap-3 mt-4">
+              <button
+                onClick={() => setShowSubmitConfirm(false)}
+                className="px-5 py-2 rounded-[7px] bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowSubmitConfirm(false);
+                  handleSubmit(); // ส่งจริงที่นี่
+                }}
+                disabled={submitting}
+                className="px-5 py-2 rounded-[7px] bg-[#6F47E4] hover:bg-[#5d3fd6] text-white"
+              >
+                {submitting ? "กำลังส่ง..." : "ยืนยันส่ง"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
