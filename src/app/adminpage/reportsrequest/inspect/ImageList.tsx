@@ -201,13 +201,13 @@ export default function ImageList({
       {showIncomplete && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 print:hidden">
           <div className="w-[calc(100%-2rem)] max-w-lg rounded-xl bg-white p-4 shadow sm:p-5">
-            <h4 className="text-base font-semibold">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
-            <p className="mt-1 text-sm text-zinc-600">
+            <h4 className="text-base text-black font-semibold">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
+            <p className="mt-1 text-sm text-black">
               โปรดระบุสาเหตุหรือสิ่งที่ต้องการให้ลูกค้าแก้ไขเพิ่มเติม
             </p>
 
             <textarea
-              className="mt-3 min-h-[120px] w-full rounded-lg border border-zinc-300 p-3 outline-none focus:ring-2 focus:ring-amber-200"
+              className="mt-3 min-h-[120px] w-full text-black rounded-lg border border-zinc-300 p-3 outline-none focus:ring-2 focus:ring-amber-200"
               placeholder="พิมพ์รายละเอียด…"
               value={incompleteReason}
               onChange={(e) => setIncompleteReason(e.target.value)}
@@ -240,8 +240,8 @@ export default function ImageList({
                       }`}
               >
                 {actionLoading === "incomplete"
-                  ? "⏳ กำลังส่ง…"
-                  : "✔️ ยืนยันข้อมูลไม่ครบ"}
+                  ? "กำลังส่ง…"
+                  : "ยืนยันข้อมูลไม่ครบ"}
               </button>
             </div>
           </div>
