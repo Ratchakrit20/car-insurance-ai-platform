@@ -116,13 +116,13 @@ type ModelParams = {
 /* ------------ API ------------ */
 async function fetchDetail(id: string): Promise<ClaimDetail> {
   const token = localStorage.getItem("token");
-const res = await fetch(
-  `${URL_PREFIX}/api/claim-requests/admin/detail?claim_id=${encodeURIComponent(id)}`,
-  {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  }
-);
+  const res = await fetch(
+    `${URL_PREFIX}/api/claim-requests/admin/detail?claim_id=${encodeURIComponent(id)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    }
+  );
 
   const json = await res.json();
   if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
@@ -136,31 +136,31 @@ const res = await fetch(
     created_at: d.created_at,
     car: d.car
       ? {
-          id: d.car.id ?? 1,
-          car_brand: d.car.car_brand,
-          car_model: d.car.car_model,
-          car_year: d.car.car_year,
-          car_license_plate: d.car.car_license_plate,
-          car_path: d.car.car_path,
-          insured_name: d.car.insured_name,
-          policy_number: d.car.policy_number,
-        }
+        id: d.car.id ?? 1,
+        car_brand: d.car.car_brand,
+        car_model: d.car.car_model,
+        car_year: d.car.car_year,
+        car_license_plate: d.car.car_license_plate,
+        car_path: d.car.car_path,
+        insured_name: d.car.insured_name,
+        policy_number: d.car.policy_number,
+      }
       : null,
     accident: d.accident
       ? {
-          accidentType: d.accident.accidentType ?? "ไม่ระบุ",
-          accident_date: d.accident.accident_date,
-          accident_time: d.accident.accident_time,
-          province: d.accident.province,
-          district: d.accident.district,
-          road: d.accident.road,
-          nearby: d.accident.nearby,
-          details: d.accident.details,
-          location: d.accident.location,
-          // ✅ รวม evidenceMedia และ damagePhotos เข้าไปด้วย
-          evidenceMedia: d.accident.evidenceMedia ?? [],
-          damagePhotos: d.accident.damagePhotos ?? [],
-        }
+        accidentType: d.accident.accidentType ?? "ไม่ระบุ",
+        accident_date: d.accident.accident_date,
+        accident_time: d.accident.accident_time,
+        province: d.accident.province,
+        district: d.accident.district,
+        road: d.accident.road,
+        nearby: d.accident.nearby,
+        details: d.accident.details,
+        location: d.accident.location,
+        // ✅ รวม evidenceMedia และ damagePhotos เข้าไปด้วย
+        evidenceMedia: d.accident.evidenceMedia ?? [],
+        damagePhotos: d.accident.damagePhotos ?? [],
+      }
       : null,
   } as ClaimDetail;
 }
@@ -338,7 +338,7 @@ function bump(s: Severity): Severity {
 
 /* ====================================================================== */
 export default function InspectPage() {
- 
+
   const sp = useSearchParams();
   const router = useRouter();
   const claimId = sp.get("claim_id");
@@ -350,11 +350,11 @@ export default function InspectPage() {
 
   // รวมรูปจาก type ของคุณ → {url, side?}
   // ให้ images มี { id, url, side }
- const images = useMemo(() => {
-  const acc = detail?.accident;
-  if (!acc?.damagePhotos) return [];
+  const images = useMemo(() => {
+    const acc = detail?.accident;
+    if (!acc?.damagePhotos) return [];
 
-  return acc.damagePhotos
+    return acc.damagePhotos
       .filter((p: any) => p?.url)
       .map((p: any, index: number) => ({
         id: p.id ?? p.image_id ?? p.evaluation_image_id ?? `local-${index}`, // ✅ generate id เอง
@@ -365,28 +365,28 @@ export default function InspectPage() {
       }));
   }, [detail]);
   // -------- โหลดข้อมูลผู้ใช้ (me) --------
- useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setIsAuthenticated(false);
-        return;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
+        const res = await fetch(`${URL_PREFIX}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        setUser(data.user ?? null);
+        setIsAuthenticated(Boolean(data.isAuthenticated));
+      } catch {
+        if (!cancelled) setIsAuthenticated(false);
       }
-      const res = await fetch(`${URL_PREFIX}/api/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (cancelled) return;
-      setUser(data.user ?? null);
-      setIsAuthenticated(Boolean(data.isAuthenticated));
-    } catch {
-      if (!cancelled) setIsAuthenticated(false);
-    }
-  })();
-  return () => { cancelled = true; };
-}, []);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     // 🔒 รอให้ตรวจสอบสิทธิ์เสร็จก่อน
@@ -416,21 +416,21 @@ export default function InspectPage() {
   }, [claimId, isAuthenticated]);
 
   useEffect(() => {
-  if (!loading && detail && images.length > 0) {
-    // 🔥 วิเคราะห์ภาพแรกทันทีถ้ายังไม่มีผล
-    const firstImageId = images[0]?.id;
-    if (firstImageId && !boxesByIndex[0]) {
-      console.log("🧠 เริ่มวิเคราะห์ภาพแรกอัตโนมัติ...");
-      void analyzeActiveImage(0);
+    if (!loading && detail && images.length > 0) {
+      // 🔥 วิเคราะห์ภาพแรกทันทีถ้ายังไม่มีผล
+      const firstImageId = images[0]?.id;
+      if (firstImageId && !boxesByIndex[0]) {
+        console.log("🧠 เริ่มวิเคราะห์ภาพแรกอัตโนมัติ...");
+        void analyzeActiveImage(0);
+      }
     }
-  }
-}, [loading, detail, images]);
+  }, [loading, detail, images]);
 
   //เช็คว่าตรวจสอบความเสียหายครบยังก่อนดำเนินการต่อ
   const [annotatedById, setAnnotatedById] = useState<Record<string | number, boolean>>({});
 
   // เติมค่าเริ่มต้นจาก detail → images
- 
+
   // ใช้ annotatedById ใน canProceed
   const canProceed =
     images.length > 0 &&
@@ -444,7 +444,16 @@ export default function InspectPage() {
   const [addMode, setAddMode] = useState(false);
   // สีวนเล่น
   const palette = ["#F59E0B", "#EF4444", "#8B5CF6", "#10B981", "#3B82F6"];
+const NO_DAMAGE_QUOTES = [
+  "ไม่พบความเสียหายจากภาพนี้ หากเห็นตำแหน่งผิดปกติ ลองเพิ่มกรอบด้วยปุ่ม “เพิ่มความเสียหาย”.",
+  "ระบบไม่ตรวจพบความเสียหายจากภาพนี้ ลองอัปโหลดภาพมุมอื่นหรือเพิ่มกรอบด้วยตนเอง.",
+  "ภาพนี้ยังไม่พบกรอบความเสียหาย คุณสามารถลากกรอบระบุจุดที่เสียหายเองได้.",
+  "ยังไม่พบความเสียหาย อาจเป็นเพราะมุมภาพ/แสงไม่ชัด ลองถ่ายให้ใกล้ขึ้นหรือสว่างขึ้น."
+];
 
+const [noDamageByIndex, setNoDamageByIndex] = useState<Record<number, string | null>>({});
+const pickNoDamageQuote = () =>
+  NO_DAMAGE_QUOTES[Math.floor(Math.random() * NO_DAMAGE_QUOTES.length)];
   const [analysisLevel, setAnalysisLevel] = useState(50);
   const [overlayByIndex, setOverlayByIndex] = useState<Record<number, string>>({});
   const [analyzing, setAnalyzing] = useState(false);
@@ -480,40 +489,51 @@ export default function InspectPage() {
     void analyzeActiveImage(activeIndex, p, true); // บังคับวิเคราะห์ซ้ำด้วยพารามิเตอร์ใหม่
   };
   // -------- Auth --------
- 
+
   // เรียก FastAPI วิเคราะห์ภาพที่เลือก
-  async function analyzeActiveImage(index = activeIndex, override?: Partial<ModelParams>, force = false) {
-    const img = images[index];
-    if (!img?.url) return;
-    try {
-      setAnalyzing(true);
-      setAnalyzeError(null);
+ async function analyzeActiveImage(index = activeIndex, override?: Partial<ModelParams>, force = false) {
+  const img = images[index];
+  if (!img?.url) return;
 
-      const used = { ...modelParams, ...override };
-      const res = await analyzeImageByUrl(img.url, {
-        conf_parts: used.conf_parts,
-        conf_damage: used.conf_damage,
-        imgsz: used.imgsz,
-        mask_iou_thresh: used.mask_iou_thresh,
-        render_overlay: used.render_overlay,
-      });
+  try {
+    setAnalyzing(true);
+    setAnalyzeError(null);
 
-      // กล่องจาก bbox (แทน seed เดิม)
-      const newBoxes = partsToBoxes(res);
-      console.log("New boxes from AI:", newBoxes);
-      setBoxesByIndex((m) => ({ ...m, [index]: newBoxes }));
+    const used = { ...modelParams, ...override };
+    const res = await analyzeImageByUrl(img.url, {
+      conf_parts: used.conf_parts,
+      conf_damage: used.conf_damage,
+      imgsz: used.imgsz,
+      mask_iou_thresh: used.mask_iou_thresh,
+      render_overlay: used.render_overlay,
+    });
 
-      // เก็บ overlay ต่อภาพ
-      if (res.overlay_image_b64) {
-        const overlayUrl = `data:${res.overlay_mime || "image/jpeg"};base64,${res.overlay_image_b64}`;
-        setOverlayByIndex((m) => ({ ...m, [index]: overlayUrl }));
-      }
-    } catch (e: any) {
-      setAnalyzeError(e?.message ?? "วิเคราะห์ภาพไม่สำเร็จ");
-    } finally {
-      setAnalyzing(false);
+    // กล่องจากผล AI
+    const newBoxes = partsToBoxes(res);
+    console.log("New boxes from AI:", newBoxes);
+    setBoxesByIndex((m) => ({ ...m, [index]: newBoxes }));
+
+    // เก็บ overlay ต่อภาพ
+    if (res.overlay_image_b64) {
+      const overlayUrl = `data:${res.overlay_mime || "image/jpeg"};base64,${res.overlay_image_b64}`;
+      setOverlayByIndex((m) => ({ ...m, [index]: overlayUrl }));
     }
+
+    // ✅ ตั้งข้อความ “ไม่พบความเสียหาย” ถ้าไม่มีกรอบใด ๆ
+    const hasDetections = Array.isArray(newBoxes) && newBoxes.length > 0;
+    setNoDamageByIndex((prev) => ({
+      ...prev,
+      [index]: hasDetections ? null : pickNoDamageQuote(),
+    }));
+  } catch (e: any) {
+    setAnalyzeError(e?.message ?? "วิเคราะห์ภาพไม่สำเร็จ");
+    // ล้างข้อความ no-damage ของภาพนี้ (กันทับสถานะผิด)
+    setNoDamageByIndex((prev) => ({ ...prev, [index]: null }));
+  } finally {
+    setAnalyzing(false);
   }
+}
+
 
   function uniq(arr: string[]) {
     const seen = new Set<string>();
@@ -556,13 +576,13 @@ export default function InspectPage() {
   }
 
   async function fetchSavedBoxes(imageId: number | string) {
-      const token = localStorage.getItem("token");
-  const r = await fetch(`${URL_PREFIX}/api/image-annotations/by-image?image_id=${encodeURIComponent(String(imageId))}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-  if (!r.ok) return [];
-  const j = await r.json();
+    const token = localStorage.getItem("token");
+    const r = await fetch(`${URL_PREFIX}/api/image-annotations/by-image?image_id=${encodeURIComponent(String(imageId))}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!r.ok) return [];
+    const j = await r.json();
     const rows = j?.data ?? [];
 
     return rows.map((row: any, i: number) => ({
@@ -581,74 +601,74 @@ export default function InspectPage() {
   }
 
   async function saveCurrentImage(merged?: Annotation[]) {
-  const img = images[activeIndex];
-  const boxesRaw = boxesByIndex[activeIndex] ?? [];
-  const boxes = merged ?? boxesRaw;
+    const img = images[activeIndex];
+    const boxesRaw = boxesByIndex[activeIndex] ?? [];
+    const boxes = merged ?? boxesRaw;
 
-  if (!img?.id) {
-    alert("ไม่พบ image id");
-    return;
+    if (!img?.id) {
+      alert("ไม่พบ image id");
+      return;
+    }
+
+    const mergedBoxes = Object.values(
+      boxes.reduce((acc, b) => {
+        const key = b.part?.trim() || `__id_${b.id}`;
+        if (!acc[key]) {
+          acc[key] = { ...b, damage: Array.isArray(b.damage) ? b.damage : [b.damage] };
+        } else {
+          const combined = Array.from(
+            new Set([
+              ...(Array.isArray(acc[key].damage) ? acc[key].damage : [acc[key].damage]),
+              ...(Array.isArray(b.damage) ? b.damage : [b.damage]),
+            ])
+          );
+          acc[key] = { ...acc[key], damage: combined };
+        }
+        return acc;
+      }, {} as Record<string, Annotation>)
+    );
+
+    const payload = {
+      image_id: img.id,
+      boxes: mergedBoxes.map((b) => ({
+        part_name: b.part,
+        damage_name: b.damage,
+        severity: b.severity,
+        area_percent: b.areaPercent ?? null,
+        x: round3(b.x),
+        y: round3(b.y),
+        w: round3(b.w),
+        h: round3(b.h),
+      })),
+    };
+
+    // ✅ แก้ตรงนี้
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("ไม่พบ token, กรุณาเข้าสู่ระบบใหม่");
+      return;
+    }
+
+    const resp = await fetch(`${URL_PREFIX}/api/image-annotations/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      alert(`บันทึกไม่สำเร็จ: ${t}`);
+      return;
+    }
+
+    const j = await resp.json();
+    console.log("📦 mergedBoxes sent:", mergedBoxes);
+    setAnnotatedById((m) => ({ ...m, [img.id]: mergedBoxes.length > 0 }));
+    alert("บันทึกเรียบร้อย");
   }
-
-  const mergedBoxes = Object.values(
-    boxes.reduce((acc, b) => {
-      const key = b.part?.trim() || `__id_${b.id}`;
-      if (!acc[key]) {
-        acc[key] = { ...b, damage: Array.isArray(b.damage) ? b.damage : [b.damage] };
-      } else {
-        const combined = Array.from(
-          new Set([
-            ...(Array.isArray(acc[key].damage) ? acc[key].damage : [acc[key].damage]),
-            ...(Array.isArray(b.damage) ? b.damage : [b.damage]),
-          ])
-        );
-        acc[key] = { ...acc[key], damage: combined };
-      }
-      return acc;
-    }, {} as Record<string, Annotation>)
-  );
-
-  const payload = {
-    image_id: img.id,
-    boxes: mergedBoxes.map((b) => ({
-      part_name: b.part,
-      damage_name: b.damage,
-      severity: b.severity,
-      area_percent: b.areaPercent ?? null,
-      x: round3(b.x),
-      y: round3(b.y),
-      w: round3(b.w),
-      h: round3(b.h),
-    })),
-  };
-
-  // ✅ แก้ตรงนี้
-  const token = localStorage.getItem("token");
-  if (!token) {
-    alert("ไม่พบ token, กรุณาเข้าสู่ระบบใหม่");
-    return;
-  }
-
-  const resp = await fetch(`${URL_PREFIX}/api/image-annotations/save`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!resp.ok) {
-    const t = await resp.text();
-    alert(`บันทึกไม่สำเร็จ: ${t}`);
-    return;
-  }
-
-  const j = await resp.json();
-  console.log("📦 mergedBoxes sent:", mergedBoxes);
-  setAnnotatedById((m) => ({ ...m, [img.id]: mergedBoxes.length > 0 }));
-  alert("บันทึกเรียบร้อย");
-}
 
 
 
@@ -656,11 +676,11 @@ export default function InspectPage() {
   if (isAuthenticated === null) {
     return <div className="p-6 text-zinc-500">กำลังตรวจสอบสิทธิ์ผู้ใช้…</div>;
   }
-if (isAuthenticated === false) {
-  localStorage.removeItem("token");
-  router.replace("/login");
-  return null;
-}
+  if (isAuthenticated === false) {
+    localStorage.removeItem("token");
+    router.replace("/login");
+    return null;
+  }
   // States
   if (!claimId) return <div className="p-6 text-rose-600">ไม่พบ claim_id</div>;
   if (loading) return <div className="p-6 text-zinc-600">กำลังโหลด…</div>;
@@ -773,14 +793,19 @@ if (isAuthenticated === false) {
                 disabled={analyzing || !images[activeIndex]?.url}
                 onClick={() => analyzeActiveImage(activeIndex)}
                 className={`h-10 rounded-xl px-4 text-sm font-medium ${analyzing
-                    ? "bg-zinc-200 text-zinc-500"
-                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  ? "bg-zinc-200 text-zinc-500"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
                   }`}
               >
                 {analyzing ? "กำลังวิเคราะห์…" : "วิเคราะห์ภาพนี้"}
               </button>
             </div>
-
+            {!analyzing && !analyzeError && noDamageByIndex[activeIndex] && (
+              <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <span aria-hidden>⚠️</span>
+                <span>{noDamageByIndex[activeIndex]}</span>
+              </div>
+            )}
             <DamageTable
               boxes={currentBoxes}
               onChange={(next) =>

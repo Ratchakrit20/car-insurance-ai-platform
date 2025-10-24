@@ -22,7 +22,10 @@ type Car = {
 type MediaItem = { url: string; type?: "image" | "video"; publicId?: string };
 
 type DamagePhoto = MediaItem & {
-  side?: "ซ้าย" | "ขวา" | "หน้า" | "หลัง" | "ไม่ระบุ";
+  side?:  "หน้า" | "หลัง" | "ซ้าย" | "ขวา"
+  | "หน้าซ้าย" | "หลังซ้าย" | "หน้าขวา" | "หลังขวา"
+  | "ไม่ระบุ";
+   
   total?: number | null;
   perClass?: Record<string, number> | null;
   note?: string;
@@ -246,7 +249,7 @@ const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     if ( !car || !draft) return;
 
     setSubmitting(true);
-    setIsSaved(true);
+   
     try {
       const claimId = (draft as any)?.claim_id ?? null;
       const claimStatus = normalizeStatus((draft as any)?.status);
@@ -304,7 +307,7 @@ const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
         alert(data?.message || "ส่งคำขอไม่สำเร็จ");
         return;
       }
-
+       setIsSaved(true);
       localStorage.removeItem(ACC_KEY);
       localStorage.removeItem(CAR_KEY);
       onFinish();

@@ -6,7 +6,10 @@ import { faCamera } from "@fortawesome/free-solid-svg-icons";
 import { Image as ImageIcon, UploadCloud, X } from "lucide-react";
 
 /** ---------- Types ---------- */
-export type DamageSide = "ซ้าย" | "ขวา" | "หน้า" | "หลัง" | "ไม่ระบุ";
+export type DamageSide =
+  | "หน้า" | "หลัง" | "ซ้าย" | "ขวา"
+  | "หน้าซ้าย" | "หลังซ้าย" | "หน้าขวา" | "หลังขวา"
+  | "ไม่ระบุ";
 
 export type DamagePhotoItem = {
   id: string;
@@ -123,97 +126,83 @@ export default function DamagePhotosPanel({
 
   return (
     <div className="rounded-[7px] p-4 bg-white">
-    
-     {/* 🟣 ปุ่มอัปโหลด 8 ด้าน (หน้า/หลัง/ซ้าย/ขว + มุมเฉียง) */}
-<div className="flex justify-center my-6">
-  <div className="relative w-[300px] m-8">
-    <img src="/elements/car-top-view.png" alt="car" className="w-full" />
 
-    {/* หน้า / หลัง */}
-    {(["หน้า", "หลัง"] as DamageSide[]).map((side) => (
-      <label
-        key={side}
-        className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
-          bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
-          hover:bg-[#433D8B]/80 transition-all duration-300 
-          hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
-        style={
-          side === "หน้า"
-            ? { top: "-2.5rem", left: "50%", transform: "translateX(-50%)" }
-            : { bottom: "-2.5rem", left: "50%", transform: "translateX(-50%)" }
-        }
-      >
-        <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            addFiles(e.target.files, side);
-            e.target.value = "";
-          }}
-        />
-      </label>
-    ))}
+      {/* 🟣 ปุ่มอัปโหลด 8 ด้าน (หน้า/หลัง/ซ้าย/ขว + มุมเฉียง) */}
+      <div className="flex justify-center my-6">
+        <div className="relative w-[300px] m-8">
+          <img src="/elements/car-top-view.png" alt="car" className="w-full" />
 
-    {/* ซ้ายเฉียงบน / กลาง / ล่าง */}
-    {[
-      { top: "10%", left: "-1rem" },
-      { top: "50%", left: "-1.5rem", transform: "translateY(-50%)" },
-      { bottom: "10%", left: "-1rem" },
-    ].map((style, i) => (
-      <label
-        key={`left-${i}`}
-        className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
-          bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
-          hover:bg-[#433D8B]/80 transition-all duration-300 
-          hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
-        style={style}
-      >
-        <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            addFiles(e.target.files, "ซ้าย");
-            e.target.value = "";
-          }}
-        />
-      </label>
-    ))}
+          {/* หน้า / หลัง */}
+          {(["หน้า", "หลัง"] as DamageSide[]).map((side) => (
+            <label
+              key={side}
+              className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
+      bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
+      hover:bg-[#433D8B]/80 transition-all duration-300 hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
+              style={
+                side === "หน้า"
+                  ? { top: "-2.5rem", left: "50%", transform: "translateX(-50%)" }
+                  : { bottom: "-2.5rem", left: "50%", transform: "translateX(-50%)" }
+              }
+            >
+              <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { addFiles(e.target.files, side); e.target.value = ""; }}
+              />
+            </label>
+          ))}
 
-    {/* ขวาเฉียงบน / กลาง / ล่าง */}
-    {[
-      { top: "10%", right: "-1rem" },
-      { top: "50%", right: "-1.5rem", transform: "translateY(-50%)" },
-      { bottom: "10%", right: "-1rem" },
-    ].map((style, i) => (
-      <label
-        key={`right-${i}`}
-        className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
-          bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
-          hover:bg-[#433D8B]/80 transition-all duration-300 
-          hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
-        style={style}
-      >
-        <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            addFiles(e.target.files, "ขวา");
-            e.target.value = "";
-          }}
-        />
-      </label>
-    ))}
-  </div>
-</div>
+
+          {/* ซ้าย: หน้าซ้าย / ซ้าย / หลังซ้าย */}
+          {([
+            [{ top: "10%", left: "-1rem" }, "หน้าซ้าย"],
+            [{ top: "50%", left: "-1.5rem", transform: "translateY(-50%)" }, "ซ้าย"],
+            [{ bottom: "10%", left: "-1rem" }, "หลังซ้าย"],
+          ] as const).map(([style, side], i) => (
+            <label key={`left-${i}`} className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
+      bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
+      hover:bg-[#433D8B]/80 transition-all duration-300 hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
+              style={style as React.CSSProperties}
+            >
+              <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { addFiles(e.target.files, side as DamageSide); e.target.value = ""; }}
+              />
+            </label>
+          ))}
+
+
+          {/* ขวาเฉียงบน / กลาง / ล่าง */}
+          {([
+            [{ top: "10%", right: "-1rem" }, "หน้าขวา"],
+            [{ top: "50%", right: "-1.5rem", transform: "translateY(-50%)" }, "ขวา"],
+            [{ bottom: "10%", right: "-1rem" }, "หลังขวา"],
+          ] as const).map(([style, side], i) => (
+            <label key={`right-${i}`} className="group absolute w-10 h-10 flex items-center justify-center rounded-full 
+      bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
+      hover:bg-[#433D8B]/80 transition-all duration-300 hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95"
+              style={style as React.CSSProperties}
+            >
+              <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white" />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { addFiles(e.target.files, side as DamageSide); e.target.value = ""; }}
+              />
+            </label>
+          ))}
+        </div>
+      </div>
 
 
 
@@ -237,8 +226,8 @@ export default function DamagePhotosPanel({
                   <li
                     key={it.id}
                     className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm transition cursor-pointer ${selectedId === it.id
-                        ? "bg-violet-600 text-white"
-                        : "bg-white hover:bg-violet-100 text-zinc-700"
+                      ? "bg-violet-600 text-white"
+                      : "bg-white hover:bg-violet-100 text-zinc-700"
                       }`}
                     onClick={() => setSelectedId(it.id)}
                   >
@@ -248,18 +237,19 @@ export default function DamagePhotosPanel({
                     {/* Dropdown เลือกด้าน */}
                     <select
                       value={it.side}
-                      onChange={(e) =>
-                        setSide(it.id, e.target.value as DamageSide)
-                      }
+                      onChange={(e) => setSide(it.id, e.target.value as DamageSide)}
                       className="rounded-full bg-[#DEDCFF]/70 text-black text-xs px-2 py-1 mr-6"
                     >
                       <option value="ไม่ระบุ">ไม่ระบุ</option>
-                      <option value="ซ้าย">ด้านซ้าย</option>
-                      <option value="ขวา">ด้านขวา</option>
                       <option value="หน้า">ด้านหน้า</option>
                       <option value="หลัง">ด้านหลัง</option>
+                      <option value="ซ้าย">ด้านซ้าย</option>
+                      <option value="ขวา">ด้านขวา</option>
+                      <option value="หน้าซ้าย">หน้าซ้าย</option>
+                      <option value="หลังซ้าย">หลังซ้าย</option>
+                      <option value="หน้าขวา">หน้าขวา</option>
+                      <option value="หลังขวา">หลังขวา</option>
                     </select>
-
                     {/* ปุ่มลบ */}
                     <button
                       type="button"
@@ -268,8 +258,8 @@ export default function DamagePhotosPanel({
                         removeOne(it.id);
                       }}
                       className={`absolute top-1 right-1 rounded-[8px] transition ${selectedId === it.id
-                          ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
-                          : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
+                        ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
+                        : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
                         }`}
                     >
                       <X className="w-4 h-4" />

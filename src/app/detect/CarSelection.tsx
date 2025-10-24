@@ -32,6 +32,7 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
   const [selectedCarIndex, setSelectedCarIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const API_PREFIX = useMemo(
     () => process.env.NEXT_PUBLIC_URL_PREFIX?.replace(/\/$/, '') || '',
@@ -81,7 +82,13 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
 
     fetchPolicies();
   }, [API_PREFIX, citizenId]);
-
+useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAddModal(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const selectedCar =
     selectedCarIndex !== null && selectedCarIndex >= 0 ? cars[selectedCarIndex] : undefined;
 
@@ -189,7 +196,7 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
       </div>
     );
   }
-
+  
   return (
     <div className="mx-auto w-full max-w-5xl px-3 sm:px-4 md:px-6 ">
       <h2 className="text-lg sm:text-xl font-semibold mb-4 text-center text-black">
@@ -235,6 +242,22 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
                 </button>
               );
             })}
+             <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className={[
+                'w-[260px] flex-shrink-0 rounded-2xl p-4 transition-all duration-300 m-2',
+                'flex flex-col items-center justify-center text-center gap-2',
+                'border-2 border-dashed border-violet-300 bg-white hover:border-violet-500 hover:shadow-md'
+              ].join(' ')}
+              aria-label="เพิ่มรถกรมธรรม์"
+            >
+              <div className="w-12 h-12 rounded-xl border-2 border-dashed border-violet-400 grid place-items-center text-2xl text-violet-600">
+                +
+              </div>
+              <div className="font-semibold text-zinc-800">เพิ่มรถกรมธรรม์</div>
+              
+            </button>
           </div>
         </div>
       </div>
@@ -274,7 +297,45 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
           ดำเนินการต่อ
         </button>
       </div>
+       {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-black">เพิ่มรถกรมธรรม์</h4>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="rounded-md p-1 hover:bg-zinc-100"
+                aria-label="ปิด"
+              >
+                ✕
+              </button>
+            </div>
 
+            <p className="mt-3 text-sm text-zinc-700 leading-6">
+              กรุณาติดต่อเจ้าหน้าที่เพื่อเพิ่มรถในระบบของคุณ
+              <br />
+              ช่องทางติดต่อ: โทร 02-123-4567 หรืออีเมล support@example.com
+            </p>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="rounded-[7px] bg-[#6F47E4] hover:bg-[#6F47E4]/90 text-white px-4 py-2 font-medium"
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SafeAreaSpacer />
     </div>
   );
