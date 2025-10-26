@@ -34,34 +34,36 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [adminNote, setAdminNote] = useState<any>(null);
-useEffect(() => {
-  try {
-    const raw = localStorage.getItem("claimAdminNote");
-    if (raw) setAdminNote(JSON.parse(raw));
-  } catch {}
-}, []);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("claimAdminNote");
+      if (raw) setAdminNote(JSON.parse(raw));
+    } catch { }
+  }, []);
   const API_PREFIX = useMemo(
     () => process.env.NEXT_PUBLIC_URL_PREFIX?.replace(/\/$/, '') || '',
     []
   );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-useEffect(() => {
-  // เคลียร์ข้อมูล admin note ที่ค้างจากหน้าแก้ไข
-  localStorage.removeItem("claimAdminNote");
-}, []);
+  useEffect(() => {
+    // เคลียร์ข้อมูล admin note ที่ค้างจากหน้าแก้ไข
+    localStorage.removeItem("claimAdminNote");
+  }, []);
   useEffect(() => {
     // ✅ ล้าง draft ทุกครั้งที่เข้าหน้าเริ่มสร้างเคลม
     localStorage.removeItem(ACC_KEY);
   }, []);
 
   useEffect(() => {
+
     const fetchPolicies = async () => {
       if (!citizenId) {
         setLoading(false);
         setFetchError('ไม่พบ citizenId ของผู้ใช้');
         return;
       }
+
       try {
         setLoading(true);
         setFetchError(null);
@@ -69,9 +71,19 @@ useEffect(() => {
         const res = await fetch(`${API_PREFIX}/api/policy/${citizenId}`, {
           credentials: 'include',
         });
+
         if (!res.ok) throw new Error(`โหลดข้อมูลรถไม่สำเร็จ (HTTP ${res.status})`);
         const data = (await res.json()) as CarItem[];
-        setCars(data || []);
+
+        // 🔹 กรองเฉพาะรถที่ยังไม่หมดอายุความคุ้มครอง
+        const today = new Date();
+        const validCars = (data || []).filter((car) => {
+          if (!car.coverage_end_date) return true; // ถ้าไม่มีวันหมดอายุ ให้ถือว่ายังใช้ได้
+          const endDate = new Date(car.coverage_end_date);
+          return endDate >= today; // ถ้าเกินหรือเท่ากับวันนี้ ให้แสดง
+        });
+
+        setCars(validCars);
 
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
@@ -91,7 +103,7 @@ useEffect(() => {
 
     fetchPolicies();
   }, [API_PREFIX, citizenId]);
-useEffect(() => {
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setShowAddModal(false);
     };
@@ -205,7 +217,7 @@ useEffect(() => {
       </div>
     );
   }
-  
+
   return (
     <div className="mx-auto w-full max-w-5xl px-3 sm:px-4 md:px-6 ">
       <h2 className="text-lg sm:text-xl font-semibold mb-4 text-center text-black">
@@ -223,6 +235,7 @@ useEffect(() => {
             }}
           >
             {cars.map((car, index) => {
+
               const active = index === selectedCarIndex;
               return (
                 <button
@@ -251,7 +264,7 @@ useEffect(() => {
                 </button>
               );
             })}
-             <button
+            <button
               type="button"
               onClick={() => setShowAddModal(true)}
               className={[
@@ -265,7 +278,7 @@ useEffect(() => {
                 +
               </div>
               <div className="font-semibold text-zinc-800">เพิ่มรถกรมธรรม์</div>
-              
+
             </button>
           </div>
         </div>
@@ -306,7 +319,7 @@ useEffect(() => {
           ดำเนินการต่อ
         </button>
       </div>
-       {showAddModal && (
+      {showAddModal && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
           role="dialog"
