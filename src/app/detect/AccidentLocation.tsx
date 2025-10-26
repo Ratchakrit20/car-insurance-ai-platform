@@ -105,11 +105,10 @@ function normalizeCoverageFromAPI(data: any) {
   return { start: "", end: "" };
 }
 
-
-
 export default function AccidentStep2({ onNext, onBack }: StepProps) {
   const router = useRouter();
   const STEP1_URL = "/detect";
+
   // form states
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -118,7 +117,6 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   const [road, setRoad] = useState("");
   const [areaType, setAreaType] = useState("");
   const [nearby, setNearby] = useState("");
-
   const [lat, setLat] = useState<string>("");
   const [lng, setLng] = useState<string>("");
   const [accuracy, setAccuracy] = useState<number | null>(null);
@@ -140,7 +138,26 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
       if (raw) setAdminNote(JSON.parse(raw));
     } catch { }
   }, []);
-
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("claimAdminNote");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setAdminNote(parsed);
+        console.log("Admin Note:", parsed);
+        console.log("Has incident?", !!parsed?.incident);
+        console.log("Incident data:", parsed?.incident);
+      }
+    } catch (e) {
+      console.error("Error parsing admin note:", e);
+    }
+    console.log("Should show admin panel?",
+      !!adminNote?.incident &&
+      adminNote.incident !== null &&
+      typeof adminNote.incident === 'object' &&
+      Object.keys(adminNote.incident).length > 0
+    );
+  }, []);
   const [isSaved, setIsSaved] = useState(false);
   const hasUnsaved = useMemo(() => {
     // มีค่าใด ๆ ถูกกรอก/เลือก ถือว่ายังไม่เซฟ
@@ -153,6 +170,34 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   // 🔧 ใหม่: modal ยืนยันออกหน้า + url ปลายทาง
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
+
+  // Auto-save function
+  const autoSave = () => {
+    const snapshot = {
+      accident_date: date,
+      accident_time: time,
+      province,
+      district,
+      road,
+      areaType,
+      nearby,
+      location: {
+        lat: lat ? Number(lat) : null,
+        lng: lng ? Number(lng) : null,
+        accuracy
+      },
+      coverage_start_date: coverageStart,
+      coverage_end_date: coverageEnd,
+    };
+
+    try {
+      const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
+      localStorage.setItem(ACC_KEY, JSON.stringify({ ...oldDraft, ...snapshot }));
+    } catch (error) {
+      console.warn("Auto-save failed:", error);
+    }
+  };
+
   useLeaveConfirm({
     hasUnsavedChanges: hasUnsaved,
     onConfirmLeave: (url) => {
@@ -172,6 +217,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
       setNextUrl(url);
       setShowLeaveConfirm(true);
     },
+    onAutoSave: autoSave, // เพิ่ม auto-save callback
   });
 
   // โหลด draft + ยิง API หา coverage
@@ -228,6 +274,13 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
     })();
   }, []);
 
+  // ✅ Auto-save: เซฟข้อมูลทุกครั้งที่ฟอร์มเปลี่ยนแปลง
+  useEffect(() => {
+    if (date || time || province || district || road || areaType || nearby || lat || lng) {
+      autoSave();
+    }
+  }, [date, time, province, district, road, areaType, nearby, lat, lng]);
+
   // สำหรับคุม min/max ของ TIME เมื่อวันที่ชน start/end
   const startDT = useMemo(() => toDate(coverageStart), [coverageStart]);
   const endDT = useMemo(() => toDate(coverageEnd), [coverageEnd]);
@@ -241,12 +294,13 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
 
   // min/max ของ date
   const dateMin = coverageStart ? startYMD : undefined;
-const [showAdminPanel, setShowAdminPanel] = useState(true);
+  const [showAdminPanel, setShowAdminPanel] = useState(true);
 
   const dateMax = useMemo(() => {
     if (coverageEnd) return (coverageEnd < todayYMD ? coverageEnd : todayYMD);
     return todayYMD;
   }, [coverageEnd, todayYMD]);
+
   // min/max ของ time เฉพาะตอนเลือกวันชนขอบ
   const timeMin = useMemo(() => {
     if (!date || !startYMD) return undefined;
@@ -324,85 +378,85 @@ const [showAdminPanel, setShowAdminPanel] = useState(true);
   return (
     <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
       <form onSubmit={handleSubmit} className="bg-white p-6 space-y-8">
-      {adminNote?.incident &&
-  (
-    adminNote.incident.comment?.trim() ||
-    adminNote.incident.lat ||
-    adminNote.incident.lng ||
-    adminNote.incident.province ||
-    adminNote.incident.district ||
-    adminNote.incident.road
-  ) && (
-    <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
-      {/* Header + toggle */}
-      <div
-        className="flex justify-between items-center cursor-pointer select-none"
-        onClick={() => setShowAdminPanel?.((prev: boolean) => !prev)}
-      >
-        <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-violet-600" />
-          <p className="font-semibold text-sm sm:text-base text-gray-900">
-            เจ้าหน้าที่แนะนำให้แก้ไขในส่วน{" "}
-            <span className="text-violet-700">“รายละเอียดที่เกิดเหตุ”</span>
-          </p>
-        </div>
-        {showAdminPanel ? (
-          <ChevronUp className="w-4 h-4 text-violet-600" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-violet-600" />
-        )}
-      </div>
-
-      {/* ✅ เนื้อหาที่พับได้ */}
-      {showAdminPanel && (
-        <div className="mt-4 space-y-3 text-sm sm:text-base">
-          {/* ✅ หมายเหตุ */}
-          {adminNote.incident.comment?.trim() && (
-            <div className="bg-white border-l-4 border-violet-500 rounded-lg p-3 shadow-sm">
-              <p className="text-gray-800 leading-relaxed">
-                <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
-                {adminNote.incident.comment}
-              </p>
-            </div>
-          )}
-
-          {/* ✅ พิกัด lat/lng */}
-          {(adminNote.incident.lat && adminNote.incident.lng) && (
-            <div className="flex items-center gap-2 text-gray-700">
-              <MapPin className="w-4 h-4 text-violet-600" />
-              <p>
-                <span className="font-semibold text-violet-700">พิกัดที่แนะนำ:</span>{" "}
-                {adminNote.incident.lat}, {adminNote.incident.lng}
-              </p>
-            </div>
-          )}
-
-          {/* ✅ จังหวัด / อำเภอ / ถนน */}
-          {(adminNote.incident.province ||
-            adminNote.incident.district ||
-            adminNote.incident.road) && (
-            <div className="bg-white border border-violet-100 rounded-xl p-3 shadow-sm">
-              <p className="font-semibold text-violet-700 mb-1 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-violet-600" />
-                พื้นที่ที่แนะนำให้ตรวจสอบ
-              </p>
-              <ul className="ml-5 list-disc space-y-1 text-gray-800 text-sm">
-                {adminNote.incident.province && (
-                  <li>จังหวัด: {adminNote.incident.province}</li>
+       
+        {adminNote?.incident &&
+          adminNote.incident !== null &&
+          typeof adminNote.incident === 'object' &&
+          Object.keys(adminNote.incident).length > 0 && (
+            (adminNote.incident.comment?.trim()?.length > 0 ||
+              (adminNote.incident.lat && adminNote.incident.lng) ||
+              adminNote.incident.province?.trim()?.length > 0 ||
+              adminNote.incident.district?.trim()?.length > 0 ||
+              adminNote.incident.road?.trim()?.length > 0)
+          ) && (
+            <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
+              {/* Header + toggle */}
+              <div
+                className="flex justify-between items-center cursor-pointer select-none"
+                onClick={() => setShowAdminPanel?.((prev: boolean) => !prev)}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-violet-600" />
+                  <p className="font-semibold text-sm sm:text-base text-gray-900">
+                    เจ้าหน้าที่แนะนำให้แก้ไขในส่วน{" "}
+                    <span className="text-violet-700">"รายละเอียดที่เกิดเหตุ"</span>
+                  </p>
+                </div>
+                {showAdminPanel ? (
+                  <ChevronUp className="w-4 h-4 text-violet-600" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-violet-600" />
                 )}
-                {adminNote.incident.district && (
-                  <li>อำเภอ/เขต: {adminNote.incident.district}</li>
-                )}
-                {adminNote.incident.road && <li>ถนน: {adminNote.incident.road}</li>}
-              </ul>
+              </div>
+
+              {/* ✅ เนื้อหาที่พับได้ */}
+              {showAdminPanel && (
+                <div className="mt-4 space-y-3 text-sm sm:text-base">
+                  {/* ✅ หมายเหตุ */}
+                  {adminNote.incident.comment?.trim()?.length > 0 && (
+                    <div className="bg-white border-l-4 border-violet-500 rounded-lg p-3 shadow-sm">
+                      <p className="text-gray-800 leading-relaxed">
+                        <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
+                        {adminNote.incident.comment}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ✅ พิกัด lat/lng */}
+                  {(adminNote.incident.lat && adminNote.incident.lng) && (
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <MapPin className="w-4 h-4 text-violet-600" />
+                      <p>
+                        <span className="font-semibold text-violet-700">พิกัดที่แนะนำ:</span>{" "}
+                        {adminNote.incident.lat}, {adminNote.incident.lng}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ✅ จังหวัด / อำเภอ / ถนน */}
+                  {(adminNote.incident.province?.trim()?.length > 0 ||
+                    adminNote.incident.district?.trim()?.length > 0 ||
+                    adminNote.incident.road?.trim()?.length > 0) && (
+                      <div className="bg-white border border-violet-100 rounded-xl p-3 shadow-sm">
+                        <p className="font-semibold text-violet-700 mb-1 flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-violet-600" />
+                          พื้นที่ที่แนะนำให้ตรวจสอบ
+                        </p>
+                        <ul className="ml-5 list-disc space-y-1 text-gray-800 text-sm">
+                          {adminNote.incident.province?.trim()?.length > 0 && (
+                            <li>จังหวัด: {adminNote.incident.province}</li>
+                          )}
+                          {adminNote.incident.district?.trim()?.length > 0 && (
+                            <li>อำเภอ/เขต: {adminNote.incident.district}</li>
+                          )}
+                          {adminNote.incident.road?.trim()?.length > 0 && <li>ถนน: {adminNote.incident.road}</li>}
+                        </ul>
+                      </div>
+                    )}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
-    </div>
-  )}
-
-
 
         <h2 className="text-base sm:text-lg font-semibold text-zinc-900 text-center mb-3">
           รายละเอียดที่เกิดเหตุ
@@ -542,7 +596,7 @@ const [showAdminPanel, setShowAdminPanel] = useState(true);
             <button
               type="button"
               onClick={() => {
-                // เซฟสถานะว่า ‘ไม่ต้องเตือน’ แล้วกลับเลย
+                // เซฟสถานะว่า 'ไม่ต้องเตือน' แล้วกลับเลย
                 setIsSaved(true);
                 onBack();
               }}

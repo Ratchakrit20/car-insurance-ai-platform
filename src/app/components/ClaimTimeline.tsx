@@ -325,32 +325,34 @@ export default function ClaimTimeline({
         const lastIncompleteIndex = combined.findLastIndex((s) =>
             s.title.includes("เจ้าหน้าที่แจ้งแก้ไขข้อมูล")
         );
-        if (lastIncompleteIndex !== -1 && status !== "approved" && status !== "rejected") {
-            combined[lastIncompleteIndex].action = (
-                <button
-                    onClick={() => (window.location.href = `/claim/edit/${claimId}`)}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium 
-             text-white bg-amber-500 border 
-             hover:bg-amber-400 hover:text-white transition shadow-sm"
-                >
-                    <FaEdit className="text-white" />
-                    แก้ไขข้อมูล
-                </button>
-            );
-        }
+         const isFinalStatus = status === "approved" || status === "rejected" || 
+                         status === "สำเร็จ" || status === "เอกสารไม่ผ่านการตรวจสอบ";
+          if (lastIncompleteIndex !== -1 && !isFinalStatus) {
+        combined[lastIncompleteIndex].action = (
+            <button
+                onClick={() => (window.location.href = `/claim/edit/${claimId}`)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium 
+         text-white bg-amber-500 border 
+         hover:bg-amber-400 hover:text-white transition shadow-sm"
+            >
+                <FaEdit className="text-white" />
+                แก้ไขข้อมูล
+            </button>
+        );
+    }
 
         return combined;
     }, [
-        created_at,
-        incompleteHistory,
-        resubmittedHistory,
-        approved_at,
-        rejected_at,
-        status,
-        adminNote,
-        incompleteAt,
-        claimId,
-    ]);
+    created_at,
+    incompleteHistory,
+    resubmittedHistory,
+    approved_at,
+    rejected_at,
+    status,
+    adminNote,
+    incompleteAt,
+    claimId,
+]);
 
 
     /* -------------------- Render -------------------- */
