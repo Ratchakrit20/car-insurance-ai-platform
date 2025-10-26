@@ -405,95 +405,95 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
       <form onSubmit={handleSubmit} noValidate className="bg-white p-6 space-y-8">
         {/* 🔧 กล่องแสดงคำแนะนำของเจ้าหน้าที่ */}
-      {/* แสดง Admin Panel เฉพาะเมื่อมี accident หรือ evidence data จริงๆ */}
-{(adminNote?.accident?.comment?.trim() || 
-  (Array.isArray(adminNote?.evidence) && adminNote.evidence.some((e: any) => e.checked))) && (
-  <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
-    {/* Header + toggle */}
-    <div
-      className="flex justify-between items-center cursor-pointer select-none"
-      onClick={() => setShowAdminPanel((prev) => !prev)}
-    >
-      <div className="flex items-center gap-2">
-        <AlertCircle className="text-violet-500 w-5 h-5" />
-        <p className="font-semibold text-sm sm:text-base text-gray-900">
-          เจ้าหน้าที่แจ้งให้แก้ไขในส่วน{" "}
-          <span className="text-violet-700">"รายละเอียดอุบัติเหตุ"</span>
-        </p>
-      </div>
-      {showAdminPanel ? (
-        <ChevronUp className="w-4 h-4 text-violet-600" />
-      ) : (
-        <ChevronDown className="w-4 h-4 text-violet-600" />
-      )}
-    </div>
-
-    {/* ✅ เนื้อหาที่พับได้ */}
-    {showAdminPanel && (
-      <div className="mt-4 space-y-5 text-sm sm:text-base">
-        {/* ✅ หมายเหตุหลัก */}
-        {adminNote?.accident?.comment?.trim() && (
-          <div className="bg-white border-l-4 border-violet-500 rounded-lg p-3 shadow-sm">
-            <p className="text-gray-800 leading-relaxed">
-              <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
-              {adminNote.accident.comment}
-            </p>
-          </div>
-        )}
-
-        {/* ✅ ภาพหรือวิดีโอหลักฐาน */}
-        {Array.isArray(adminNote?.evidence) &&
-          adminNote.evidence.some((e: any) => e.checked) && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Camera className="w-4 h-4 text-violet-600" />
-                <p className="font-semibold text-gray-900">
-                  ภาพหรือวิดีโอหลักฐานที่ต้องแก้ไข:
-                </p>
+        {/* แสดง Admin Panel เฉพาะเมื่อมี accident หรือ evidence data จริงๆ */}
+        {(adminNote?.accident?.comment?.trim() ||
+          (Array.isArray(adminNote?.evidence) && adminNote.evidence.some((e: any) => e.checked))) && (
+            <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
+              {/* Header + toggle */}
+              <div
+                className="flex justify-between items-center cursor-pointer select-none"
+                onClick={() => setShowAdminPanel((prev) => !prev)}
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="text-violet-500 w-5 h-5" />
+                  <p className="font-semibold text-sm sm:text-base text-gray-900">
+                    เจ้าหน้าที่แจ้งให้แก้ไขในส่วน{" "}
+                    <span className="text-violet-700">"รายละเอียดอุบัติเหตุ"</span>
+                  </p>
+                </div>
+                {showAdminPanel ? (
+                  <ChevronUp className="w-4 h-4 text-violet-600" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-violet-600" />
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {adminNote.evidence
-                  .filter((e: any) => e.checked)
-                  .flatMap((e: any, i: number) =>
-                    (Array.isArray(e.url) ? e.url : [e.url]).map(
-                      (u: string, j: number) => (
-                        <div
-                          key={`${i}-${j}`}
-                          className="relative rounded-xl overflow-hidden border border-violet-200 bg-white shadow-sm hover:shadow-md transition-all duration-150"
-                        >
-                          {/\.(mp4|mov|webm)$/i.test(u) ? (
-                            <video
-                              src={u}
-                              controls
-                              className="w-full h-40 object-cover bg-black"
-                            />
-                          ) : (
-                            <img
-                              src={u}
-                              alt={`evidence-${i}-${j}`}
-                              className="w-full h-40 object-cover"
-                            />
-                          )}
-                          {e.comment?.trim() && (
-                            <p className="text-xs text-gray-700 bg-violet-50 p-2 border-t border-violet-100">
-                              <span className="font-semibold text-violet-700">
-                                หมายเหตุ:
-                              </span>{" "}
-                              {e.comment}
-                            </p>
-                          )}
-                        </div>
-                      )
-                    )
+              {/* ✅ เนื้อหาที่พับได้ */}
+              {showAdminPanel && (
+                <div className="mt-4 space-y-5 text-sm sm:text-base">
+                  {/* ✅ หมายเหตุหลัก */}
+                  {adminNote?.accident?.comment?.trim() && (
+                    <div className="bg-white border-l-4 border-violet-500 rounded-lg p-3 shadow-sm">
+                      <p className="text-gray-800 leading-relaxed">
+                        <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
+                        {adminNote.accident.comment}
+                      </p>
+                    </div>
                   )}
-              </div>
+
+                  {/* ✅ ภาพหรือวิดีโอหลักฐาน */}
+                  {Array.isArray(adminNote?.evidence) &&
+                    adminNote.evidence.some((e: any) => e.checked) && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Camera className="w-4 h-4 text-violet-600" />
+                          <p className="font-semibold text-gray-900">
+                            ภาพหรือวิดีโอหลักฐานที่ต้องแก้ไข:
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {adminNote.evidence
+                            .filter((e: any) => e.checked)
+                            .flatMap((e: any, i: number) =>
+                              (Array.isArray(e.url) ? e.url : [e.url]).map(
+                                (u: string, j: number) => (
+                                  <div
+                                    key={`${i}-${j}`}
+                                    className="relative rounded-xl overflow-hidden border border-violet-200 bg-white shadow-sm hover:shadow-md transition-all duration-150"
+                                  >
+                                    {/\.(mp4|mov|webm)$/i.test(u) ? (
+                                      <video
+                                        src={u}
+                                        controls
+                                        className="w-full h-40 object-cover bg-black"
+                                      />
+                                    ) : (
+                                      <img
+                                        src={u}
+                                        alt={`evidence-${i}-${j}`}
+                                        className="w-full h-40 object-cover"
+                                      />
+                                    )}
+                                    {e.comment?.trim() && (
+                                      <p className="text-xs text-gray-700 bg-violet-50 p-2 border-t border-violet-100">
+                                        <span className="font-semibold text-violet-700">
+                                          หมายเหตุ:
+                                        </span>{" "}
+                                        {e.comment}
+                                      </p>
+                                    )}
+                                  </div>
+                                )
+                              )
+                            )}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              )}
             </div>
           )}
-      </div>
-    )}
-  </div>
-)}
 
         {/* Accident Type */}
         <div className="mb-5">
