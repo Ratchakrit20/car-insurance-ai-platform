@@ -1,6 +1,12 @@
 "use client";
 import type { InsurancePolicy } from "@/types/claim";
 import PolicyCard from "./PolicyCard";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export default function PoliciesGrid({
   items,

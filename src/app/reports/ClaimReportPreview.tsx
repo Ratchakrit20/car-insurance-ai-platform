@@ -29,10 +29,11 @@ export function mapClaimData(d: any) {
       insurance_type: d.insurance_type ?? "-",
       policy_number: d.policy_number ?? "-",
       coverage_end_date: d.coverage_end_date ?? "",
-  coverage_start_date: d.coverage_start_date ?? d.coverage_start ??  "", // ✅
+      coverage_start_date: d.coverage_start_date ?? d.coverage_start ?? "", // ✅
       insured_name: d.insured_name ?? "-",
       car_path: d.car_path ?? "",
-      chassis_number: "",
+      chassis_number: d.chassis_number ?? "",
+
     },
 
     // ✅ Draft object
@@ -56,16 +57,38 @@ export function mapClaimData(d: any) {
         : [],
       damagePhotos: Array.isArray(d.damage_images)
         ? d.damage_images.map((img: any) => ({
-            url: img.original_url,
-            note: img.damage_note,
-            side: img.side,
-            annotations: img.annotations,
-          }))
+          url: img.original_url,
+          note: img.damage_note,
+          side: img.side,
+          annotations: img.annotations,
+        }))
         : [],
     },
   };
 }
+function formatDateTime(dateStr?: string, timeStr?: string) {
+  if (!dateStr) return "ไม่ระบุ";
+  try {
+    // แปลงเป็น Date แล้วปรับ timezone ให้เป็นเวลาท้องถิ่นไทย
+    const date = new Date(dateStr);
+    const formattedDate = date.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
+    // ถ้ามีเวลา ให้แสดงด้วย
+    if (timeStr) {
+      // ตัดเฉพาะ HH:mm
+      const formattedTime = timeStr.slice(0, 5);
+      return `${formattedDate} เวลา ${formattedTime} น.`;
+    }
+
+    return formattedDate;
+  } catch {
+    return dateStr; // fallback
+  }
+}
 /* ---------- Component หลัก ---------- */
 type Props = {
   car: Car | null;
@@ -80,7 +103,8 @@ export default function ClaimReportPreview({ car, draft }: Props) {
       </div>
     );
   }
-
+  console.log("🚗 car:", car);
+  console.log("🧾 damagePhotos:", draft.damagePhotos);
   return (
     <div className="mx-auto max-w-6xl bg-white rounded-2xl shadow-lg p-6">
       {/* ---------- Header ---------- */}
@@ -90,7 +114,7 @@ export default function ClaimReportPreview({ car, draft }: Props) {
           <h2 className="text-lg font-bold">ตรวจสอบการเคลมของคุณ</h2>
           <p className="mt-2 text-sm">ผู้เอาประกัน</p>
           <span className="font-semibold">{car.insured_name}</span>
-          <p className="text-sm">{car.policy_number}</p>
+          <p className="text-sm">หมายเลขกรมธรรม์: {car.policy_number}</p>
         </div>
 
         {/* กลาง: ข้อมูลรถ */}
@@ -126,26 +150,21 @@ export default function ClaimReportPreview({ car, draft }: Props) {
           <h2 className="font-semibold mb-3">รายละเอียดที่เกิดเหตุ</h2>
           <div className="w-full h-[200px] bg-zinc-200 flex items-center justify-center rounded overflow-hidden">
             {Number(draft.location?.lat) !== 0 &&
-            Number(draft.location?.lng) !== 0 ? (
+              Number(draft.location?.lng) !== 0 ? (
               <MapPreview lat={draft.location.lat} lng={draft.location.lng} />
             ) : (
               <div className="text-zinc-500">ไม่มีพิกัด</div>
             )}
           </div>
-          <p className="text-sm">
-            <span className="font-medium">วัน/เวลา:</span>{" "}
-            {draft.accident_date ? new Date(draft.accident_date).toLocaleString("th-TH") : "-"}{" "}
-            {draft.accident_time}
-          </p>
+          <p className="text-sm"><span className="font-medium">วัน/เวลา:</span>   {formatDateTime(draft.accident_date, draft.accident_time)}</p>
           <p className="text-sm">
             <span className="font-medium">สถานที่:</span>{" "}
-                {draft.province || draft.district || draft.road
-                  ? `${draft.province || ""} ${draft.district || ""} ${
-                      draft.road || ""
-                    }`.trim()
-                  : "ไม่ระบุ" + " (" + (draft.location?.lat && draft.location?.lng
-                      ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
-                      : "ไม่มีพิกัด") + ")"}
+            {draft.province || draft.district || draft.road
+              ? `${draft.province || ""} ${draft.district || ""} ${draft.road || ""
+                }`.trim()
+              : "ไม่ระบุ" + " (" + (draft.location?.lat && draft.location?.lng
+                ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
+                : "ไม่มีพิกัด") + ")"}
           </p>
           <p className="text-sm">
             <span className="font-medium">ประเภทพื้นที่:</span>{" "}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useEffect,} from "react";
 import { useRouter } from "next/navigation";
 import { Prompt, Noto_Sans_Thai, Inter } from 'next/font/google';
 const headingFont = Prompt({ subsets: ['thai', 'latin'], weight: ['600', '700'], display: 'swap' });
@@ -47,80 +47,112 @@ export default function ImageList({
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [incompleteReason, setIncompleteReason] = useState("");
   const router = useRouter();
-
+  const [incompleteData, setIncompleteData] = useState({
+    damage: [] as { url: string; side?: string; comment: string; checked: boolean }[],
+    note: "",
+  });
+  
   // ✅ ฟังก์ชันอัปเดตสถานะ (ครบทั้ง approve / reject / incomplete)
-    // ✅ ฟังก์ชันอัปเดตสถานะ (ครบทั้ง approve / reject / incomplete)
-  async function patchStatus(
-    next: "approved" | "rejected" | "incomplete",
-    note?: string
-  ) {
-    if (!claimId) return;
-    try {
-      setActionLoading(
-        next === "approved" ? "approve" : next === "rejected" ? "reject" : "incomplete"
-      );
+  // ✅ ฟังก์ชันอัปเดตสถานะ (ครบทั้ง approve / reject / incomplete)
+ async function patchStatus(
+  next: "approved" | "rejected" | "incomplete",
+  note?: string // note จะถูกส่งเป็น JSON.stringify(incompleteData)
+) {
+  if (!claimId) return;
+  try {
+    setActionLoading(
+      next === "approved"
+        ? "approve"
+        : next === "rejected"
+        ? "reject"
+        : "incomplete"
+    );
 
-      const now = new Date().toISOString();
-      const admin = adminId ? Number(adminId) : null;
+    const now = new Date().toISOString();
+    const admin = adminId ? Number(adminId) : null;
 
-      // ✅ เตรียม body ตามสถานะ
-      const body: Record<string, any> = {
-        status: next,
-        admin_note: note ?? null,
-      };
+    // ✅ เตรียม body สำหรับส่งไป backend
+    const body: Record<string, any> = {
+      status: next,
+      admin_note: note ?? null, // note จะเป็น JSON string จาก incompleteData
+    };
 
-      if (next === "approved") {
-        body.approved_by = admin;
-        body.approved_at = now;
-      } else if (next === "rejected") {
-        body.rejected_by = admin;
-        body.rejected_at = now;
-      } else if (next === "incomplete") {
-        body.incomplete_by = admin;
-        body.incomplete_at = now;
+    if (next === "approved") {
+      body.approved_by = admin;
+      body.approved_at = now;
+    } else if (next === "rejected") {
+      body.rejected_by = admin;
+      body.rejected_at = now;
+    } else if (next === "incomplete") {
+      body.incomplete_by = admin;
+      body.incomplete_at = now;
 
-        // ✅ ดึง incomplete_history เดิมจาก backend มาก่อน
-        const res = await fetch(`${URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`, {
-          credentials: "include",
+      // ✅ ดึง incomplete_history เดิมจาก backend
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `${URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
-        });
-        const json = await res.json();
-        const prevHistory = json?.data?.incomplete_history || [];
+        }
+      );
+      const json = await res.json();
+      const prevHistory = json?.data?.incomplete_history || [];
 
-        // ✅ เพิ่มรอบใหม่ลงไป
-        body.incomplete_history = [
-          ...prevHistory,
-          { time: now, note: note || "" },
-        ];
-      }
-
-      // ✅ ส่ง PATCH ไป backend
-      const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
-
-      const j = await resp.json();
-      if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
-
-      if (next === "incomplete") {
-        setShowIncomplete(false);
-        setIncompleteReason("");
-      }
-
-      router.push("/adminpage/reportsrequest");
-    } catch (e: any) {
-      alert(e?.message ?? "เกิดข้อผิดพลาด");
-    } finally {
-      setActionLoading(null);
+      // ✅ เพิ่มรอบใหม่เข้าไปในประวัติ พร้อมเก็บ note (JSON string)
+      body.incomplete_history = [
+        ...prevHistory,
+        {
+          time: now,
+          note: note ?? "", // เก็บ JSON ที่ serialize แล้ว
+        },
+      ];
     }
-  }
 
+    // ✅ ส่ง PATCH ไป backend
+    const token = localStorage.getItem("token");
+    const resp = await fetch(`${URL_PREFIX}/api/claim-requests/${claimId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const j = await resp.json();
+    if (!resp.ok || !j?.ok) throw new Error(j?.message || "อัปเดตสถานะไม่สำเร็จ");
+
+    // ✅ ปิด modal เมื่อบันทึก incomplete สำเร็จ
+    if (next === "incomplete") {
+      setShowIncomplete(false);
+      setIncompleteReason("");
+    }
+
+    router.push("/adminpage/reportsrequest");
+  } catch (e: any) {
+    alert(e?.message ?? "เกิดข้อผิดพลาด");
+  } finally {
+    setActionLoading(null);
+  }
+}
+
+useEffect(() => {
+  if (showIncomplete) {
+    setIncompleteData({
+      damage: images.map((img) => ({
+        url: img.url,
+        side: img.side,
+        checked: false,
+        comment: "",
+      })),
+      note: "",
+    });
+  }
+}, [showIncomplete, images]);
 
   return (
-        <div className={`${thaiFont.className} rounded-[8px] bg-white ring-1 ring-zinc-200 shadow-sm p-3`}>
+    <div className={`${thaiFont.className} rounded-[8px] bg-white ring-1 ring-zinc-200 shadow-sm p-3`}>
 
       <div className="mb-2 text-sm font-medium text-zinc-700">รายการรูปภาพ</div>
 
@@ -136,10 +168,9 @@ export default function ImageList({
               key={i}
               onClick={() => onSelect(i)}
               className={`w-full flex items-center gap-3 rounded-[8px] p-2 ring-1 transition
-                ${
-                  i === activeIndex
-                    ? "bg-emerald-50 ring-emerald-200"
-                    : "bg-white ring-zinc-200 hover:bg-zinc-50"
+                ${i === activeIndex
+                  ? "bg-[#DEDCFF] ring-[#6F47E4]"
+                  : "bg-white ring-zinc-200 hover:bg-zinc-50"
                 }`}
               title={img.side || `ภาพที่ ${i + 1}`}
             >
@@ -178,75 +209,104 @@ export default function ImageList({
       {/* ปุ่มเปิด modal “รูปภาพไม่ชัด” */}
       <button
         onClick={() => setShowIncomplete(true)}
-        className="mt-3 h-11 w-full rounded-[8px] bg-gradient-to-r from-red-500 to-red-600 
+        className="mt-3 h-11 w-full rounded-[8px] bg-[#F59E0B]  
                   text-sm font-semibold text-white shadow-md 
-                  hover:from-red-600 hover:to-red-700 
-                  focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1"
+                  hover:bg-[#D97706]
+                  "
       >
         รูปภาพไม่ชัด
       </button>
 
       {/* ปุ่มย้อนกลับ */}
       <button
-        className="mt-3 w-full h-11 rounded-[8px] bg-gradient-to-r from-indigo-500 to-indigo-600
-                  text-sm font-semibold text-white shadow-md 
-                  hover:from-indigo-600 hover:to-indigo-700 
-                  focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1"
+        className="mt-3 w-full h-11 rounded-[8px] bg-[#D9D9D9]
+                  text-sm font-semibold text-black shadow-md 
+                  hover:bg-[#D9D9D9]/50
+                  "
         onClick={onBack}
       >
-         ย้อนกลับ
+        ย้อนกลับ
       </button>
 
       {/* Modal: ข้อมูลไม่ครบ */}
       {showIncomplete && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 print:hidden">
-          <div className="w-[calc(100%-2rem)] max-w-lg rounded-xl bg-white p-4 shadow sm:p-5">
-            <h4 className="text-base text-black font-semibold">ข้อมูลไม่ครบ / ภาพไม่ชัด</h4>
-            <p className="mt-1 text-sm text-black">
-              โปรดระบุสาเหตุหรือสิ่งที่ต้องการให้ลูกค้าแก้ไขเพิ่มเติม
-            </p>
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="w-[calc(100%-2rem)] max-w-3xl rounded-2xl bg-white shadow-xl p-6 relative">
+      <h4 className="text-lg font-semibold text-amber-600 mb-4">
+        ข้อมูลไม่ครบ / ภาพไม่ชัด
+      </h4>
+
+      <p className="text-sm text-gray-700 mb-6">
+        โปรดเลือกภาพที่ต้องการให้ลูกค้าแก้ไข พร้อมระบุรายละเอียด
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-auto">
+        {images.map((img, i) => (
+          <div
+            key={i}
+            className="rounded-lg bg-white border border-gray-200 p-2 shadow-sm"
+          >
+            <img
+              src={img.url}
+              alt={`damage-${i}`}
+              className="rounded-md w-full h-32 object-cover"
+            />
+            <p className="text-xs text-gray-600 mt-1">{img.side || "ไม่ระบุ"}</p>
+
+            <label className="flex items-center gap-2 mt-2 text-black text-sm">
+              <input
+                type="checkbox"
+                className="accent-[#F59E0B]"
+                onChange={(e) =>
+                  setIncompleteData((prev) => {
+                    const newDamage = [...prev.damage];
+                    newDamage[i].checked = e.target.checked;
+                    return { ...prev, damage: newDamage };
+                  })
+                }
+              />
+              ต้องแก้ไข
+            </label>
 
             <textarea
-              className="mt-3 min-h-[120px] w-full text-black rounded-lg border border-zinc-300 p-3 outline-none focus:ring-2 focus:ring-amber-200"
-              placeholder="พิมพ์รายละเอียด…"
-              value={incompleteReason}
-              onChange={(e) => setIncompleteReason(e.target.value)}
+              placeholder="ระบุปัญหา เช่น ภาพเบลอ / ถ่ายไม่เห็นชัด"
+              className="mt-2 w-full rounded-lg border border-gray-200 bg-white p-1 text-xs text-gray-800 focus:ring-2 focus:ring-[#F59E0B]/40 outline-none transition"
+              onChange={(e) =>
+                setIncompleteData((prev) => {
+                  const newDamage = [...prev.damage];
+                  newDamage[i].comment = e.target.value;
+                  return { ...prev, damage: newDamage };
+                })
+              }
             />
-
-            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              {/* ยกเลิก */}
-              <button
-                onClick={() => setShowIncomplete(false)}
-                disabled={actionLoading === "incomplete"}
-                className="h-10 rounded-lg border border-zinc-300 bg-white px-4 
-                              text-sm font-medium text-zinc-700 shadow-sm
-                              hover:bg-zinc-50 hover:border-zinc-400
-                              disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ยกเลิก
-              </button>
-
-              {/* ยืนยัน */}
-              <button
-                onClick={() => patchStatus("incomplete", incompleteReason.trim())}
-                disabled={
-                  actionLoading === "incomplete" || !incompleteReason.trim()
-                }
-                className={`h-10 rounded-lg px-5 text-sm font-semibold text-white shadow-md
-                      ${
-                        actionLoading === "incomplete"
-                          ? "bg-red-400 cursor-wait"
-                          : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
-                      }`}
-              >
-                {actionLoading === "incomplete"
-                  ? "กำลังส่ง…"
-                  : "ยืนยันข้อมูลไม่ครบ"}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+
+      <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3">
+        <button
+          onClick={() => setShowIncomplete(false)}
+          className="h-10 rounded-lg px-4 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          ยกเลิก
+        </button>
+        <button
+onClick={() => patchStatus("incomplete", JSON.stringify(incompleteData))}
+          disabled={actionLoading === "incomplete"}
+          className={`h-10 rounded-lg px-6 text-sm font-semibold text-white shadow-sm transition ${
+            actionLoading === "incomplete"
+              ? "bg-[#FCD34D] cursor-wait"
+              : "bg-[#F59E0B] hover:bg-[#D97706]"
+          }`}
+        >
+          {actionLoading === "incomplete" ? "กำลังส่ง…" : "ยืนยันข้อมูลไม่ครบ"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }

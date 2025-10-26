@@ -7,8 +7,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { User, ClaimItem, ClaimReportRow, ClaimStatus, Car, AccidentDraft, DamagePhoto } from "@/types/claim";
 import AccidentDetail from "@/app/adminpage/reportsall/accidentdetail";
 import ClaimDocument from "@/app/components/ClaimDocument";
+import LoadingScreen from "@/app/components/LoadingScreen";
+import { CalendarDays, CarFront, Wrench } from "lucide-react";
 // ---------- Config ----------
 const URL_PREFIX = process.env.NEXT_PUBLIC_URL_PREFIX || "";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 // ---------- Types ----------
 type ApiAuth = { user: User | null; isAuthenticated: boolean };
@@ -52,10 +60,10 @@ async function fetchAuth(): Promise<ApiAuth> {
 async function fetchClaimsAll(): Promise<ClaimItem[]> {
   // ใช้ listall เดิม แล้ว normalize ฟิลด์ให้เป็น ClaimItem
   const token = localStorage.getItem("token");
-const res = await fetch(`${URL_PREFIX}/api/claim-requests/listall`, {
-  cache: "no-store",
-  headers: { Authorization: `Bearer ${token}` },
-});
+  const res = await fetch(`${URL_PREFIX}/api/claim-requests/listall`, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error("โหลดรายการไม่สำเร็จ");
   const json = await res.json();
   const rows: ClaimReportRow[] = json?.data ?? [];
@@ -128,10 +136,10 @@ function ClaimDocumentWrapper({ claimId }: { claimId: string }) {
     (async () => {
       try {
         const token = localStorage.getItem("token");
-const res = await fetch(
-  `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
-  { headers: { Authorization: `Bearer ${token}` } }
-);
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_URL_PREFIX}/api/claim-requests/detail?claim_id=${claimId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         const json = await res.json();
         if (json.ok) {
           setDetail(json.data);
@@ -197,9 +205,10 @@ function ReviewedCard({
       : "";
 
   return (
-    <div
-      className={`group relative overflow-hidden rounded-3xl border ${borderColor} shadow-sm hover:shadow-md transition-all duration-200`}
-    >
+        <div className={`${thaiFont.className} group relative overflow-hidden rounded-[8px] border ${borderColor} shadow-sm hover:shadow-md transition-all duration-200`}>
+
+   
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h3 className="truncate text-lg font-semibold text-emerald-800">
@@ -209,11 +218,11 @@ function ReviewedCard({
       </div>
 
       {/* Divider */}
-      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-zinc-100 to-transparent mb-3" />
+      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent mb-3" />
 
-      <div className="flex gap-4 px-5 pb-5">
-        {/* รูปภาพรถ */}
-        <div className="relative h-28 w-40 shrink-0 overflow-hidden rounded-xl ring-1 ring-emerald-100 bg-zinc-50">
+      <div className="flex gap-5 px-5 pb-5 group bg-white rounded rounded-[8px] shadow-md hover:shadow-lg border border-[#DEDCFF]/60 transition-all duration-300">
+        {/* 🔹 รูปภาพรถ */}
+        <div className="relative h-28 w-44 shrink-0 overflow-hidden rounded-[8px] s bg-[#F9F8FF] ring-1 ring-[#DEDCFF]">
           {item.car_path ? (
             <img
               src={
@@ -225,32 +234,35 @@ function ReviewedCard({
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-zinc-400">
+            <div className="flex h-full w-full items-center justify-center text-zinc-400 text-sm">
               ไม่มีรูป
             </div>
           )}
         </div>
 
-        {/* ข้อมูลหลัก */}
-        <div className="flex-1 space-y-2 text-sm text-zinc-700">
+        {/* 🔹 ข้อมูลหลัก */}
+        <div className="flex-1 space-y-3 text-sm text-zinc-700">
+          {/* วันที่แจ้งเคลม */}
           <div className="flex items-center gap-2">
-            <span className="text-emerald-500">📅</span>
+            <CalendarDays className="w-4 h-4 text-black" />
             <span className="text-zinc-500">วันที่แจ้งเคลม:</span>
             <span className="font-medium text-zinc-800">
               {thDate(item.incidentDate)}
             </span>
           </div>
 
+          {/* ประเภทอุบัติเหตุ */}
           <div className="flex items-center gap-2">
-            <span className="text-emerald-500">💥</span>
+             <CarFront className="w-4 h-4 text-black" />
             <span className="text-zinc-500">ประเภทอุบัติเหตุ:</span>
             <span className="font-medium text-zinc-800">
               {item.incidentType ?? "-"}
             </span>
           </div>
 
+          {/* ความเสียหาย */}
           <div className="flex items-start gap-2">
-            <span className="text-emerald-500 mt-[2px]">🛠️</span>
+            <Wrench className="w-4 h-4 text-black mt-[2px]" />
             <div>
               <span className="text-zinc-500">ความเสียหาย:</span>{" "}
               <span className="font-medium text-zinc-800">
@@ -264,56 +276,55 @@ function ReviewedCard({
             </div>
           </div>
 
-          {/* เส้นแบ่งเล็ก */}
-          <div className="my-2 h-[1px] w-full bg-gradient-to-r from-transparent via-zinc-100 to-transparent" />
+          {/* เส้นคั่น */}
+          <div className="my-2 h-[1px] w-full bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent" />
 
           {/* ปุ่มแอ็กชัน */}
-          <div className="flex flex-wrap justify-between items-center gap-2">
-            {/* แสดงเฉพาะปุ่ม “ดูรายงาน PDF” สำหรับ ปฏิเสธ / ไม่ครบ */}
-            {(isRejected || isIncomplete || isApproved) ? (
+          <div className="flex justify-end">
+            {(isRejected || isIncomplete || isApproved) && (
               <button
                 onClick={() => setOpenId(item.id)}
-                className={`inline-flex items-center gap-2 rounded-full ${isApproved
-                  ? "bg-zinc-900 hover:bg-zinc-800"
-                  : isRejected
-                    ? "bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600"
-                    : "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600"
-                  } px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition`}
+                className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all duration-200 ${isApproved
+                    ? "bg-emerald-500 hover:bg-emerald-300"
+                    : isRejected
+                      ? "bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600"
+                      : "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600"
+                  }`}
               >
-                {isApproved ? "🔍 เปิดรายละเอียด" : "📄 ดูรายงาน PDF"}
+                {isApproved ? " เปิดรายละเอียด" : "ดูรายงาน"}
               </button>
-            ) : null}
-
+            )}
           </div>
         </div>
       </div>
-      {openId && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-    <div className="relative max-h-[95vh] w-full max-w-[820px] overflow-y-auto rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
-      {/* header modal */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2 backdrop-blur">
-        <div className="text-sm font-medium text-zinc-700">
-          📄 รายงานรายละเอียดเคลม
-        </div>
-        <button
-          onClick={() => setOpenId(null)}
-          className="rounded-md bg-zinc-900/5 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-900/10"
-        >
-          ปิด
-        </button>
-      </div>
 
-      {/* body modal */}
-      <div className="p-4">
-        {isApproved ? (
-          <ClaimDocumentWrapper claimId={openId} />
-        ) : (
-          <AccidentDetail claimId={openId} onClose={() => setOpenId(null)} />
-        )}
-      </div>
-    </div>
-  </div>
-)}
+      {openId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="relative max-h-[95vh] w-full max-w-[820px] overflow-y-auto rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
+            {/* header modal */}
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2 backdrop-blur">
+              <div className="text-sm font-medium text-zinc-700">
+                📄 รายงานรายละเอียดเคลม
+              </div>
+              <button
+                onClick={() => setOpenId(null)}
+                className="rounded-md bg-zinc-900/5 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-900/10"
+              >
+                ปิด
+              </button>
+            </div>
+
+            {/* body modal */}
+            <div className="p-4">
+              {isApproved ? (
+                <ClaimDocumentWrapper claimId={openId} />
+              ) : (
+                <AccidentDetail claimId={openId} onClose={() => setOpenId(null)} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </div>
@@ -341,23 +352,23 @@ export default function ReportsReviewedPage() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfDetail, setPdfDetail] = useState<PdfDetail | null>(null);
-useEffect(() => {
-  (async () => {
-    try {
-      const data = await fetchAuth();
-      if (!data.isAuthenticated) {
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchAuth();
+        if (!data.isAuthenticated) {
+          localStorage.removeItem("token");
+          router.replace("/login");
+          return;
+        }
+        setUser(data.user ?? null);
+        setIsAuthenticated(true);
+      } catch {
         localStorage.removeItem("token");
         router.replace("/login");
-        return;
       }
-      setUser(data.user ?? null);
-      setIsAuthenticated(true);
-    } catch {
-      localStorage.removeItem("token");
-      router.replace("/login");
-    }
-  })();
-}, [router]);
+    })();
+  }, [router]);
   // โหลดสิทธิ์
   useEffect(() => {
     let cancelled = false;
@@ -374,7 +385,7 @@ useEffect(() => {
     return () => { cancelled = true; };
   }, []);
 
-   useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated !== true) return;
     (async () => {
       try {
@@ -436,9 +447,9 @@ useEffect(() => {
 
   // -------- states --------
   if (isAuthenticated === null) {
-    return <div className="mx-auto max-w-6xl px-4 py-10 text-zinc-500">กำลังตรวจสอบสิทธิ์…</div>;
+    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;
   }
- 
+
 
   if (loading) return <PageSkeleton />;
 
@@ -527,12 +538,11 @@ useEffect(() => {
 function Header({ totals }: { totals: { all: number; approved: number; rejected: number; incomplete: number } }) {
   return (
     <>
-      <header className="mb-4 lg:mb-6">
+        <header className={`${thaiFont.className} mb-4 lg:mb-6`}>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300">
-              ✅
-            </div>
+
             <div>
               <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
                 เคสที่พิจารณาแล้ว (อนุมัติ/ปฏิเสธ/ข้อมูลไม่ครบ)

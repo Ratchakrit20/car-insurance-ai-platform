@@ -3,6 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { X, Loader2, Image as ImageIcon, Trash2 } from "lucide-react";
 import type { InsurancePolicy } from "@/types/claim";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 type MediaItem = { url: string; type: "image" | "video"; publicId: string };
 

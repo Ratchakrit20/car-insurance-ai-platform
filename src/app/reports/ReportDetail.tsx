@@ -160,7 +160,10 @@ export default function ReportDetail({
                 <dt className="font-medium text-black mb-1">ประเภทพื้นที่</dt>
                 <dd className="pl-2 text-zinc-600">{claim.areaType ?? "-"}</dd>
               </div>
-            
+            <div>
+                <dt className="font-medium text-black mb-1">จุดสังเกต</dt>
+                <dd className="pl-2 text-zinc-600">{claim.nearby ?? "-"}</dd>
+              </div>
           </div>
         </div>
 

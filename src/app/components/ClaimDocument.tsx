@@ -337,7 +337,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
       {/* ---------- Header ---------- */}
       <div className="rounded-xl p-4 sm:p-5 text-black">
         <div className="mb-2 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-full border border-zinc-300">🚗</div>
+        
           <div>
             <div className="text-[22px] font-extrabold leading-tight">
               {car.insurance_company}

@@ -1,14 +1,15 @@
+// ✅ ClaimEditPage.tsx (เวอร์ชัน redirect อัตโนมัติ)
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import LoadingScreen from "@/app/components/LoadingScreen";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_URL_PREFIX ||
   "https://cdd-backend-deyv.onrender.com";
 
 export default function ClaimEditPage() {
-  const { id } = useParams(); // claim_id
+  const { id } = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,47 +19,31 @@ export default function ClaimEditPage() {
 
     (async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
-
-        const res = await fetch(
-          `${API_BASE}/api/claim-requests/detail?claim_id=${encodeURIComponent(String(id))}`,
-          {
-            // ถ้า backend ใช้ Bearer token ให้ส่ง; ถ้าใช้คุ้กกี้ค่อยใส่ credentials: "include"
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            cache: "no-store",
-          }
-        );
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`โหลดข้อมูลไม่สำเร็จ (${res.status}) ${text || ""}`);
-        }
-
+        const res = await fetch(`${API_BASE}/api/claim-requests/detail?claim_id=${id}`);
         const json = await res.json();
         if (!json.ok) throw new Error(json.message || "โหลดข้อมูลไม่สำเร็จ");
 
         const d = json.data;
 
-        // ✅ เก็บข้อมูลรถ (สำหรับ Step 0)
+        // ✅ เก็บข้อมูล admin note และ accidentDraft ลง localStorage
+        localStorage.setItem("claimAdminNote", JSON.stringify(d.admin_note || {}));
+
         const car = {
           id: d.selected_car_id,
+          car_path:d.car_path,
+          insured_name:d.insured_name,
           car_brand: d.car_brand,
           car_model: d.car_model,
           car_year: d.car_year,
           car_license_plate: d.license_plate,
           registration_province: d.registration_province,
           policy_number: d.policy_number,
-          insurance_company: "ไม่ระบุ",
           insurance_type: d.insurance_type,
           coverage_end_date: d.coverage_end_date,
-          car_path: d.car_path,
+          chassis_number:d. chassis_number
         };
         localStorage.setItem("claimSelectedCar", JSON.stringify(car));
 
-        // ✅ เก็บ draft อุบัติเหตุ (สำหรับ Step 1–3)
         const accidentDraft = {
           accidentType: d.accident_type,
           accident_date: d.accident_date,
@@ -78,7 +63,7 @@ export default function ClaimEditPage() {
             ? [{ url: d.evidence_file_url, type: d.media_type || "image" }]
             : [],
           damagePhotos: Array.isArray(d.damage_images)
-            ? d.damage_images.map((img: { id: number; original_url: string; side?: string | null; damage_note?: string | null; }) => ({
+            ? d.damage_images.map((img: any) => ({
                 id: img.id,
                 url: img.original_url,
                 type: "image",
@@ -86,17 +71,16 @@ export default function ClaimEditPage() {
                 note: img.damage_note || "",
               }))
             : [],
-          claim_id: d.claim_id, // ✅ เก็บไว้ใช้ตอน submit update
-          status: d.status, // ✅ ให้ ReviewConfirm ตรวจว่าเป็น incomplete
+          claim_id: d.claim_id,
+          status: d.status,
         };
-
         localStorage.setItem("accidentDraft", JSON.stringify(accidentDraft));
 
-        // ✅ ไปหน้า detect flow เดิม พร้อมโหลดข้อมูลเก่า
+        // ✅ ไปหน้ากรอกข้อมูลเคลมโดยอัตโนมัติ
         router.push("/detect?step=4");
       } catch (e: any) {
         console.error(e);
-        setError(e.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+        setError(e.message);
       } finally {
         setLoading(false);
       }
@@ -105,23 +89,18 @@ export default function ClaimEditPage() {
 
   if (loading)
     return (
-      <div className="h-screen flex items-center justify-center text-zinc-600">
-        กำลังโหลดข้อมูลคำขอเคลม...
+
+      <div className="p-8 text-center text-zinc-600">
+          <LoadingScreen message="กำลังโหลดข้อมูลคำขอเคลม..." />;
       </div>
     );
 
   if (error)
     return (
-      <div className="h-screen flex flex-col items-center justify-center text-center">
-        <p className="text-red-500 mb-2">{error}</p>
-        <button
-          onClick={() => location.reload()}
-          className="rounded-md bg-violet-600 text-white px-4 py-2 hover:bg-violet-700"
-        >
-          ลองใหม่
-        </button>
+      <div className="p-8 text-center text-red-500">
+        เกิดข้อผิดพลาด: {error}
       </div>
     );
 
-  return null;
+  return null; // ❌ ไม่ต้องแสดงหน้าใด ๆ
 }

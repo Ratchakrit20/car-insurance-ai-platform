@@ -6,6 +6,12 @@ import {
   Car as CarIcon, Hash, Image as ImageIcon
 } from "lucide-react";
 import type { InsurancePolicy } from "@/types/claim";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 // ------- helpers ในไฟล์ (ให้ component ตัวนี้ใช้ได้เดี่ยว ๆ) -------
 const mkLocalDate = (d?: string | null) => {

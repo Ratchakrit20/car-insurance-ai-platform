@@ -5,6 +5,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AdminClaimReportPreview from "../reportsrequest/AdminClaimReportPreview";
+import LoadingScreen from "@/app/components/LoadingScreen";
+import { CalendarDays, CarFront, Wrench } from "lucide-react";
 import type {
   ClaimItem,
   ClaimReportRow,
@@ -14,6 +16,13 @@ import type {
   User,
   DamagePhoto,
 } from "@/types/claim";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
 import PdfRequest from "@/app/reports/PdfRequest";
 import { it } from "node:test";
 
@@ -57,20 +66,20 @@ function normalizeStatus(s?: string | null): ClaimStatus {
 // ---------- API ----------
 async function fetchAuth(): Promise<ApiAuth> {
   const token = localStorage.getItem("token");
-if (!token) return { isAuthenticated: false, user: null };
-const res = await fetch(`${URL_PREFIX}/api/me`, {
-  headers: { Authorization: `Bearer ${token}` },
-});
+  if (!token) return { isAuthenticated: false, user: null };
+  const res = await fetch(`${URL_PREFIX}/api/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.json();
 }
 
 async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
   const url = `${URL_PREFIX}/api/claim-requests/listall`;
   const token = localStorage.getItem("token");
-const res = await fetch(url, {
-  cache: "no-store",
-  headers: { Authorization: `Bearer ${token}` },
-});
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
   if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
   const json = await res.json();
@@ -78,27 +87,27 @@ const res = await fetch(url, {
 
   return rows.map((r) => {
     const status = normalizeStatus(r.status);
-    console.log("r.images =", r.images );
-        // map evaluation_images → DamagePhoto[]
+    console.log("r.images =", r.images);
+    // map evaluation_images → DamagePhoto[]
     const damagePhotos: DamagePhoto[] = Array.isArray(r.images)
-        ? r.images.map((img) => {
+      ? r.images.map((img) => {
         const side: DamagePhoto["side"] =
           img.side === "ซ้าย" ||
-          img.side === "ขวา" ||
-          img.side === "หน้า" ||
-          img.side === "หลัง"
-          ? img.side
-          : "ไม่ระบุ";
-    
-          return {
-            id: img.id,
-            url: img.original_url ?? "",
-            type: "image",
-            side,
-            note: img.damage_note ?? undefined,
-            };
-          })
-          : [];
+            img.side === "ขวา" ||
+            img.side === "หน้า" ||
+            img.side === "หลัง"
+            ? img.side
+            : "ไม่ระบุ";
+
+        return {
+          id: img.id,
+          url: img.original_url ?? "",
+          type: "image",
+          side,
+          note: img.damage_note ?? undefined,
+        };
+      })
+      : [];
     return {
       id: String(r.claim_id ?? r.report_id ?? r.accident_detail_id),
       carTitle: r.car_title ?? `${r.car_brand ?? "รถ"} ${r.car_model ?? ""} ทะเบียน ${r.license_plate ?? "-"}`,
@@ -118,10 +127,10 @@ const res = await fetch(url, {
 async function fetchClaimDetail(claimId: string | number): Promise<PdfDetail> {
   const url = `${URL_PREFIX}/api/claim-requests/admin/detail?claim_id=${encodeURIComponent(String(claimId))}`;
   const token = localStorage.getItem("token");
-const res = await fetch(url, {
-  cache: "no-store",
-  headers: { Authorization: `Bearer ${token}` },
-});
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const json = await res.json();
   if (!res.ok || !json?.ok) throw new Error(json?.message || "โหลดรายละเอียดไม่สำเร็จ");
   return json.data;
@@ -148,7 +157,29 @@ function StatusChip({ status }: { status: ClaimStatus }) {
     </span>
   );
 }
+function formatDateTime(dateStr?: string, timeStr?: string) {
+  if (!dateStr) return "ไม่ระบุ";
+  try {
+    // แปลงเป็น Date แล้วปรับ timezone ให้เป็นเวลาท้องถิ่นไทย
+    const date = new Date(dateStr);
+    const formattedDate = date.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
+    // ถ้ามีเวลา ให้แสดงด้วย
+    if (timeStr) {
+      // ตัดเฉพาะ HH:mm
+      const formattedTime = timeStr.slice(0, 5);
+      return `${formattedDate} เวลา ${formattedTime} น.`;
+    }
+
+    return formattedDate;
+  } catch {
+    return dateStr; // fallback
+  }
+}
 function RequestCard({
   item,
   onOpenPdf,
@@ -157,21 +188,23 @@ function RequestCard({
   onOpenPdf: (id: string) => void;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm hover:shadow-md hover:border-emerald-300 transition-all duration-200">
+    <div className={`${thaiFont.className} group relative overflow-hidden rounded-[8px] border  bg-white shadow-sm hover:shadow-md hover:border-[#6F47E4] transition-all duration-200`}>
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <h3 className="truncate text-lg font-semibold text-emerald-800">
+        <h3 className="truncate text-lg font-semibold text-black">
           {item.carTitle}
         </h3>
         <StatusChip status={item.status} />
       </div>
 
       {/* Divider */}
-      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-emerald-100 to-transparent mb-3" />
+      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent mb-3" />
 
-      <div className="flex gap-4 px-5 pb-5">
-        {/* รูปรถ */}
-        <div className="relative h-28 w-40 shrink-0 overflow-hidden rounded-xl ring-1 ring-emerald-100 bg-zinc-50">
+
+      <div className="flex gap-5 px-5 pb-5 group bg-white rounded-2xl shadow-md hover:shadow-lg border border-[#DEDCFF]/60 transition-all duration-300">
+        {/* 🔹 รูปรถ */}
+        <div className="relative h-28 w-44 shrink-0 overflow-hidden rounded-xl bg-[#F9F8FF] ring-1 ring-[#DEDCFF]">
           {item.car_path ? (
             <img
               src={
@@ -183,67 +216,57 @@ function RequestCard({
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-zinc-400">
+            <div className="flex h-full w-full items-center justify-center text-zinc-400 text-sm">
               ไม่มีรูป
             </div>
           )}
-
         </div>
 
-        {/* ข้อมูลอุบัติเหตุ */}
-        <div className="flex-1 space-y-2 text-sm text-zinc-700">
+        {/* 🔹 รายละเอียด */}
+        <div className="flex-1 space-y-3 text-sm text-zinc-700">
+          {/* วันที่แจ้งเคลม */}
           <div className="flex items-center gap-2">
-            <span className="text-emerald-500">📅</span>
+            <CalendarDays className="w-4 h-4 text-[#6F47E4]" />
             <span className="text-zinc-500">วันที่แจ้งเคลม:</span>
-            <span className="font-medium text-zinc-800">{thDate(item.incidentDate)}</span>
+            <span className="font-medium text-zinc-800">
+              {formatDateTime(item.incidentDate)}
+            </span>
           </div>
 
+          {/* ประเภทอุบัติเหตุ */}
           <div className="flex items-center gap-2">
-            <span className="text-emerald-500">💥</span>
+            <CarFront className="w-4 h-4 text-[#6F47E4]" />
             <span className="text-zinc-500">ประเภทอุบัติเหตุ:</span>
             <span className="font-medium text-zinc-800">
               {item.incidentType ?? "-"}
             </span>
           </div>
 
+          {/* ความเสียหาย */}
           <div className="flex items-start gap-2">
-            <span className="text-emerald-500 mt-[2px]">🛠️</span>
+            <Wrench className="w-4 h-4 text-[#6F47E4] mt-[2px]" />
             <div>
               <span className="text-zinc-500">ความเสียหาย:</span>{" "}
               <span className="font-medium text-zinc-800">
                 {item.damagePhotos && item.damagePhotos.length > 0
                   ? item.damagePhotos
-                      .map((d) => d.note?.trim())
-                      .filter((n) => n && n.length > 0)
-                      .join(", ") || "ไม่ระบุ"
+                    .map((d) => d.note?.trim())
+                    .filter((n) => n && n.length > 0)
+                    .join(", ") || "ไม่ระบุ"
                   : "ไม่ระบุ"}
               </span>
             </div>
           </div>
 
+          {/* เส้นคั่น */}
+          <div className="my-2 h-[1px] bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent" />
 
-          {/* เส้นแบ่งเล็ก */}
-          <div className="my-2 h-[1px] w-full bg-gradient-to-r from-transparent via-zinc-100 to-transparent" />
-
-          {/* ปุ่มตรวจสอบ */}
-          <div className="flex justify-between items-center">
-
+          {/* ปุ่ม */}
+          <div className="flex justify-end">
             <Link
               href={`/adminpage/reportsrequest/accidentcheck?claim_id=${item.id}`}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:from-emerald-600 hover:to-teal-600 active:scale-[0.98] transition-all duration-200"
+              className="inline-flex items-center gap-2 rounded-full bg-[#6F47E4]  px-5 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:from-[#5B3ACB] hover:to-[#3A2FE0] active:scale-[0.98] transition-all duration-200"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="h-4 w-4"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10.293 3.293a1 1 0 011.414 0L17 8.586a1 1 0 010 1.414l-5.293 5.293a1 1 0 01-1.414-1.414L13.586 10H4a1 1 0 110-2h9.586l-3.293-3.293a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
               ตรวจสอบความเสียหาย
             </Link>
           </div>
@@ -360,13 +383,15 @@ export default function ReportsRequestPage() {
   // -------- states --------
   if (isAuthenticated === null) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10 text-zinc-500">กำลังตรวจสอบสิทธิ์…</div>
+      <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />
+
     );
   }
   if (isAuthenticated === false) return null;
 
   if (loading) {
     return (
+
       <div className="min-h-screen bg-gradient-to-b from-[#F1F5FF] via-[#F7FAFF] to-white">
         <div className="mx-auto max-w-7xl px-4 lg:px-6 py-8">
           <Header count={0} />
@@ -403,7 +428,7 @@ export default function ReportsRequestPage() {
       {/* Modal PDF */}
       {pdfOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[8px] bg-white shadow-2xl ring-1 ring-black/5">
             <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200/70 bg-white/90 px-4 py-3 backdrop-blur">
               <div className="text-sm font-medium text-zinc-700">เอกสารรายงานเคลม</div>
               <button
@@ -417,7 +442,7 @@ export default function ReportsRequestPage() {
               {pdfLoading || !pdfDetail ? (
                 <div className="p-6 text-zinc-600">กำลังเตรียมเอกสาร…</div>
               ) : (
-               
+
                 <AdminClaimReportPreview car={pdfDetail.car} draft={pdfDetail.accident} />
 
               )}
@@ -434,11 +459,11 @@ function Header({ count }: { count: number }) {
   return (
     <>
       <header className="mb-4 lg:mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+
+        <div className={`${thaiFont.className} flex flex-wrap items-center justify-between gap-3`}>
+
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 ring-1 ring-amber-300">
-              🕵️‍♀️
-            </div>
+
             <div>
               <h1 className="text-xl font-semibold tracking-wide text-zinc-900 sm:text-2xl">
                 เคลมที่กำลังตรวจสอบ

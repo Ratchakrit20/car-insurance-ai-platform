@@ -19,6 +19,12 @@ import PolicyModal from "./PolicyModal";
 import PolicyCard, { InfoRow, thDate } from "./PolicyCard";
 
 import type { User, InsurancePolicy } from "@/types/claim";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 // ---------------- Types (local) ----------------
 type ApiAuth = { user: User | null; isAuthenticated: boolean };
@@ -31,7 +37,9 @@ const URL_PREFIX = process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "und
 // ---------------- User summary ----------------
 function UserSummary({ user }: { user: User }) {
   return (
-    <div className="rounded-2xl ring-1 ring-emerald-200/60 bg-white shadow-sm p-4 sm:p-5">
+        <div className={`${thaiFont.className} rounded-2xl ring-1 ring-emerald-200/60 bg-white shadow-sm p-4 sm:p-5`}>
+
+  
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg sm:text-xl text-black font-semibold">{user.name}</h2>

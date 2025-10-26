@@ -136,7 +136,10 @@ export default function EvidenceGallery({
   };
 
   /* -------------------- Render ภาพ/วิดีโอแต่ละชิ้น -------------------- */
-  const renderMedia = (m: MediaItem, i: number, cls: string) => (
+  const renderMedia = (m: MediaItem, i: number, cls: string) => {
+  const displayCaption = m.caption || (m as any).side; // ✅ ถูกที่แล้ว
+
+  return (
     <button
       key={i}
       type="button"
@@ -152,7 +155,6 @@ export default function EvidenceGallery({
             preload="metadata"
             className="w-full h-full object-cover"
           />
-          {/* 🔹 overlay icon ▶️ */}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
             <div className="bg-black/50 rounded-full w-10 h-10 flex items-center justify-center text-white text-lg">
               ▶
@@ -166,13 +168,16 @@ export default function EvidenceGallery({
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
       )}
-      {m.caption && (
+
+      {/* ✅ แสดงชื่อด้าน */}
+      {displayCaption && (
         <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-          {m.caption}
+           {displayCaption}
         </div>
       )}
     </button>
   );
+};
 
   /* -------------------- Modal Preview -------------------- */
   return (

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import SafeAreaSpacer from '../components/SafeAreaSpacer';
-
+import LoadingScreen from "@/app/components/LoadingScreen";
 interface CarSelectionProps {
   onNext: () => void;
   citizenId: string | undefined;
@@ -33,14 +33,23 @@ export default function CarSelection({ onNext, citizenId }: CarSelectionProps) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-
+  const [adminNote, setAdminNote] = useState<any>(null);
+useEffect(() => {
+  try {
+    const raw = localStorage.getItem("claimAdminNote");
+    if (raw) setAdminNote(JSON.parse(raw));
+  } catch {}
+}, []);
   const API_PREFIX = useMemo(
     () => process.env.NEXT_PUBLIC_URL_PREFIX?.replace(/\/$/, '') || '',
     []
   );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
+useEffect(() => {
+  // เคลียร์ข้อมูล admin note ที่ค้างจากหน้าแก้ไข
+  localStorage.removeItem("claimAdminNote");
+}, []);
   useEffect(() => {
     // ✅ ล้าง draft ทุกครั้งที่เข้าหน้าเริ่มสร้างเคลม
     localStorage.removeItem(ACC_KEY);
@@ -171,7 +180,7 @@ useEffect(() => {
   };
 
   if (loading) {
-    return <div className="text-center py-12">กำลังโหลด...</div>;
+    return <LoadingScreen message="กำลังโหลด..." />;
   }
 
   if (fetchError) {

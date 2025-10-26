@@ -9,6 +9,12 @@ type Props = {
   setQ: (v: string) => void;
   onAddPolicy?: () => void; // แสดงเฉพาะโหมด policies
 };
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export default function PageHeader({
   titleMode, viewMode, setViewMode, q, setQ, onAddPolicy,

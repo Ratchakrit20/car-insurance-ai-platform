@@ -63,7 +63,7 @@ async function fetchClaimsByUser(userId: number): Promise<ClaimItem[]> {
           id: img.id,
           url: img.original_url ?? "",
           type: "image",
-          side: ["ซ้าย", "ขวา", "หน้า", "หลัง"].includes(String(img.side))
+          side: ["ซ้าย", "ขวา", "หน้า", "หลัง","หน้าซ้าย" , "หลังซ้าย" , "หน้าขวา" , "หลังขวา"].includes(String(img.side))
             ? (img.side as DamagePhoto["side"])
             : "ไม่ระบุ",
           note: img.damage_note ?? undefined,

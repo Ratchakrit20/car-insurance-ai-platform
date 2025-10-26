@@ -9,8 +9,14 @@ import ImageList from "./ImageList";
 import ImageViewer from "./ImageViewer";
 import DamageTable from "./DamageTable";
 import SummaryPanel from "./SummaryPanel";
+import LoadingScreen from "@/app/components/LoadingScreen";
 import SafeAreaSpacer from "@/app/components/SafeAreaSpacer";
-
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 // ===== EN ↔ TH dictionaries =====
 const DAMAGE_EN2TH: Record<string, string> = {
   "crack": "ร้าว",
@@ -43,7 +49,7 @@ const PART_EN2TH: Record<string, string> = {
   "Trunk": "ฝากระโปรงหลัง",
   "Windshield": "กระจกบังลมหน้า",
 };
-
+ 
 // สร้าง reverse map
 const DAMAGE_TH2EN = Object.fromEntries(
   Object.entries(DAMAGE_EN2TH).map(([en, th]) => [th, en])
@@ -51,15 +57,21 @@ const DAMAGE_TH2EN = Object.fromEntries(
 const PART_TH2EN = Object.fromEntries(
   Object.entries(PART_EN2TH).map(([en, th]) => [th, en])
 );
-
+const PART_EN2TH_LOWER = Object.fromEntries(
+  Object.entries(PART_EN2TH).map(([en, th]) => [en.toLowerCase(), th])
+);
 // แปลงชื่อ (กันทั้งกรณีส่งมาเป็นไทยอยู่แล้ว/ไม่รู้จัก)
 const toTHDamage = (s?: string) =>
   !s ? "" : DAMAGE_EN2TH[s] ?? s;
 const toENDamage = (s?: string) =>
   !s ? "" : DAMAGE_TH2EN[s] ?? s;
 
-const toTHPart = (s?: string) =>
-  !s ? "" : PART_EN2TH[s] ?? s;
+const toTHPart = (s?: string) => {
+  if (!s) return "";
+  const lower = s.toLowerCase();
+  return PART_EN2TH[s] ?? PART_EN2TH_LOWER[lower] ?? s;
+};
+
 const toENPart = (s?: string) =>
   !s ? "" : PART_TH2EN[s] ?? s;
 
@@ -71,7 +83,23 @@ type ClaimDetail = {
   car: Car | null;
   accident: AccidentDraft;
 };
+const tests = [
+  ["Front-bumper", "หลังขวา"],
+  ["Headlight", "หลังขวา"],
+  ["Hood", "หลังขวา"],
+  ["Back-bumper", "หน้าซ้าย"],
+  ["Tail-light", "หน้าซ้าย"],
+  ["Trunk", "หน้าซ้าย"],
+  ["Front-door", "หลังซ้าย"],
+  ["Back-door", "หน้าขวา"],
+  ["Front-wheel", "หลังขวา"],
+  ["Left-door", "ขวา"],
+  ["Right-door", "ซ้าย"],
+];
 
+for (const [part, side] of tests) {
+  console.log(`${side.padEnd(8)} | ${part.padEnd(15)} → ${mapPartBySide(part, side)}`);
+}
 /* ------------ Config ------------ */
 const URL_PREFIX =
   process.env.NEXT_PUBLIC_URL_PREFIX || (typeof window !== "undefined" ? "" : "");
@@ -210,9 +238,82 @@ const thDate = (iso?: string) => {
 
 const readAccidentType = (a?: AccidentDraft | null) => a?.accidentType ?? "-";
 const readAccidentDate = (a?: AccidentDraft | null) => thDate(a?.accident_date);
+function mapPartBySide(partEN: string, side?: string): string {
+  if (!partEN) return partEN;
+  const s = (side || "").toLowerCase();
+  const p = partEN;
+
+  // 🧭 ถ้าภาพเป็นด้านหลัง → แปลงส่วนหน้าเป็นส่วนหลัง
+  if (s.includes("หลัง")) {
+    const backMap: Record<string, string> = {
+      "Front-bumper": "Back-bumper",
+      "Front-door": "Back-door",
+      "Front-wheel": "Back-wheel",
+      "Front-window": "Back-window",
+      "Front-windshield": "Back-windshield",
+      "Headlight": "Tail-light",
+      "Hood": "Trunk",
+      "Grille": "Back-bumper",
+      "Windshield": "Back-windshield",
+       "Fender": "Quarter-panel", 
+    };
+    if (backMap[p]) return backMap[p];
+  }
+
+  // 🧭 ถ้าภาพเป็นด้านหน้า → แปลงส่วนหลังเป็นส่วนหน้า
+  if (s.includes("หน้า")) {
+    const frontMap: Record<string, string> = {
+      "Back-bumper": "Front-bumper",
+      "Back-door": "Front-door",
+      "Back-wheel": "Front-wheel",
+      "Back-window": "Front-window",
+      "Back-windshield": "Windshield",
+      "Tail-light": "Headlight",
+      "Trunk": "Hood",
+      "Quarter-panel": "Fender", // เผื่อเจอแผงหลัง
+    };
+    if (frontMap[p]) return frontMap[p];
+  }
+
+  // 🧭 ถ้าภาพเป็น “ซ้าย” หรือ “ขวา” → ไม่ต้องสลับ front/back
+  // แต่เผื่ออนาคตมี left/right จากโมเดล
+  if (s.includes("ซ้าย") && p.includes("Right")) return p.replace("Right", "Left");
+  if (s.includes("ขวา") && p.includes("Left")) return p.replace("Left", "Right");
+
+  // 🧭 ถ้าภาพเป็น “หลังขวา” หรือ “หลังซ้าย” → ให้ใช้กฎด้านหลัง
+  if (s.includes("หลังขวา") || s.includes("หลังซ้าย")) {
+    const backMap: Record<string, string> = {
+      "Front-bumper": "Back-bumper",
+      "Front-door": "Back-door",
+      "Front-wheel": "Back-wheel",
+      "Front-window": "Back-window",
+      "Headlight": "Tail-light",
+      "Hood": "Trunk",
+    };
+    if (backMap[p]) return backMap[p];
+  }
+
+  // 🧭 ถ้าภาพเป็น “หน้าขวา” หรือ “หน้าซ้าย” → ให้ใช้กฎด้านหน้า
+  if (s.includes("หน้าขวา") || s.includes("หน้าซ้าย")) {
+    const frontMap: Record<string, string> = {
+      "Back-bumper": "Front-bumper",
+      "Back-door": "Front-door",
+      "Back-wheel": "Front-wheel",
+      "Back-window": "Front-window",
+      "Tail-light": "Headlight",
+      "Trunk": "Hood",
+    };
+    if (frontMap[p]) return frontMap[p];
+  }
+
+  // 🔚 ถ้าไม่เข้ากรณีใดเลย → คืนค่าเดิม
+  return p;
+}
+
+
 
 /** แปลงผล parts + bbox → กล่อง Annotation (normalized 0..1) */
-function partsToBoxes(res: AnalyzeDamageResponse): Annotation[] {
+function partsToBoxes(res: AnalyzeDamageResponse, side?: string): Annotation[] {
   const W = res.width || 1;
   const H = res.height || 1;
   const palette = ["#F59E0B", "#EF4444", "#8B5CF6", "#10B981", "#3B82F6", "#06B6D4", "#84CC16"];
@@ -224,9 +325,12 @@ function partsToBoxes(res: AnalyzeDamageResponse): Annotation[] {
     const h = Math.max(1, y2 - y1);
     const color = palette[idx++ % palette.length];
 
-    // ✅ อังกฤษไว้คำนวณ / ไทยไว้แสดง
     const enDamagesArr = (p.damages ?? []).map((d) => d.class);
     const thDamagesArr = enDamagesArr.map(toTHDamage);
+
+    const correctedPart = mapPartBySide(p.part, side); // ✅ ปรับตรงนี้
+    console.log("🧭 mapPartBySide:", p.part, "→", correctedPart, "side=", side);
+    console.log("✅ After mapping:", correctedPart, "→", toTHPart(correctedPart));
 
     const areaPercent =
       typeof p.damage_coverage_percent === "number"
@@ -235,9 +339,9 @@ function partsToBoxes(res: AnalyzeDamageResponse): Annotation[] {
 
     return {
       id: idx,
-      part: toTHPart(p.part),                         // ไทย
-      damage: thDamagesArr,                           // ไทย
-      severity: calculateSeverity(enDamagesArr, areaPercent, p.part), // ← ส่งอังกฤษ + part อังกฤษ
+      part: toTHPart(correctedPart),
+      damage: thDamagesArr,
+      severity: calculateSeverity(enDamagesArr, areaPercent, correctedPart),
       areaPercent,
       color,
       x: x1 / W, y: y1 / H, w: w / W, h: h / H,
@@ -444,16 +548,16 @@ export default function InspectPage() {
   const [addMode, setAddMode] = useState(false);
   // สีวนเล่น
   const palette = ["#F59E0B", "#EF4444", "#8B5CF6", "#10B981", "#3B82F6"];
-const NO_DAMAGE_QUOTES = [
-  "ไม่พบความเสียหายจากภาพนี้ หากเห็นตำแหน่งผิดปกติ ลองเพิ่มกรอบด้วยปุ่ม “เพิ่มความเสียหาย”.",
-  "ระบบไม่ตรวจพบความเสียหายจากภาพนี้ ลองอัปโหลดภาพมุมอื่นหรือเพิ่มกรอบด้วยตนเอง.",
-  "ภาพนี้ยังไม่พบกรอบความเสียหาย คุณสามารถลากกรอบระบุจุดที่เสียหายเองได้.",
-  "ยังไม่พบความเสียหาย อาจเป็นเพราะมุมภาพ/แสงไม่ชัด ลองถ่ายให้ใกล้ขึ้นหรือสว่างขึ้น."
-];
+  const NO_DAMAGE_QUOTES = [
+    "ไม่พบความเสียหายจากภาพนี้ หากเห็นตำแหน่งผิดปกติ ลองเพิ่มกรอบด้วยปุ่ม “เพิ่มความเสียหาย”.",
+    "ระบบไม่ตรวจพบความเสียหายจากภาพนี้ ให้ลูกต้าอัปโหลดภาพใหม่หรือเพิ่มกรอบด้วยตนเอง.",
+    "ภาพนี้ยังไม่พบกรอบความเสียหาย คุณสามารถลากกรอบระบุจุดที่เสียหายเองได้.",
+    "ยังไม่พบความเสียหาย อาจเป็นเพราะมุมภาพ/แสงไม่ชัด ลองถ่ายให้ใกล้ขึ้นหรือสว่างขึ้น."
+  ];
 
-const [noDamageByIndex, setNoDamageByIndex] = useState<Record<number, string | null>>({});
-const pickNoDamageQuote = () =>
-  NO_DAMAGE_QUOTES[Math.floor(Math.random() * NO_DAMAGE_QUOTES.length)];
+  const [noDamageByIndex, setNoDamageByIndex] = useState<Record<number, string | null>>({});
+  const pickNoDamageQuote = () =>
+    NO_DAMAGE_QUOTES[Math.floor(Math.random() * NO_DAMAGE_QUOTES.length)];
   const [analysisLevel, setAnalysisLevel] = useState(50);
   const [overlayByIndex, setOverlayByIndex] = useState<Record<number, string>>({});
   const [analyzing, setAnalyzing] = useState(false);
@@ -491,48 +595,49 @@ const pickNoDamageQuote = () =>
   // -------- Auth --------
 
   // เรียก FastAPI วิเคราะห์ภาพที่เลือก
- async function analyzeActiveImage(index = activeIndex, override?: Partial<ModelParams>, force = false) {
-  const img = images[index];
-  if (!img?.url) return;
+  async function analyzeActiveImage(index = activeIndex, override?: Partial<ModelParams>, force = false) {
+    const img = images[index];
+    if (!img?.url) return;
 
-  try {
-    setAnalyzing(true);
-    setAnalyzeError(null);
+    try {
+      setAnalyzing(true);
+      setAnalyzeError(null);
 
-    const used = { ...modelParams, ...override };
-    const res = await analyzeImageByUrl(img.url, {
-      conf_parts: used.conf_parts,
-      conf_damage: used.conf_damage,
-      imgsz: used.imgsz,
-      mask_iou_thresh: used.mask_iou_thresh,
-      render_overlay: used.render_overlay,
-    });
+      const used = { ...modelParams, ...override };
+      const res = await analyzeImageByUrl(img.url, {
+        conf_parts: used.conf_parts,
+        conf_damage: used.conf_damage,
+        imgsz: used.imgsz,
+        mask_iou_thresh: used.mask_iou_thresh,
+        render_overlay: used.render_overlay,
+      });
 
-    // กล่องจากผล AI
-    const newBoxes = partsToBoxes(res);
-    console.log("New boxes from AI:", newBoxes);
-    setBoxesByIndex((m) => ({ ...m, [index]: newBoxes }));
 
-    // เก็บ overlay ต่อภาพ
-    if (res.overlay_image_b64) {
-      const overlayUrl = `data:${res.overlay_mime || "image/jpeg"};base64,${res.overlay_image_b64}`;
-      setOverlayByIndex((m) => ({ ...m, [index]: overlayUrl }));
+      // กล่องจากผล AI
+      const newBoxes = partsToBoxes(res, img.side);
+      console.log("New boxes from AI:", newBoxes);
+      setBoxesByIndex((m) => ({ ...m, [index]: newBoxes }));
+
+      // เก็บ overlay ต่อภาพ
+      if (res.overlay_image_b64) {
+        const overlayUrl = `data:${res.overlay_mime || "image/jpeg"};base64,${res.overlay_image_b64}`;
+        setOverlayByIndex((m) => ({ ...m, [index]: overlayUrl }));
+      }
+
+      // ✅ ตั้งข้อความ “ไม่พบความเสียหาย” ถ้าไม่มีกรอบใด ๆ
+      const hasDetections = Array.isArray(newBoxes) && newBoxes.length > 0;
+      setNoDamageByIndex((prev) => ({
+        ...prev,
+        [index]: hasDetections ? null : pickNoDamageQuote(),
+      }));
+    } catch (e: any) {
+      setAnalyzeError(e?.message ?? "วิเคราะห์ภาพไม่สำเร็จ");
+      // ล้างข้อความ no-damage ของภาพนี้ (กันทับสถานะผิด)
+      setNoDamageByIndex((prev) => ({ ...prev, [index]: null }));
+    } finally {
+      setAnalyzing(false);
     }
-
-    // ✅ ตั้งข้อความ “ไม่พบความเสียหาย” ถ้าไม่มีกรอบใด ๆ
-    const hasDetections = Array.isArray(newBoxes) && newBoxes.length > 0;
-    setNoDamageByIndex((prev) => ({
-      ...prev,
-      [index]: hasDetections ? null : pickNoDamageQuote(),
-    }));
-  } catch (e: any) {
-    setAnalyzeError(e?.message ?? "วิเคราะห์ภาพไม่สำเร็จ");
-    // ล้างข้อความ no-damage ของภาพนี้ (กันทับสถานะผิด)
-    setNoDamageByIndex((prev) => ({ ...prev, [index]: null }));
-  } finally {
-    setAnalyzing(false);
   }
-}
 
 
   function uniq(arr: string[]) {
@@ -674,7 +779,7 @@ const pickNoDamageQuote = () =>
 
   // ✅ ตรวจสอบสิทธิ์ผู้ใช้ก่อน render หน้า
   if (isAuthenticated === null) {
-    return <div className="p-6 text-zinc-500">กำลังตรวจสอบสิทธิ์ผู้ใช้…</div>;
+    return <LoadingScreen message="กำลังตรวจสอบสิทธิ์ผู้ใช้..." />;;
   }
   if (isAuthenticated === false) {
     localStorage.removeItem("token");
@@ -683,7 +788,7 @@ const pickNoDamageQuote = () =>
   }
   // States
   if (!claimId) return <div className="p-6 text-rose-600">ไม่พบ claim_id</div>;
-  if (loading) return <div className="p-6 text-zinc-600">กำลังโหลด…</div>;
+  if (loading) return <LoadingScreen message="กำลังโหลด…" />;
   if (err) return <div className="p-6 text-rose-600">ผิดพลาด: {err}</div>;
   if (!detail) return null;
 
@@ -699,7 +804,8 @@ const pickNoDamageQuote = () =>
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F1F5FF] via-[#F7FAFF] to-white">
+    <div className={`${thaiFont.className} min-h-screen bg-white`}>
+
       <div className="mx-auto max-w-7xl px-4 sm:px-5 lg:px-6 py-6 lg:py-8">
         <InspectHeader
           claimId={claimId}

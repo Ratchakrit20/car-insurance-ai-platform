@@ -4,6 +4,21 @@ import EvidenceGallery from "../../components/EvidenceGallery";
 import MapPreview from "../../components/MapPreview";
 import { useRouter } from "next/navigation";
 import type { User } from "@/types/claim";
+import LoadingScreen from "@/app/components/LoadingScreen";
+import {
+    FileText,
+    MapPin,
+    Paperclip,
+    Image as ImageIcon,
+    StickyNote,
+} from "lucide-react";
+import { Car as CarIcon } from "lucide-react";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 // ---------- Config ----------
 const URL_PREFIX = process.env.NEXT_PUBLIC_URL_PREFIX || "";
@@ -90,7 +105,7 @@ export default function AccidentDetail({
   const [car, setCar] = useState<Car | null>(null);
   const [draft, setDraft] = useState<AccidentDraft | null>(null);
   const [user, setUser] = useState<User | null>(null);
-
+  const [loading, setLoading] = useState(true);
   // Load user
   useEffect(() => {
     (async () => {
@@ -100,7 +115,7 @@ export default function AccidentDetail({
         });
         const data = await res.json();
         setUser(data.user ?? null);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -127,7 +142,7 @@ export default function AccidentDetail({
             policy_number: d.policy_number,
             coverage_end_date: d.coverage_end_date,
             car_path: d.car_path,
-            chassis_number: "",
+            chassis_number: d.chassis_number,
             registration_province: d.registration_province,
           });
           setDraft({
@@ -159,6 +174,8 @@ export default function AccidentDetail({
         }
       } catch (e) {
         console.error(e);
+      } finally {
+        setLoading(false); // ✅ บอกว่าโหลดเสร็จแล้ว
       }
     })();
   }, [claimId]);
@@ -167,12 +184,39 @@ export default function AccidentDetail({
     if (!draft?.evidenceMedia) return [];
     return draft.evidenceMedia.map(normalizeMediaItem);
   }, [draft]);
+  function formatDateTime(dateStr?: string, timeStr?: string) {
+    if (!dateStr) return "ไม่ระบุ";
+    try {
+      // แปลงเป็น Date แล้วปรับ timezone ให้เป็นเวลาท้องถิ่นไทย
+      const date = new Date(dateStr);
+      const formattedDate = date.toLocaleDateString("th-TH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
 
+      // ถ้ามีเวลา ให้แสดงด้วย
+      if (timeStr) {
+        // ตัดเฉพาะ HH:mm
+        const formattedTime = timeStr.slice(0, 5);
+        return `${formattedDate} เวลา ${formattedTime} น.`;
+      }
+
+      return formattedDate;
+    } catch {
+      return dateStr; // fallback
+    }
+  }
   const damageList = useMemo(() => {
     if (!draft?.damagePhotos) return [];
     return draft.damagePhotos.map(normalizeMediaItem);
   }, [draft]);
+  if (loading) {
+    return (
 
+      <LoadingScreen message="กำลังโหลดข้อมูล..." />
+    );
+  }
   if (!car || !draft) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -193,7 +237,9 @@ export default function AccidentDetail({
 
   // ---------- Render ----------
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className={`${thaiFont.className} fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm`}>
+
+  
       <div className="relative bg-white rounded-2xl shadow-2xl w-[95%] max-w-6xl max-h-[90vh] overflow-y-auto animate-fadeIn">
         {/* ปุ่มปิด */}
         <button
@@ -211,7 +257,7 @@ export default function AccidentDetail({
               <h2 className="text-lg font-bold">รายละเอียดการเคลม</h2>
               <p className="mt-2 text-sm">ผู้เอาประกัน</p>
               <span className="font-semibold">{car.insured_name}</span>
-              <p className="text-sm">{car.policy_number}</p>
+              <p className="text-sm">หมายเลขกรมธรรม์: {car.policy_number}</p>
             </div>
 
             {/* กลาง */}
@@ -238,14 +284,151 @@ export default function AccidentDetail({
             </div>
           </div>
           {/* Admin Note */}
-          {draft.adminNote && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
-              <p className="font-semibold mb-1">หมายเหตุจากเจ้าหน้าที่:</p>
-              <p className="whitespace-pre-line leading-relaxed">
-                {draft.adminNote}
-              </p>
-            </div>
-          )}
+   {draft.adminNote && (
+  <div className="rounded-2xl border  px-5 py-4 text-sm text-black shadow-sm space-y-4">
+    <p className="font-semibold text-black mb-3 text-base">
+      หมายเหตุจากเจ้าหน้าที่:
+    </p>
+
+    {(() => {
+      try {
+        const note =
+          typeof draft.adminNote === "string"
+            ? JSON.parse(draft.adminNote)
+            : draft.adminNote;
+
+        const incident = note?.incident;
+        const accident = note?.accident;
+        const evidenceList = Array.isArray(note?.evidence)
+          ? note.evidence.filter((e: any) => e.checked)
+          : [];
+        const damageList = Array.isArray(note?.damage)
+          ? note.damage.filter((d: any) => d.checked)
+          : [];
+        const extraNote = note?.note?.trim();
+
+        // ไม่มีข้อมูล
+        if (
+          !incident?.comment &&
+          !accident?.comment &&
+          evidenceList.length === 0 &&
+          damageList.length === 0 &&
+          !extraNote
+        ) {
+          return <p className="italic text-amber-800">ไม่มีรายละเอียดเพิ่มเติมจากเจ้าหน้าที่</p>;
+        }
+
+        return (
+          <div className="space-y-4">
+            {/* 🔹 รายละเอียดที่เกิดเหตุ */}
+            {incident?.comment?.trim() && (
+              <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-1 font-semibold text-zinc-700">
+                   <MapPin className="w-4 h-4 text-zinc-600" />
+                  รายละเอียดที่เกิดเหตุ
+                </div>
+                <p className="text-zinc-700">หมายเหตุ: {incident.comment}</p>
+              </div>
+            )}
+
+            {/* 🔹 รายละเอียดอุบัติเหตุ */}
+            {accident?.comment?.trim() && (
+              <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-1 font-semibold text-zinc-700">
+                  <CarIcon className="w-4 h-4 text-zinc-600" />
+                  รายละเอียดอุบัติเหตุ
+                </div>
+                <p className="text-zinc-700">หมายเหตุ: {accident.comment}</p>
+              </div>
+            )}
+
+            {/* 🔹 ความเสียหาย */}
+            {damageList.length > 0 && (
+              <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2 font-semibold text-zinc-700">
+                  <ImageIcon className="w-4 h-4 text-zinc-600" />
+                  ภาพความเสียหายที่ต้องแก้ไข
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {damageList.map((d: any, i: number) => (
+                    <div
+                      key={i}
+                      className="border border-zinc-200 bg-zinc-50 rounded-lg p-2 shadow-sm"
+                    >
+                      <img
+                        src={d.url}
+                        alt={`damage-${i}`}
+                        className="w-full h-32 object-cover rounded-md"
+                      />
+                      <p className="text-xs text-zinc-600 mt-1">ด้าน: {d.side}</p>
+                      {d.comment && (
+                        <p className="text-xs text-zinc-700">หมายเหตุ: {d.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 🔹 ภาพหลักฐาน */}
+            {evidenceList.length > 0 && (
+              <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-2 font-semibold text-zinc-700">
+                 <Paperclip className="w-4 h-4 text-zinc-600" />
+                  ภาพหรือวิดีโอหลักฐานที่ต้องแก้ไข
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {evidenceList.map((e: any, i: number) => (
+                    <div
+                      key={i}
+                      className="border border-zinc-200 bg-zinc-50 rounded-lg p-2 shadow-sm"
+                    >
+                      {/\.(mp4|mov|webm)$/i.test(e.url) ? (
+                        <video
+                          src={e.url}
+                          controls
+                          className="w-full h-28 rounded-md object-cover bg-black"
+                        />
+                      ) : (
+                        <img
+                          src={e.url}
+                          alt={`evidence-${i}`}
+                          className="w-full h-28 rounded-md object-cover"
+                        />
+                      )}
+                      {e.comment && (
+                        <p className="text-xs text-zinc-700 mt-1">
+                          หมายเหตุ: {e.comment}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 🔹 หมายเหตุเพิ่มเติม */}
+            {extraNote && (
+              <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center gap-2 mb-1 font-semibold text-zinc-700">
+                 <StickyNote className="w-4 h-4 text-zinc-600" />
+                  หมายเหตุเพิ่มเติม
+                </div>
+                <p className="text-zinc-700">{extraNote}</p>
+              </div>
+            )}
+          </div>
+        );
+      } catch {
+        // ถ้า parse ไม่ได้ (เป็น string ธรรมดา)
+        return <p>{draft.adminNote}</p>;
+      }
+    })()}
+  </div>
+)}
+
+
+
 
 
           {/* Content 3 Columns */}
@@ -259,19 +442,16 @@ export default function AccidentDetail({
                   lng={parseFloat(String(draft.location.lng))}
                 />
               </div>
-              <p className="text-sm">
-                <span className="font-medium">วัน/เวลา:</span>{" "}
-                {draft.accident_date} {draft.accident_time}
-              </p>
+              <p className="text-sm"><span className="font-medium">วัน/เวลา:</span>     {formatDateTime(draft.accident_date, draft.accident_time)}</p>
+
               <p className="text-sm">
                 <span className="font-medium">สถานที่:</span>{" "}
                 {draft.province || draft.district || draft.road
-                  ? `${draft.province || ""} ${draft.district || ""} ${
-                      draft.road || ""
+                  ? `${draft.province || ""} ${draft.district || ""} ${draft.road || ""
                     }`.trim()
                   : "ไม่ระบุ" + " (" + (draft.location?.lat && draft.location?.lng
-                      ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
-                      : "ไม่มีพิกัด") + ")"}
+                    ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
+                    : "ไม่มีพิกัด") + ")"}
               </p>
               <p className="text-sm">
                 <span className="font-medium">ประเภทพื้นที่:</span>{" "}
@@ -280,12 +460,7 @@ export default function AccidentDetail({
               <p className="text-sm">
                 <span className="font-medium">จุดสังเกต:</span> {draft.nearby}
               </p>
-              {draft.details && (
-                <p className="text-sm">
-                  <span className="font-medium">รายละเอียด:</span>{" "}
-                  {draft.details}
-                </p>
-              )}
+
             </div>
 
             {/* Col 2 */}
@@ -310,55 +485,13 @@ export default function AccidentDetail({
             {/* Col 3 */}
             <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
               <h2 className="font-semibold mb-3">รูปความเสียหาย</h2>
-              {damageList.length > 0 && (
-                <section className="mt-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    {damageList.map((d, idx) => {
-                      const hasNote = !!(d.note && d.note.trim().length > 0);
-                      return (
-                        <div
-                          key={`${d.publicId || d.url}-${idx}`}
-                          className="relative overflow-hidden rounded-xl ring-1 ring-zinc-200/70 bg-zinc-50 shadow-sm"
-                        >
-                          <div className="aspect-video w-full bg-black/5">
-                            {d.type === "video" ? (
-                              <video
-                                src={d.url}
-                                controls
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <img
-                                src={d.url}
-                                alt={`damage-${idx}`}
-                                className="h-full w-full object-cover"
-                              />
-                            )}
-                          </div>
-                          <div className="absolute left-2 top-2 flex flex-wrap gap-2">
-                            <span className="rounded-full bg-zinc-900/80 text-white text-xs px-2 py-1">
-                              ด้าน: {formatSide(d.side)}
-                            </span>
-                            {d.total !== undefined && d.total !== null && (
-                              <span className="rounded-full bg-indigo-600 text-white text-xs px-2 py-1">
-                                รวม: {d.total} ตำแหน่ง
-                              </span>
-                            )}
-                          </div>
+              {draft.damagePhotos?.length ? (
+                <EvidenceGallery
+                  media={draft.damagePhotos?.filter(p => p?.url) ?? []}
+                />
 
-                          {hasNote && (
-                            <div className="p-3 text-sm">
-                              <div className="text-xs text-zinc-500">
-                                รายละเอียดความเสียหาย
-                              </div>
-                              <div className="whitespace-pre-wrap">{d.note}</div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
+              ) : (
+                <p className="text-sm text-zinc-500">ไม่มีข้อมูลความเสียหาย</p>
               )}
             </div>
           </div>

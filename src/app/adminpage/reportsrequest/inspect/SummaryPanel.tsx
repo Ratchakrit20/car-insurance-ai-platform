@@ -56,31 +56,42 @@ export default function SummaryPanel({
           className="mt-3 w-full accent-indigo-600"
         /> */}
 
-        <div className="mt-6">
-          <div className="text-sm font-medium text-black mb-2">ภาพรวมความเสียหาย</div>
-          <div className="flex items-center gap-5">
-            <div className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-full ring-1 ring-zinc-200" style={donutStyle} />
-            <div className="flex-1 space-y-2">
-              <div className="text-sm text-zinc-600">
-                พบความเสียหายทั้งหมด{" "}
-                <span className="font-semibold text-zinc-900">{boxes.length}</span>{" "}
-                จุด
-              </div>
-              <ul className="space-y-1">
-                {donutData.map((d, i) => (
-                  <li key={i} className="flex text-black items-center gap-2 text-xs sm:text-sm">
-                    <span className="inline-block h-3 w-3 rounded" style={{ backgroundColor: d.color }} />
-                    <span className="truncate">{d.label}</span>
-                    <span className="ml-auto font-medium">{d.pct}%</span>
-                  </li>
-                ))}
-                {donutData.length === 0 && (
-                  <li className="text-sm sm:text-sm text-zinc-500">ยังไม่มีข้อมูล</li>
-                )}
-              </ul>
+       <div className="mt-6">
+  <div className="text-sm font-medium text-black mb-2">ภาพรวมความเสียหาย</div>
+
+  <div className="flex flex-col items-center justify-center gap-4">
+    {/* วงกลม donut chart */}
+    <div
+      className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-full ring-1 ring-zinc-200"
+      style={donutStyle}
+    />
+
+    {/* ข้อมูลสรุป donutData */}
+    <div className="w-full sm:w-[250px] space-y-2 text-center">
+      <div className="text-sm text-zinc-600">
+        พบความเสียหายทั้งหมด{" "}
+        <span className="font-semibold text-zinc-900">{boxes.length}</span>{" "}
+        จุด
+      </div>
+
+      <ul className="space-y-1">
+        {donutData.map((d, i) => (
+          <li key={i} className="flex items-center justify-between text-black text-xs sm:text-sm">
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-3 w-3 rounded" style={{ backgroundColor: d.color }} />
+              <span className="truncate">{d.label}</span>
             </div>
-          </div>
-        </div>
+            <span className="font-medium">{d.pct}%</span>
+          </li>
+        ))}
+        {donutData.length === 0 && (
+          <li className="text-sm text-zinc-500">ยังไม่มีข้อมูล</li>
+        )}
+      </ul>
+    </div>
+  </div>
+</div>
+
       </div>
 
     </>

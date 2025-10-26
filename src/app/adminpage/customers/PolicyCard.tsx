@@ -1,6 +1,12 @@
 "use client";
 import { ShieldCheck, Edit3 } from "lucide-react";
 import type { InsurancePolicy } from "@/types/claim";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 const thDate = (iso?: string | null) =>
   !iso ? "-" : new Date(iso).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" });

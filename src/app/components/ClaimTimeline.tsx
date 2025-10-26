@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
+
 import type { ClaimStatus, Car, AccidentDraft, DamagePhoto, MediaItem } from "@/types/claim";
+import {
+    FileText,
+    MapPin,
+    Paperclip,
+    Image as ImageIcon,
+    StickyNote,
+} from "lucide-react";
+import { Car as CarIcon } from "lucide-react";
 import ClaimReportPreview, { mapClaimData } from "../reports/ClaimReportPreview";
 import {
     FaFileAlt,
@@ -13,6 +22,7 @@ import {
     FaEye,
     FaTimes as FaXmark,
 } from "react-icons/fa";
+
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -122,8 +132,11 @@ export default function ClaimTimeline({
                 setRemote({ car: mapped.car, draft: mapped.draft });
                 setIncompleteHistory(data.incomplete_history || []);
                 setIncompleteAt(data.incomplete_at || null);
-                setAdminNote(data.admin_note || null);
-                setResubmittedHistory(data.resubmitted_history || []);
+                setAdminNote(
+                    typeof data.admin_note === "string"
+                        ? data.admin_note
+                        : JSON.stringify(data.admin_note || "")
+                ); setResubmittedHistory(data.resubmitted_history || []);
             } catch (err: any) {
                 if (err.name === "AbortError") return;
                 setError(err.message || "เกิดข้อผิดพลาดขณะโหลดข้อมูล");
@@ -139,14 +152,17 @@ export default function ClaimTimeline({
     const carToUse = remote?.car ?? null;
     const draftToUse = remote?.draft ?? null;
     const hasData = !!carToUse && !!draftToUse;
+    const [showAdminNoteModal, setShowAdminNoteModal] = useState(false);
+    const [selectedAdminNote, setSelectedAdminNote] = useState<any>(null);
 
     /* -------------------- รวมเหตุการณ์ -------------------- */
     const steps = useMemo(() => {
         const combined: {
             icon: React.ReactNode;
             title: string;
-            time: string;
-            desc?: string;
+            time: string;      // สำหรับแสดง
+            rawTime: string;   // สำหรับ sort จริง
+            desc?: React.ReactNode;
             action?: React.ReactNode;
         }[] = [];
 
@@ -156,6 +172,7 @@ export default function ClaimTimeline({
                 icon: <FaFileAlt className="text-indigo-500" />,
                 title: "สร้างเอกสารการเคลม",
                 time: formatDateTime(created_at),
+                rawTime: created_at,
                 desc: "รอเจ้าหน้าที่ตรวจสอบเอกสารของคุณ",
             });
         }
@@ -165,11 +182,7 @@ export default function ClaimTimeline({
         if (
             adminNote &&
             incompleteAt &&
-            !allIncomplete.some(
-                (x) =>
-                    dayjs(x.time).isSame(incompleteAt) ||
-                    (x.note && x.note.trim() === adminNote.trim())
-            )
+            !allIncomplete.some((x) => dayjs(x.time).isSame(incompleteAt))
         ) {
             allIncomplete.push({ time: incompleteAt, note: adminNote });
         }
@@ -179,7 +192,47 @@ export default function ClaimTimeline({
                 icon: <FaExclamationTriangle className="text-amber-500" />,
                 title: `รอบที่ ${i + 1}: เจ้าหน้าที่แจ้งแก้ไขข้อมูล`,
                 time: formatDateTime(item.time),
-                desc: item.note || "-",
+                rawTime: item.time,
+                desc: (
+                    <div className="space-y-2">
+                        <p>
+                            {(() => {
+                                try {
+                                    // ถ้า note เป็น JSON string ให้แสดงข้อความสั้น ๆ แทน
+                                    const parsed = JSON.parse(item.note);
+                                    if (parsed.note || parsed.comment) {
+                                        return parsed.note || parsed.comment;
+                                    }
+                                    return "เจ้าหน้าที่ได้แจ้งแก้ไขรายละเอียดบางส่วน";
+                                } catch {
+                                    // ถ้าไม่ใช่ JSON ก็แสดงข้อความตามปกติ
+                                    return item.note || "-";
+                                }
+                            })()}
+                        </p>
+                        <button
+                            onClick={() => {
+                                try {
+                                    let parsed: any = null;
+                                    if (typeof item.note === "string") parsed = JSON.parse(item.note);
+                                    else if (typeof item.note === "object" && item.note !== null) parsed = item.note;
+                                    else throw new Error("invalid note format");
+
+                                    setSelectedAdminNote(parsed);
+                                    setShowAdminNoteModal(true);
+                                } catch (err) {
+                                    console.error("❌ Failed to parse admin note:", err);
+                                    alert("ไม่สามารถเปิดรายละเอียดการแก้ไขได้ (รูปแบบข้อมูลไม่ถูกต้อง)");
+                                }
+                            }}
+                            className="flex items-center gap-2 text-sm text-amber-600 hover:underline"
+                        >
+                            <FaEye />
+                            ดูแจ้งแก้ไขข้อมูล
+                        </button>
+
+                    </div>
+                ),
             });
         });
 
@@ -189,6 +242,7 @@ export default function ClaimTimeline({
                 icon: <FaRedoAlt className="text-blue-500" />,
                 title: `ผู้ใช้ส่งกลับครั้งที่ ${i + 1}`,
                 time: formatDateTime(r.time),
+                rawTime: r.time,
                 desc: r.note || "ส่งเอกสารที่แก้ไขแล้วกลับมาใหม่",
             });
         });
@@ -199,33 +253,49 @@ export default function ClaimTimeline({
                 icon: <FaCheckCircle className="text-emerald-500" />,
                 title: "เอกสารถูกอนุมัติ",
                 time: formatDateTime(approvedAt),
+                rawTime: approvedAt || "",
                 desc: "เจ้าหน้าที่ได้ยืนยันข้อมูลเรียบร้อยแล้ว",
             });
         } else if (status === "rejected" || status === "เอกสารไม่ผ่านการตรวจสอบ") {
-            combined.push({
-                icon: <FaTimesCircle className="text-rose-500" />,
-                title: "เอกสารถูกปฏิเสธ",
-                time: formatDateTime(rejectedAt),
-                desc: adminNote || "-",
-            });
+    let noteText: string = "-";
+
+    try {
+        if (typeof adminNote === "string") {
+            const parsed = JSON.parse(adminNote);
+            // 👇 ตรวจให้แน่ใจว่า parsed เป็น object ที่มี text
+            if (parsed && typeof parsed === "object" && "text" in parsed) {
+                noteText = (parsed as { text?: string }).text || "-";
+            } else {
+                noteText = adminNote;
+            }
+        } else if (adminNote && typeof adminNote === "object" && "text" in adminNote) {
+            noteText = (adminNote as { text?: string }).text || "-";
+        } else {
+            noteText = String(adminNote || "-");
         }
+    } catch {
+        noteText = String(adminNote || "-");
+    }
 
-        // ✅ เรียงลำดับเวลา
-        combined.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    combined.push({
+        icon: <FaTimesCircle className="text-rose-500" />,
+        title: "เอกสารถูกปฏิเสธ",
+        time: formatDateTime(rejectedAt),
+        rawTime: rejectedAt || "",
+        desc: noteText,
+    });
+}
 
-        // ✅ ปุ่มแก้ไขข้อมูล
-        const lastIncompleteIndex = combined.findLastIndex((s) =>
-            s.title.includes("เจ้าหน้าที่แจ้งแก้ไขข้อมูล")
-        );
-        if (lastIncompleteIndex !== -1 && status !== "approved" && status !== "rejected") {
-            combined[lastIncompleteIndex].action = (
-                <button
-                    onClick={() => (window.location.href = `/claim/edit/${claimId}`)}
-                    className="flex items-center gap-2 text-sm text-amber-600 hover:underline"
-                >
-                    <FaEdit /> ไปหน้าแก้ไขข้อมูล
-                </button>
-            );
+
+
+        // ✅ เรียงลำดับตามเวลา (เก่าก่อนใหม่ทีหลัง)
+        combined.sort((a, b) => new Date(a.rawTime).getTime() - new Date(b.rawTime).getTime());
+
+        // ✅ ย้าย "สร้างเอกสารการเคลม" ขึ้นบนสุด
+        const indexCreate = combined.findIndex((s) => s.title === "สร้างเอกสารการเคลม");
+        if (indexCreate > 0) {
+            const [createStep] = combined.splice(indexCreate, 1);
+            combined.unshift(createStep);
         }
 
         // ✅ ปุ่มดูรายงาน
@@ -237,10 +307,51 @@ export default function ClaimTimeline({
                 <FaEye /> ดูรายงาน
             </button>
         );
-        combined[0].action = viewButton; // ใส่ไว้ขั้นแรก
+
+        // ✅ ถ้ามี “ผู้ใช้ส่งกลับครั้งที่ ...” → ใส่ปุ่มไว้ที่รายการล่าสุด
+        const lastResubIndex = combined.findLastIndex((s) =>
+            s.title.includes("ผู้ใช้ส่งกลับครั้งที่")
+        );
+
+        if (lastResubIndex !== -1) {
+            combined[lastResubIndex].action = viewButton;
+        } else {
+            // ถ้าไม่มีการส่งกลับเลย ให้ปุ่มอยู่ที่ "สร้างเอกสารการเคลม"
+            const createIndex = combined.findIndex((s) => s.title === "สร้างเอกสารการเคลม");
+            if (createIndex !== -1) combined[createIndex].action = viewButton;
+        }
+
+        // ✅ ปุ่มแก้ไขข้อมูล
+        const lastIncompleteIndex = combined.findLastIndex((s) =>
+            s.title.includes("เจ้าหน้าที่แจ้งแก้ไขข้อมูล")
+        );
+        if (lastIncompleteIndex !== -1 && status !== "approved" && status !== "rejected") {
+            combined[lastIncompleteIndex].action = (
+                <button
+                    onClick={() => (window.location.href = `/claim/edit/${claimId}`)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium 
+             text-white bg-amber-500 border 
+             hover:bg-amber-400 hover:text-white transition shadow-sm"
+                >
+                    <FaEdit className="text-white" />
+                    แก้ไขข้อมูล
+                </button>
+            );
+        }
 
         return combined;
-    }, [created_at, incompleteHistory, resubmittedHistory, approved_at, rejected_at, status, adminNote, incompleteAt, claimId]);
+    }, [
+        created_at,
+        incompleteHistory,
+        resubmittedHistory,
+        approved_at,
+        rejected_at,
+        status,
+        adminNote,
+        incompleteAt,
+        claimId,
+    ]);
+
 
     /* -------------------- Render -------------------- */
     return (
@@ -314,6 +425,162 @@ export default function ClaimTimeline({
                     </div>
                 </div>
             )}
+            {showAdminNoteModal && selectedAdminNote && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={() => setShowAdminNoteModal(false)}
+                >
+                    <div
+                        className="relative w-full max-w-3xl bg-white rounded-xl shadow-xl overflow-y-auto max-h-[90vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex justify-between items-center border-b p-4">
+                            <h2 className="font-semibold text-lg text-zinc-800">
+                                รายงานการแก้ไขของเจ้าหน้าที่
+                            </h2>
+                            <button
+                                onClick={() => setShowAdminNoteModal(false)}
+                                className="text-zinc-600 hover:text-zinc-800 text-sm"
+                            >
+                                ✕ ปิด
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-5 text-sm text-zinc-800 leading-relaxed">
+
+                            {/* 🔹 1.1 รายละเอียดที่เกิดเหตุ */}
+                            {selectedAdminNote.incident?.comment?.trim() && (
+                                <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2 text-zinc-700 font-semibold">
+                                        <MapPin className="w-4 h-4 text-zinc-600" />
+                                        <span>รายละเอียดที่เกิดเหตุ</span>
+                                    </div>
+                                    <p className="text-zinc-700">หมายเหตุ: {selectedAdminNote.incident.comment}</p>
+                                </div>
+                            )}
+
+                            {/* 🔹 1.2 รายละเอียดอุบัติเหตุ */}
+                            {selectedAdminNote.accident?.comment?.trim() && (
+                                <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2 text-zinc-700 font-semibold">
+                                        <CarIcon className="w-4 h-4 text-zinc-600" />
+                                        <span>รายละเอียดอุบัติเหตุ</span>
+                                    </div>
+                                    <p className="text-zinc-700">หมายเหตุ: {selectedAdminNote.accident.comment}</p>
+                                </div>
+                            )}
+
+                            {/* 🔹 หมวดที่ 2: ภาพหรือวิดีโอหลักฐาน */}
+                            {Array.isArray(selectedAdminNote.evidence) &&
+                                selectedAdminNote.evidence.some((e: any) => e.checked) && (
+                                    <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                                        <div className="flex items-center gap-2 mb-3 text-zinc-700 font-semibold">
+                                            <Paperclip className="w-4 h-4 text-zinc-600" />
+                                            <span>ภาพหรือวิดีโอหลักฐานที่ต้องแก้ไข</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            {selectedAdminNote.evidence
+                                                .filter((e: any) => e.checked)
+                                                .flatMap((e: any, i: number) => {
+                                                    const urls = Array.isArray(e.url) ? e.url : [e.url];
+                                                    return urls.map((u: string, j: number) => (
+                                                        <div
+                                                            key={`${i}-${j}`}
+                                                            className="p-2 bg-zinc-50 border border-zinc-200 rounded-md"
+                                                        >
+                                                            {/\.(mp4|mov|webm)$/i.test(u) ? (
+                                                                <video
+                                                                    src={u}
+                                                                    controls
+                                                                    className="w-full h-32 object-cover rounded bg-black"
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={u}
+                                                                    alt={`evidence-${i}-${j}`}
+                                                                    className="w-full h-32 object-cover rounded"
+                                                                />
+                                                            )}
+                                                            {e.comment?.trim() && (
+                                                                <p className="mt-2 text-xs text-zinc-700">
+                                                                    หมายเหตุ: {e.comment}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ));
+                                                })}
+                                        </div>
+                                    </div>
+                                )}
+
+                            {/* 🔹 หมวดที่ 3: รูปความเสียหาย */}
+                            {Array.isArray(selectedAdminNote.damage) &&
+                                selectedAdminNote.damage.some((d: any) => d.checked) && (
+                                    <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                                        <div className="flex items-center gap-2 mb-3 text-zinc-700 font-semibold">
+                                            <ImageIcon className="w-4 h-4 text-zinc-600" />
+                                            <span>ภาพความเสียหายที่ต้องแก้ไข</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            {selectedAdminNote.damage
+                                                .filter((d: any) => d.checked)
+                                                .map((d: any, i: number) => (
+                                                    <div
+                                                        key={i}
+                                                        className="p-2 bg-zinc-50 border border-zinc-200 rounded-md"
+                                                    >
+                                                        <img
+                                                            src={d.url}
+                                                            alt={`damage-${i}`}
+                                                            className="w-full h-32 object-cover rounded"
+                                                        />
+                                                        {d.side && (
+                                                            <p className="mt-1 text-xs text-zinc-600">
+                                                                ด้าน: {d.side}
+                                                            </p>
+                                                        )}
+                                                        {d.comment?.trim() && (
+                                                            <p className="mt-1 text-xs text-zinc-700">
+                                                                หมายเหตุ: {d.comment}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                            {/* 🔹 หมายเหตุเพิ่มเติม */}
+                            {selectedAdminNote.note?.trim() && (
+                                <div className="border border-zinc-200 bg-white p-4 rounded-lg shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2 text-zinc-700 font-semibold">
+                                        <StickyNote className="w-4 h-4 text-zinc-600" />
+                                        <span>หมายเหตุเพิ่มเติม</span>
+                                    </div>
+                                    <p className="text-zinc-700">{selectedAdminNote.note}</p>
+                                </div>
+                            )}
+
+                            {/* 🔹 ไม่มีหลักฐานหรือภาพที่ต้องแก้ไข */}
+                            {Array.isArray(selectedAdminNote.evidence) &&
+                                selectedAdminNote.evidence.every((e: any) => !e.checked) &&
+                                !selectedAdminNote.damage?.some((d: any) => d.checked) &&
+                                !selectedAdminNote.incident?.comment?.trim() &&
+                                !selectedAdminNote.accident?.comment?.trim() && (
+                                    <div className="text-sm text-zinc-500 italic">
+                                        ไม่มีหลักฐานหรือภาพที่ต้องแก้ไข
+                                    </div>
+                                )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
         </>
     );
 }

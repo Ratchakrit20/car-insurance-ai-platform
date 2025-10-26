@@ -8,6 +8,12 @@ import SafeAreaSpacer from "@/app/components/SafeAreaSpacer";
 import type { User, InsurancePolicy } from "@/types/claim";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 type ApiAuth = { user: User | null; isAuthenticated: boolean };
 
@@ -170,7 +176,9 @@ const res = editingPolicy?.id
   };
 
   return (
-    <div className="min-h-screen p-3 sm:p-6 bg-gradient-to-b from-[#F1F5FF] via-[#F7FAFF] to-white">
+            <div className={`${thaiFont.className} min-h-screen p-3 sm:p-6 bg-gradient-to-b from-[#F1F5FF] via-[#F7FAFF] to-white`}>
+
+  
       <PageHeader
         titleMode={viewMode}
         viewMode={viewMode}

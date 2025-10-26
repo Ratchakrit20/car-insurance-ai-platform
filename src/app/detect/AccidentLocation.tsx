@@ -7,7 +7,7 @@ import MapPreview from "../components/MapPreview";
 import { useLeaveConfirm } from "@/hooks/useLeaveConfirm";
 import { useRouter } from "next/navigation";
 const ACC_KEY = "accidentDraft";
-
+import { MapPin, FileText, ChevronDown, ChevronUp } from "lucide-react";
 const DISTRICTS_BY_PROVINCE: Record<string, string[]> = {
   กรุงเทพมหานคร: ["พระนคร", "ดุสิต", "หนองจอก", "บางรัก", "บางเขน", "บางกะปิ", "ปทุมวัน", "ป้อมปราบศัตรูพ่าย"],
   นนทบุรี: ["เมืองนนทบุรี", "บางบัวทอง", "ปากเกร็ด", "บางกรวย", "บางใหญ่", "ไทรน้อย"],
@@ -133,7 +133,13 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   const localHM = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   const todayYMD = useMemo(() => localYMD(new Date()), []);
   const nowHM = useMemo(() => localHM(new Date()), [])
-
+  const [adminNote, setAdminNote] = useState<any>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("claimAdminNote");
+      if (raw) setAdminNote(JSON.parse(raw));
+    } catch { }
+  }, []);
 
   const [isSaved, setIsSaved] = useState(false);
   const hasUnsaved = useMemo(() => {
@@ -235,6 +241,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
 
   // min/max ของ date
   const dateMin = coverageStart ? startYMD : undefined;
+const [showAdminPanel, setShowAdminPanel] = useState(true);
 
   const dateMax = useMemo(() => {
     if (coverageEnd) return (coverageEnd < todayYMD ? coverageEnd : todayYMD);
@@ -317,6 +324,86 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   return (
     <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
       <form onSubmit={handleSubmit} className="bg-white p-6 space-y-8">
+      {adminNote?.incident &&
+  (
+    adminNote.incident.comment?.trim() ||
+    adminNote.incident.lat ||
+    adminNote.incident.lng ||
+    adminNote.incident.province ||
+    adminNote.incident.district ||
+    adminNote.incident.road
+  ) && (
+    <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
+      {/* Header + toggle */}
+      <div
+        className="flex justify-between items-center cursor-pointer select-none"
+        onClick={() => setShowAdminPanel?.((prev: boolean) => !prev)}
+      >
+        <div className="flex items-center gap-2">
+          <FileText className="w-5 h-5 text-violet-600" />
+          <p className="font-semibold text-sm sm:text-base text-gray-900">
+            เจ้าหน้าที่แนะนำให้แก้ไขในส่วน{" "}
+            <span className="text-violet-700">“รายละเอียดที่เกิดเหตุ”</span>
+          </p>
+        </div>
+        {showAdminPanel ? (
+          <ChevronUp className="w-4 h-4 text-violet-600" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-violet-600" />
+        )}
+      </div>
+
+      {/* ✅ เนื้อหาที่พับได้ */}
+      {showAdminPanel && (
+        <div className="mt-4 space-y-3 text-sm sm:text-base">
+          {/* ✅ หมายเหตุ */}
+          {adminNote.incident.comment?.trim() && (
+            <div className="bg-white border-l-4 border-violet-500 rounded-lg p-3 shadow-sm">
+              <p className="text-gray-800 leading-relaxed">
+                <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
+                {adminNote.incident.comment}
+              </p>
+            </div>
+          )}
+
+          {/* ✅ พิกัด lat/lng */}
+          {(adminNote.incident.lat && adminNote.incident.lng) && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <MapPin className="w-4 h-4 text-violet-600" />
+              <p>
+                <span className="font-semibold text-violet-700">พิกัดที่แนะนำ:</span>{" "}
+                {adminNote.incident.lat}, {adminNote.incident.lng}
+              </p>
+            </div>
+          )}
+
+          {/* ✅ จังหวัด / อำเภอ / ถนน */}
+          {(adminNote.incident.province ||
+            adminNote.incident.district ||
+            adminNote.incident.road) && (
+            <div className="bg-white border border-violet-100 rounded-xl p-3 shadow-sm">
+              <p className="font-semibold text-violet-700 mb-1 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-violet-600" />
+                พื้นที่ที่แนะนำให้ตรวจสอบ
+              </p>
+              <ul className="ml-5 list-disc space-y-1 text-gray-800 text-sm">
+                {adminNote.incident.province && (
+                  <li>จังหวัด: {adminNote.incident.province}</li>
+                )}
+                {adminNote.incident.district && (
+                  <li>อำเภอ/เขต: {adminNote.incident.district}</li>
+                )}
+                {adminNote.incident.road && <li>ถนน: {adminNote.incident.road}</li>}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )}
+
+
+
         <h2 className="text-base sm:text-lg font-semibold text-zinc-900 text-center mb-3">
           รายละเอียดที่เกิดเหตุ
         </h2>
@@ -498,6 +585,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
           </div>
         </div>
       )}
+
       <SafeAreaSpacer />
 
       <MapPickerModal
