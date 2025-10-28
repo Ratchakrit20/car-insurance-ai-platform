@@ -197,7 +197,7 @@ async function fetchDetail(id: string): Promise<ClaimDetail> {
 /** เรียก FastAPI /detect/analyze โดยส่งรูปจาก URL */
 async function analyzeImageByUrl(
   imageUrl: string,
-  params: { conf_parts?: number; conf_damage?: number; imgsz?: number; mask_iou_thresh?: number; render_overlay?: boolean } = {}
+  params: { conf_parts?: number; conf_damage?: number; imgsz?: number; mask_iou_thresh?: number; render_overlay?: boolean, preprocess?: boolean } = {}
 ): Promise<AnalyzeDamageResponse> {
   // ดึงรูปเป็น blob (ต้องเปิด CORS ที่ที่เก็บรูป)
   const imgResp = await fetch(imageUrl, { mode: "cors" });
@@ -211,6 +211,7 @@ async function analyzeImageByUrl(
     imgsz: String(params.imgsz ?? 640),
     mask_iou_thresh: String(params.mask_iou_thresh ?? 0.1),
     render_overlay: String(params.render_overlay ?? true),
+    preprocess: String(params.preprocess ?? false),
   }).toString();
 
   const form = new FormData();
@@ -563,6 +564,8 @@ export default function InspectPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
+  const [preprocessEnabled, setPreprocessEnabled] = useState(false);
+  const [confValue, setConfValue] = useState(0.5);
   // config model
   const [modelParams, setModelParams] = useState<ModelParams>({
     conf_parts: 0.25,
@@ -571,26 +574,16 @@ export default function InspectPage() {
     mask_iou_thresh: 0.1,
     render_overlay: true,
   });
-  // ปรับพารามิเตอร์โมเดลaiตามระดับ (0..100)
-  function paramsFromLevel(level: number): ModelParams {
-    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-    const t = clamp(level, 0, 100) / 100;
 
-    // ยิ่ง level สูง → ยิ่งละเอียด → ลด conf ลง
-    const conf_parts = Number((0.6 - (0.6 - 0.2) * t).toFixed(2));  // 0→0.60, 100→0.20
-    const conf_damage = Number((0.5 - (0.5 - 0.15) * t).toFixed(2)); // 0→0.50, 100→0.15
-
-    return {
-      ...modelParams,
-      conf_parts,
-      conf_damage,
-    };
-  }
-  const handleChangeLevel = (lvl: number) => {
-    setAnalysisLevel(lvl);
-    const p = paramsFromLevel(lvl);
-    setModelParams(p);
-    void analyzeActiveImage(activeIndex, p, true); // บังคับวิเคราะห์ซ้ำด้วยพารามิเตอร์ใหม่
+  // ปรับค่าความมั่นใจของโมเดล
+  const handleChangeConf = (val: number) => {
+    setConfValue(val);
+    setModelParams((prev) => ({
+      ...prev,
+      conf_parts: val,
+      conf_damage: val,
+    }));
+    void analyzeActiveImage(activeIndex, { conf_parts: val, conf_damage: val }, true);
   };
   // -------- Auth --------
 
@@ -610,6 +603,7 @@ export default function InspectPage() {
         imgsz: used.imgsz,
         mask_iou_thresh: used.mask_iou_thresh,
         render_overlay: used.render_overlay,
+        preprocess: preprocessEnabled,
       });
 
 
@@ -938,8 +932,10 @@ export default function InspectPage() {
           <aside className="md:col-span-6 lg:col-span-3">
             <SummaryPanel
               boxes={currentBoxes}
-              analysisLevel={analysisLevel}
-              onChangeLevel={handleChangeLevel}
+              confValue={confValue}
+              onChangeConf={handleChangeConf}
+              preprocessEnabled={preprocessEnabled}
+              onTogglePreprocess={setPreprocessEnabled}
             />
           </aside>
         </div>

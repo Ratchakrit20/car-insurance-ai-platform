@@ -202,7 +202,7 @@ function RequestCard({
       <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent mb-3" />
 
 
-      <div className="flex gap-5 px-5 pb-5 group bg-white rounded-2xl shadow-md hover:shadow-lg border border-[#DEDCFF]/60 transition-all duration-300">
+      <div className="flex gap-5 px-5 pb-5 group bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300">
         {/* 🔹 รูปรถ */}
         <div className="relative h-28 w-44 shrink-0 overflow-hidden rounded-xl bg-[#F9F8FF] ring-1 ring-[#DEDCFF]">
           {item.car_path ? (

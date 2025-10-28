@@ -205,7 +205,7 @@ function ReviewedCard({
       : "";
 
   return (
-        <div className={`${thaiFont.className} group relative overflow-hidden rounded-[8px] border ${borderColor} shadow-sm hover:shadow-md transition-all duration-200`}>
+    <div className={`${thaiFont.className} group relative overflow-hidden rounded-[8px] border ${borderColor} shadow-md hover:shadow-lg transition-all duration-200`}>
 
    
 
@@ -220,7 +220,7 @@ function ReviewedCard({
       {/* Divider */}
       <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent mb-3" />
 
-      <div className="flex gap-5 px-5 pb-5 group bg-white rounded rounded-[8px] shadow-md hover:shadow-lg border border-[#DEDCFF]/60 transition-all duration-300">
+      <div className="flex gap-5 px-5 pb-5 group bg-white rounded rounded-[8px] transition-all duration-300">
         {/* 🔹 รูปภาพรถ */}
         <div className="relative h-28 w-44 shrink-0 overflow-hidden rounded-[8px] s bg-[#F9F8FF] ring-1 ring-[#DEDCFF]">
           {item.car_path ? (
@@ -261,20 +261,21 @@ function ReviewedCard({
           </div>
 
           {/* ความเสียหาย */}
-          <div className="flex items-start gap-2">
-            <Wrench className="w-4 h-4 text-black mt-[2px]" />
-            <div>
+          <div className="flex items-start gap-2 min-h-[1.5rem]">
+            <Wrench className="w-4 h-4 text-black mt-[2px] shrink-0" />
+            <div className="flex-1">
               <span className="text-zinc-500">ความเสียหาย:</span>{" "}
-              <span className="font-medium text-zinc-800">
+              <span className="font-medium text-zinc-800 line-clamp-2">
                 {item.damagePhotos && item.damagePhotos.length > 0
                   ? item.damagePhotos
-                    .map((d) => d.note?.trim())
-                    .filter((n) => n && n.length > 0)
-                    .join(", ") || "ไม่ระบุ"
+                      .map((d) => d.note?.trim())
+                      .filter((n) => n && n.length > 0)
+                      .join(", ") || "ไม่ระบุ"
                   : "ไม่ระบุ"}
               </span>
             </div>
           </div>
+
 
           {/* เส้นคั่น */}
           <div className="my-2 h-[1px] w-full bg-gradient-to-r from-transparent via-[#DEDCFF] to-transparent" />
@@ -325,8 +326,6 @@ function ReviewedCard({
           </div>
         </div>
       )}
-
-
     </div>
   );
 }
