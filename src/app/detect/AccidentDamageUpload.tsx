@@ -210,88 +210,89 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
     return (
         <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
             <form onSubmit={handleSubmit} className="bg-white p-6 space-y-8">
-               {adminNote?.damage &&
-  Array.isArray(adminNote.damage) &&
-  adminNote.damage.length > 0 &&
-  adminNote.damage.some(
-    (item: any) =>
-      item.checked === true ||
-      (item.comment && item.comment.trim().length > 0)
-  ) && (
-    <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
-      {/* Header + toggle */}
-      <div
-        className="flex justify-between items-center cursor-pointer select-none"
-        onClick={() => setShowDamagePanel((prev) => !prev)}
-      >
-        <div className="flex items-center gap-2">
-          <Wrench className="w-5 h-5 text-violet-600" />
-          <p className="font-semibold text-sm sm:text-base text-gray-900">
-            เจ้าหน้าที่แนะนำให้แก้ไขในส่วน{" "}
-            <span className="text-violet-700">“ภาพความเสียหาย”</span>
-          </p>
-        </div>
-        {showDamagePanel ? (
-          <ChevronUp className="w-4 h-4 text-violet-600" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-violet-600" />
-        )}
-      </div>
+                {adminNote?.damage &&
+                Array.isArray(adminNote.damage) &&
+                adminNote.damage.length > 0 &&
+                adminNote.damage.some(
+                    (item: any) =>
+                    item.checked === true ||
+                    (item.comment && item.comment.trim().length > 0)
+                ) && 
+                (
+                    <div className="border border-violet-300 bg-violet-50/80 text-gray-800 px-5 py-4 rounded-2xl shadow-sm mb-6 transition-all duration-200 hover:shadow-md">
+                        {/* Header + toggle */}
+                        <div
+                            className="flex justify-between items-center cursor-pointer select-none"
+                            onClick={() => setShowDamagePanel((prev) => !prev)}
+                        >
+                            <div className="flex items-center gap-2">
+                            <Wrench className="w-5 h-5 text-violet-600" />
+                            <p className="font-semibold text-sm sm:text-base text-gray-900">
+                                เจ้าหน้าที่แนะนำให้แก้ไขในส่วน{" "}
+                                <span className="text-violet-700">“ภาพความเสียหาย”</span>
+                            </p>
+                            </div>
+                            {showDamagePanel ? (
+                            <ChevronUp className="w-4 h-4 text-violet-600" />
+                            ) : (
+                            <ChevronDown className="w-4 h-4 text-violet-600" />
+                            )}
+                        </div>
 
-      {/* ✅ เนื้อหาที่พับได้ */}
-      {showDamagePanel && (
-        <div className="mt-4 space-y-3">
-          {/* หัวข้อย่อย */}
-          <div className="flex items-center gap-2 mb-2">
-            <p className="font-semibold text-violet-700 text-sm">
-              ภาพความเสียหายที่ต้องแก้ไข:
-            </p>
-          </div>
+                        {/* ✅ เนื้อหาที่พับได้ */}
+                        {showDamagePanel && (
+                            <div className="mt-4 space-y-3">
+                            {/* หัวข้อย่อย */}
+                            <div className="flex items-center gap-2 mb-2">
+                                <p className="font-semibold text-violet-700 text-sm">
+                                ภาพความเสียหายที่ต้องแก้ไข:
+                                </p>
+                            </div>
 
-          {/* ภาพความเสียหาย (Grid) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {adminNote.damage
-              .filter(
-                (item: any) =>
-                  item.checked === true ||
-                  (item.comment && item.comment.trim().length > 0)
-              )
-              .map((item: any, i: number) => (
-                <div
-                  key={i}
-                  className="bg-white border border-violet-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-150"
-                >
-                  {/* ภาพ */}
-                  {item.url && (
-                    <img
-                      src={item.url}
-                      alt={`damage-${i}`}
-                      className="w-full h-40 object-cover rounded-lg border border-violet-100"
-                    />
-                  )}
+                            {/* ภาพความเสียหาย (Grid) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {adminNote.damage
+                                .filter(
+                                    (item: any) =>
+                                    item.checked === true ||
+                                    (item.comment && item.comment.trim().length > 0)
+                                )
+                                .map((item: any, i: number) => (
+                                    <div
+                                    key={i}
+                                    className="bg-white border border-violet-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all duration-150"
+                                    >
+                                    {/* ภาพ */}
+                                    {item.url && (
+                                        <img
+                                        src={item.url}
+                                        alt={`damage-${i}`}
+                                        className="w-full h-40 object-cover rounded-lg border border-violet-100"
+                                        />
+                                    )}
 
-                  {/* ด้าน / หมายเหตุ */}
-                  <div className="mt-2 space-y-1">
-                    {item.side && (
-                      <p className="text-sm text-gray-800">
-                        <span className="font-semibold text-violet-700">ด้าน:</span>{" "}
-                        {item.side}
-                      </p>
-                    )}
-                    {item.comment && (
-                      <p className="text-sm text-gray-800 line-clamp-2">
-                        <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
-                        {item.comment}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )}
+                                    {/* ด้าน / หมายเหตุ */}
+                                    <div className="mt-2 space-y-1">
+                                        {item.side && (
+                                        <p className="text-sm text-gray-800">
+                                            <span className="font-semibold text-violet-700">ด้าน:</span>{" "}
+                                            {item.side}
+                                        </p>
+                                        )}
+                                        {item.comment && (
+                                        <p className="text-sm text-gray-800 line-clamp-2">
+                                            <span className="font-semibold text-violet-700">หมายเหตุ:</span>{" "}
+                                            {item.comment}
+                                        </p>
+                                        )}
+                                    </div>
+                                    </div>
+                                ))}
+                            </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
 
 
@@ -302,13 +303,13 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
                     </h2>
 
                     <p className="mt-1 text-sm text-zinc-500">
-                        ถ่ายภาพให้เห็นชัดเจนในที่แสงสว่าง และระยะห่างประมาณ 1 เมตรจากจุดที่เสียหายบนชิ้นส่วน
+                        ถ่ายภาพให้เห็นชัดเจนในที่แสงสว่าง และระยะห่างประมาณ 1-1.5 เมตรจากจุดที่เสียหายบนชิ้นส่วน
                     </p>
                 </div>
 
                 {/* Damage Photos Panel */}
-                <div className="mt-6 min-w-0">
-                    <div className="rounded-[7px] overflow-hidden">
+                <div className="mt-6 min-w-0 relative z-[3000] overflow-visible">
+                    <div className="rounded-[7px] pt-10 sm:pt-14 overflow-visible">
                         <DamagePhotosPanel
                             apiBaseUrl={process.env.NEXT_PUBLIC_DETECT_API_URL as string}
                             onChange={setDamageItems}

@@ -14,7 +14,7 @@ export default function ProgressBar({
   steps: Step[];
 }) {
   return (
-    <div className="flex items-center justify-center gap-3">
+    <div className="flex items-center justify-center gap-3 z-0 relative">
       {steps.map((step, i) => {
         const isActive = current === i;
         const isDone = current > i;
