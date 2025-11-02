@@ -160,8 +160,8 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         setCar(carData);
         setDraft(draftData);
 
-        console.log("✅ โหลดข้อมูลรถสำเร็จ:", carData);
-        console.log("✅ โหลดข้อมูล draft สำเร็จ:", draftData);
+        console.log("โหลดข้อมูลรถสำเร็จ:", carData);
+        console.log("โหลดข้อมูล draft สำเร็จ:", draftData);
       } catch (err) {
         console.error("❌ โหลดข้อมูล localStorage ล้มเหลว:", err);
         setCar(null);
@@ -472,7 +472,6 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
 
       {/* Content 3 Columns */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-black">
-
         <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
           <h2 className="font-semibold mb-3">รายละเอียดที่เกิดเหตุ</h2>
           <div className="w-full h-[200px] bg-zinc-200 flex items-center justify-center rounded overflow-hidden">
@@ -492,7 +491,6 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
           <p className="text-sm"><span className="font-medium">จุดสังเกต:</span> {draft.nearby}</p>
 
         </div>
-
         {/* กลาง: ประเภทอุบัติเหตุ */}
         <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
           <h2 className="font-semibold mb-3">รายละเอียดอุบัติเหตุ</h2>
@@ -509,7 +507,6 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
             </div>
           )}
         </div>
-
         {/* ขวา: ความเสียหาย */}
         <div className="bg-zinc-50 rounded-lg p-4 space-y-3">
           <h2 className="font-semibold mb-3">รูปความเสียหาย</h2>
@@ -525,13 +522,10 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
                   note: d.note || "", // ✅ เพิ่ม note ของแต่ละรูป
                 }))}
               />
-
             </div>
           ) : (
             <div className="text-sm text-zinc-500">ไม่มีข้อมูลรูปความเสียหาย</div>
           )}
-
-
         </div>
       </div>
 
@@ -551,7 +545,9 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
         <button
           onClick={() => setShowSubmitConfirm(true)}
           disabled={submitting}
-          className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${submitting ? "bg-gray-400 cursor-not-allowed" : "bg-[#6F47E4] hover:bg-[#5A35D1]"
+          className={`rounded-lg px-4 py-2 font-medium text-white transition-colors duration-200 ${submitting ?
+             "bg-gray-400 cursor-not-allowed" :
+             "bg-[#6F47E4] hover:bg-[#5A35D1]"
             }`}
         >
           {submitting

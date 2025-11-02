@@ -309,6 +309,7 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
 
                 {/* Damage Photos Panel */}
                 <div className="mt-6 min-w-0 relative z-[3000] overflow-visible">
+                 
                     <div className="rounded-[7px] pt-10 sm:pt-14 overflow-visible">
                         <DamagePhotosPanel
                             apiBaseUrl={process.env.NEXT_PUBLIC_DETECT_API_URL as string}

@@ -288,17 +288,17 @@ export default function ClaimTimeline({
 
 
 
-        // ✅ เรียงลำดับตามเวลา (เก่าก่อนใหม่ทีหลัง)
+        // เรียงลำดับตามเวลา (เก่าก่อนใหม่ทีหลัง)
         combined.sort((a, b) => new Date(a.rawTime).getTime() - new Date(b.rawTime).getTime());
 
-        // ✅ ย้าย "สร้างเอกสารการเคลม" ขึ้นบนสุด
+        //ย้าย "สร้างเอกสารการเคลม" ขึ้นบนสุด
         const indexCreate = combined.findIndex((s) => s.title === "สร้างเอกสารการเคลม");
         if (indexCreate > 0) {
             const [createStep] = combined.splice(indexCreate, 1);
             combined.unshift(createStep);
         }
 
-        // ✅ ปุ่มดูรายงาน
+        //  ปุ่มดูรายงาน
         const viewButton = (
             <button
                 onClick={() => setOpen(true)}
@@ -308,7 +308,7 @@ export default function ClaimTimeline({
             </button>
         );
 
-        // ✅ ถ้ามี “ผู้ใช้ส่งกลับครั้งที่ ...” → ใส่ปุ่มไว้ที่รายการล่าสุด
+        // ถ้ามี “ผู้ใช้ส่งกลับครั้งที่ ...” → ใส่ปุ่มไว้ที่รายการล่าสุด
         const lastResubIndex = combined.findLastIndex((s) =>
             s.title.includes("ผู้ใช้ส่งกลับครั้งที่")
         );
@@ -321,7 +321,7 @@ export default function ClaimTimeline({
             if (createIndex !== -1) combined[createIndex].action = viewButton;
         }
 
-        // ✅ ปุ่มแก้ไขข้อมูล
+        // ปุ่มแก้ไขข้อมูล
         const lastIncompleteIndex = combined.findLastIndex((s) =>
             s.title.includes("เจ้าหน้าที่แจ้งแก้ไขข้อมูล")
         );

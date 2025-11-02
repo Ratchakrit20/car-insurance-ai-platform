@@ -196,10 +196,14 @@ export default function PolicyModal({
                   </Field>
 
                   <Field labelText="ประเภทประกัน">
-                    <input name="insurance_type" value={form.insurance_type ?? ""} onChange={handleChange}
-                      placeholder="เช่น 1, 2+, 3"
-                      className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 focus:ring-2 focus:ring-emerald-500" />
-                  </Field>
+  <input
+    name="insurance_type"
+    value="ชั้น 1" // ✅ ล็อกให้เป็นชั้น 1
+    readOnly // ✅ ไม่ให้พิมพ์หรือแก้ไขได้
+    disabled // ✅ ปิดการโต้ตอบ (แสดงเทาเล็กน้อย)
+    className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+  />
+</Field>
                 </div>
 
                 {/* Right */}

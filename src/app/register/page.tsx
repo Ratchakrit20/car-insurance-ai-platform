@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
+import { Noto_Sans_Thai } from "next/font/google";
+const thaiFont = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 type RegisterForm = {
   full_name: string;
   email: string;
@@ -115,7 +120,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
+        <div className={`${thaiFont.className} flex items-center justify-center min-h-screen bg-gray-100 px-4`}>
+
+
       <div className="bg-white p-6 sm:p-10 rounded-xl shadow-2xl w-full max-w-md text-black">
         <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-indigo-700">
           สร้างบัญชีผู้ใช้

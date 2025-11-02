@@ -136,33 +136,43 @@ export default function ClaimDocument({ detail }: { detail: any }) {
   };
 
   const mergedMap = new Map<string, Row>();
+const normalizeSide = (side?: string): string => {
+  if (!side) return "ไม่ระบุ";
+  if (side.includes("ซ้าย")) return "ซ้าย";
+  if (side.includes("ขวา")) return "ขวา";
+  if (side.includes("หน้า")) return "หน้า";
+  if (side.includes("หลัง")) return "หลัง";
+  return side;
+};
+for (const r of rawRows) {
+  const partId = PartIdMap[r.part] || r.part;
 
-  for (const r of rawRows) {
-    const partId = PartIdMap[r.part] || r.part;
-    const key =
-      UNIQUE_IDS.has(partId)
-        ? partId // unique → ไม่แยกซ้ายขวา
-        : LR_IDS.has(partId)
-        ? `${partId}_${r.side || "ไม่ระบุ"}`
-        : partId; // default
+  // 🔹 Normalize ด้าน
+  const normalizedSide = normalizeSide(r.side);
 
-    const existing = mergedMap.get(key);
-    if (existing) {
-      // รวม damage
-      const allDamages = new Set([
-        ...existing.damages.split(",").map((s) => s.trim()).filter(Boolean),
-        ...r.damages.split(",").map((s) => s.trim()).filter(Boolean),
-      ]);
-      mergedMap.set(key, {
-        ...existing,
-        damages: Array.from(allDamages).join(", "),
-        severity: mergeSeverity(existing.severity, r.severity),
-      });
-    } else {
-      mergedMap.set(key, { ...r });
-    }
+  const key =
+    UNIQUE_IDS.has(partId)
+      ? partId // unique → ไม่แยกซ้ายขวา
+      : LR_IDS.has(partId)
+        ? `${partId}_${normalizedSide}`
+        : `${partId}_${normalizedSide}`; // default กำหนดให้มีด้านชัดเจน
+
+  const existing = mergedMap.get(key);
+  if (existing) {
+    // ✅ รวม damage ไม่ให้ซ้ำ
+    const allDamages = new Set([
+      ...existing.damages.split(",").map((s) => s.trim()).filter(Boolean),
+      ...r.damages.split(",").map((s) => s.trim()).filter(Boolean),
+    ]);
+    mergedMap.set(key, {
+      ...existing,
+      damages: Array.from(allDamages).join(", "),
+      severity: mergeSeverity(existing.severity, r.severity),
+    });
+  } else {
+    mergedMap.set(key, { ...r, side: normalizedSide }); // ✅ ใช้ด้านที่ normalize แล้ว
   }
-
+}
   /* ---------- สร้าง rows สุดท้าย ---------- */
   const rows: Row[] = Array.from(mergedMap.values()).map((r, idx) => ({
     ...r,

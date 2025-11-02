@@ -52,7 +52,6 @@ export default function ProfilePage() {
   // ✅ ตรวจสอบ token และโหลดข้อมูล user
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
         const token = localStorage.getItem("token");
@@ -60,11 +59,9 @@ export default function ProfilePage() {
           setIsAuthenticated(false);
           return;
         }
-
         const meRes = await fetch(`${process.env.NEXT_PUBLIC_URL_PREFIX}/api/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         const meData = await meRes.json();
         if (cancelled) return;
 
@@ -77,7 +74,6 @@ export default function ProfilePage() {
             }
           );
           const json = await res.json();
-
           if (json) {
             setUser({
               id: json.id,
@@ -94,7 +90,6 @@ export default function ProfilePage() {
             });
             setCars(json.cars || []);
           }
-
           setIsAuthenticated(true);
         } else {
           localStorage.removeItem("token");
@@ -118,15 +113,14 @@ export default function ProfilePage() {
     if (isAuthenticated === false) router.replace("/login");
   }, [isAuthenticated, router]);
 
-  // ✅ Loading state
+  // Loading state
   if (isAuthenticated === null || loading)
     return <LoadingScreen message="กำลังโหลดข้อมูล..." />;
 
-  // ✅ บันทึกข้อมูลติดต่อ
+  // บันทึกข้อมูลติดต่อ
   async function saveContact() {
     if (!user) return alert("ยังไม่ได้โหลดข้อมูลผู้ใช้");
     setSavingInfo(true);
-
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
@@ -140,10 +134,8 @@ export default function ProfilePage() {
           body: JSON.stringify({ phone_number: phone, address }),
         }
       );
-
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.message || "Failed");
-
       setUser((u) => (u ? { ...u, phone, address } : u));
       alert("อัปเดตข้อมูลเรียบร้อย");
     } catch (err: any) {
@@ -152,8 +144,6 @@ export default function ProfilePage() {
       setSavingInfo(false);
     }
   }
-
-  // ✅ ตรวจสอบฟอร์มรหัสผ่าน
   function validatePasswordForm() {
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordMsg("กรุณากรอกข้อมูลให้ครบ");
@@ -166,8 +156,7 @@ export default function ProfilePage() {
     setPasswordMsg("");
     return true;
   }
-
-  // ✅ เปลี่ยนรหัสผ่าน
+  // เปลี่ยนรหัสผ่าน
   async function changePassword() {
     if (!validatePasswordForm() || !user) return;
     setSavingPw(true);

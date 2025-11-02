@@ -382,9 +382,10 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     // ✅ reset value เพื่อให้อัปโหลดไฟล์ชื่อซ้ำได้
     e.target.value = "";
   };
-  const canProceed =
-    evidenceFiles.length > 0 &&
-    evidenceFiles.every((f) => f.progress === 100 && f.loaded);
+const canProceed =
+  details.trim().length > 0 &&
+  (evidenceFiles.length === 0 ||
+    evidenceFiles.every((f) => f.progress === 100 && f.loaded));
 
 
 
@@ -669,7 +670,8 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
 
         {/* Evidence Upload */}
 
-        {/* Sidebar */}
+        {/* Sidebar */}         {labelEl("อัปโหลดหลักฐานภาพถ่ายหรือวิดีโอของเหตุการณ์ (ถ้ามี) ")}
+ิ<br />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Sidebar */}
           <div className="bg-violet-50 rounded-lg p-4 flex flex-col">
