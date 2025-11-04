@@ -354,6 +354,10 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
         alert("วันที่/เวลาอยู่นอกช่วงคุ้มครองของกรมธรรม์");
         return;
       }
+      if (!lat || !lng) {
+        alert("โปรดระบุตำแหน่งที่เกิดเหตุก่อนดำเนินการต่อ");
+        return; // ❌ หยุดการ submit
+      }
     }
 
     const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
@@ -378,7 +382,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   return (
     <div className="acc-page box-border mx-auto max-w-5xl px-3 sm:px-4 md:px-6">
       <form onSubmit={handleSubmit} className="bg-white p-6 space-y-8">
-       
+
         {adminNote?.incident &&
           adminNote.incident !== null &&
           typeof adminNote.incident === 'object' &&
@@ -579,7 +583,7 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
 
         {/* GPS */}
         <div>
-          {labelEl("ตำแหน่งที่เกิดเหตุ (GPS/เลือกจากแผนที่)")}
+          {labelEl("ตำแหน่งที่เกิดเหตุ (GPS/เลือกจากแผนที่)", true)}
           <button
             type="button"
             onClick={() => setShowMapPicker(true)}
