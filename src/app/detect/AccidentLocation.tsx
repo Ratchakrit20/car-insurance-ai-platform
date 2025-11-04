@@ -474,10 +474,12 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
               type="date"
               className={fieldSurface({ required: true, filled: !!date })}
               value={date}
-              min={startYMD}  // มีคุ้มครองเริ่มเมื่อไหร่ ใช้อันนั้น ถ้าไม่มีปล่อย undefined ก็ได้
-              max={dateMax}   // ❗ ป้องกันเลือกเกินวันนี้
-              onChange={(e) => setDate(e.target.value)}
+              min={startYMD}
+              max={dateMax}
               required
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("กรุณาระบุวันที่เกิดอุบัติเหตุ")}
+              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
+              onChange={(e) => setDate(e.target.value)}
             />
             {!coverageStart || !coverageEnd ? (
               <p className="mt-1 text-xs text-amber-600">
@@ -499,6 +501,8 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
               value={time}
               min={timeMin}
               max={timeMax}   // ❗ ถ้าเลือกวันนี้ → ห้ามเกินเวลาปัจจุบัน
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("กรุณาระบุเวลาเกิดอุบัติเหตุ")}
+              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
               onChange={(e) => setTime(e.target.value)}
               required
             />
@@ -560,8 +564,10 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
             <select
               className={fieldSurface({ required: true, filled: !!areaType })}
               value={areaType}
-              onChange={(e) => setAreaType(e.target.value)}
               required
+              onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity("กรุณาเลือกประเภทพื้นที่")}
+              onInput={(e) => (e.target as HTMLSelectElement).setCustomValidity("")}
+              onChange={(e) => setAreaType(e.target.value)}
             >
               <option value="">โปรดเลือก</option>
               <option>ทางหลวง</option>
@@ -575,8 +581,10 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
               className={fieldSurface({ required: true, filled: !!nearby }) + " min-h-[96px]"}
               placeholder="เช่น ใกล้ปั๊มน้ำมัน..."
               value={nearby}
-              onChange={(e) => setNearby(e.target.value)}
               required
+              onInvalid={(e) => (e.target as HTMLTextAreaElement).setCustomValidity("กรุณาระบุจุดสังเกตใกล้เคียง")}
+              onInput={(e) => (e.target as HTMLTextAreaElement).setCustomValidity("")}
+              onChange={(e) => setNearby(e.target.value)}
             />
           </div>
         </div>

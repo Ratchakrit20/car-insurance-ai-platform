@@ -125,23 +125,24 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
     }, []);
     // ✅ Auto-save: เซฟรูปทุกครั้งที่ damageItems เปลี่ยน
     useEffect(() => {
-        if (!damageItems || damageItems.length === 0) return;
+    if (!damageItems || damageItems.length === 0) return;
 
-        const snapshot = damageItems.map((d) => ({
-            url: d.previewUrl,
-            type: inferType(d),
-            publicId: d.id,
-            side: d.side,
-            total: d.total,
-            perClass: d.perClass,
-            note: d.note,
-        }));
+    const snapshot = damageItems.map((d) => ({
+        url: d.previewUrl.startsWith("blob:") ? "" : d.previewUrl,
+        type: inferType(d),
+        publicId: d.id,
+        side: d.side,
+        total: d.total,
+        perClass: d.perClass,
+        note: d.note,
+    }));
 
-        try {
-            const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
-            localStorage.setItem(ACC_KEY, JSON.stringify({ ...oldDraft, damagePhotos: snapshot }));
-        } catch { }
+    try {
+        const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
+        localStorage.setItem(ACC_KEY, JSON.stringify({ ...oldDraft, damagePhotos: snapshot }));
+    } catch {}
     }, [damageItems]);
+
 
 
     // ✅ ย้าย await มาที่นี่
@@ -150,30 +151,34 @@ export default function AccidentStep3({ onNext, onBack }: StepProps) {
         const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
 
         const damagePhotos = await Promise.all(
-            damageItems.map(async (it) => {
-                if (it.file) {
-                    const up = await uploadToCloudinary(it.file);
-                    return {
-                        url: up.url,
-                        type: up.type,
-                        publicId: up.publicId,
-                        side: it.side,
-                        total: it.total,
-                        perClass: it.perClass,
-                        note: it.note,
-                    };
-                }
-                return {
-                    url: it.previewUrl,
-                    type: "image",
-                    publicId: it.id,
-                    side: it.side,
-                    total: it.total,
-                    perClass: it.perClass,
-                    note: it.note,
-                };
-            })
-        );
+        damageItems.map(async (it) => {
+            // ถ้ารูปใหม่ (blob + มี file → อัปโหลด)
+            if (it.file) {
+            const up = await uploadToCloudinary(it.file);
+            return {
+                url: up.url,
+                type: up.type,
+                publicId: up.publicId,
+                side: it.side,
+                total: it.total,
+                perClass: it.perClass,
+                note: it.note,
+            };
+            }
+
+            // ถ้าเป็นรูปที่มี cloudinary อยู่แล้ว
+            return {
+            url: it.previewUrl,
+            type: inferType(it),
+            publicId: it.id,
+            side: it.side,
+            total: it.total,
+            perClass: it.perClass,
+            note: it.note,
+            };
+        })
+);
+
 
         const payload = {
             ...oldDraft,
