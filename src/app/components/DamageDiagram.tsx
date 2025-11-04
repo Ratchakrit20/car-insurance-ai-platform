@@ -71,74 +71,70 @@ export default function DamageDiagram({ rows }: { rows: Row[] }) {
   useEffect(() => {
     // ✅ ฟังก์ชัน apply สี (รองรับหลายสีด้วย gradient)
     const apply = (id: string, damages: string[]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
+  const el = document.getElementById(id);
+  if (!el) return;
 
-      // แปลงเป็นสีทั้งหมดจาก DAMAGE_COLOR
-      const colors = damages
-        .map((d) => DAMAGE_COLOR[d] || null)
-        .filter((c): c is string => Boolean(c));
+  // ✅ แปลงเป็นสี (ใช้สีเขียวถ้าไม่เจอใน DAMAGE_COLOR)
+  const colors = damages.map((d) => DAMAGE_COLOR[d] || "#22C55E");
 
-      let fillStyle = "white";
+  let fillStyle = "white";
 
-      // ✅ ทำ gradient เหมือนเดิม
-      if (colors.length > 1) {
-        const gradientId = `grad-${id}`;
-        const svg = el.closest("svg");
-        if (svg) {
-          const oldGrad = svg.querySelector(`#${gradientId}`);
-          if (oldGrad) oldGrad.remove();
+  // ✅ ทำ gradient ถ้ามีหลายสี
+  if (colors.length > 1) {
+    const gradientId = `grad-${id}`;
+    const svg = el.closest("svg");
+    if (svg) {
+      const oldGrad = svg.querySelector(`#${gradientId}`);
+      if (oldGrad) oldGrad.remove();
 
-          const defs =
-            svg.querySelector("defs") ||
-            svg.insertBefore(
-              document.createElementNS("http://www.w3.org/2000/svg", "defs"),
-              svg.firstChild
-            );
+      const defs =
+        svg.querySelector("defs") ||
+        svg.insertBefore(
+          document.createElementNS("http://www.w3.org/2000/svg", "defs"),
+          svg.firstChild
+        );
 
-          const grad = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "linearGradient"
-          );
-          grad.setAttribute("id", gradientId);
-          grad.setAttribute("x1", "0%");
-          grad.setAttribute("x2", "100%");
-          grad.setAttribute("y1", "0%");
-          grad.setAttribute("y2", "0%");
-          const step = 100 / (colors.length - 1);
-          colors.forEach((color, i) => {
-            const stop = document.createElementNS(
-              "http://www.w3.org/2000/svg",
-              "stop"
-            );
-            stop.setAttribute("offset", `${i * step}%`);
-            stop.setAttribute("stop-color", color);
-            grad.appendChild(stop);
-          });
-          defs.appendChild(grad);
-          fillStyle = `url(#${gradientId})`;
-        }
-      } else if (colors.length === 1) {
-        fillStyle = colors[0]!;
-      }
-
-      const paths =
-        el.tagName.toLowerCase() === "path" ? [el] : el.querySelectorAll("path");
-
-      paths.forEach((p) => {
-        p.setAttribute("fill", fillStyle);
-        p.setAttribute("opacity", "1");
-
-        // ✅ เพิ่มเส้นขอบให้คมขึ้น
-        p.setAttribute("stroke", "#111827");
-        p.setAttribute("stroke-width", "0.8");
-        p.setAttribute("vector-effect", "non-scaling-stroke"); // ป้องกัน stroke เบลอเวลา zoom
-
-        (p as any).style.transition = "fill 0.4s ease, opacity 0.4s ease";
+      const grad = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "linearGradient"
+      );
+      grad.setAttribute("id", gradientId);
+      grad.setAttribute("x1", "0%");
+      grad.setAttribute("x2", "100%");
+      grad.setAttribute("y1", "0%");
+      grad.setAttribute("y2", "0%");
+      const step = 100 / (colors.length - 1);
+      colors.forEach((color, i) => {
+        const stop = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "stop"
+        );
+        stop.setAttribute("offset", `${i * step}%`);
+        stop.setAttribute("stop-color", color);
+        grad.appendChild(stop);
       });
+      defs.appendChild(grad);
+      fillStyle = `url(#${gradientId})`;
+    }
+  } else if (colors.length === 1) {
+    fillStyle = colors[0]!;
+  }
 
-      el.setAttribute("opacity", "1");
-    };
+  const paths =
+    el.tagName.toLowerCase() === "path" ? [el] : el.querySelectorAll("path");
+
+  paths.forEach((p) => {
+    p.setAttribute("fill", fillStyle);
+    p.setAttribute("opacity", "1");
+    p.setAttribute("stroke", "#111827");
+    p.setAttribute("stroke-width", "0.8");
+    p.setAttribute("vector-effect", "non-scaling-stroke");
+    (p as any).style.transition = "fill 0.4s ease, opacity 0.4s ease";
+  });
+
+  el.setAttribute("opacity", "1");
+};
+
 
 
     // ✅ loop ทุกแถว

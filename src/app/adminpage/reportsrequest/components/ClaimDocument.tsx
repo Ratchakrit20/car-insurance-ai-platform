@@ -435,6 +435,7 @@ for (const r of rawRows) {
                 ["#DC2626", "กระจกแตก"],
                 ["#9333EA", "ไฟแตก"],
                 ["#6B7280", "ยางแบน"],
+                ["#22C55E", "อื่นๆ"],
               ].map(([color, label]) => (
                 <div key={label} className="flex items-center gap-2 text-[12px] leading-[1.4]">
                   <span

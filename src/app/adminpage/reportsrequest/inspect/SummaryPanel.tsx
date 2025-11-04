@@ -23,14 +23,29 @@ export default function SummaryPanel({
   preprocessEnabled: boolean;
   onTogglePreprocess: (v: boolean) => void;
 }) {
-  const donutData = useMemo(() => {
-    const total = boxes.reduce((s, b) => s + b.areaPercent, 0) || 1;
-    return boxes.map((b) => ({
-      label: b.part,
-      pct: Math.round((b.areaPercent / total) * 100),
-      color: b.color,
-    }));
-  }, [boxes]);
+ const donutData = useMemo(() => {
+  if (!boxes || boxes.length === 0) return [];
+
+  // ✅ รวม part ที่ซ้ำกัน
+  const grouped: Record<string, { totalArea: number; color: string }> = {};
+  boxes.forEach((b) => {
+    if (!grouped[b.part]) {
+      grouped[b.part] = { totalArea: b.areaPercent, color: b.color };
+    } else {
+      grouped[b.part].totalArea += b.areaPercent;
+    }
+  });
+
+  // ✅ รวมทั้งหมดเพื่อนำมาคำนวณเปอร์เซ็นต์
+  const total = Object.values(grouped).reduce((s, g) => s + g.totalArea, 0) || 1;
+
+  // ✅ แปลงเป็น array สำหรับ donut chart
+  return Object.entries(grouped).map(([part, g]) => ({
+    label: part,
+    pct: Math.round((g.totalArea / total) * 100),
+    color: g.color,
+  }));
+}, [boxes]);
 
   const donutStyle = useMemo(() => {
     let acc = 0;

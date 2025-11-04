@@ -28,7 +28,7 @@ const dateForInput = (d?: string | null) => {
   const dd = String(dt.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 };
-const timeForSave  = (t?: string | null) => (!t ? null : (t.length === 5 ? `${t}:00` : t));
+const timeForSave = (t?: string | null) => (!t ? null : (t.length === 5 ? `${t}:00` : t));
 
 async function uploadToCloudinary(file: File): Promise<MediaItem> {
   const cloud = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD!;
@@ -163,7 +163,7 @@ export default function PolicyModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {/* Left */}
                 <div className="space-y-4 text-black">
-                  <Section title="ข้อมูลกรมธรรม์"/>
+                  <Section title="ข้อมูลกรมธรรม์" />
                   <Field labelText="เลขกรมธรรม์">
                     <input name="policy_number" required value={form.policy_number} onChange={handleChange}
                       className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 focus:ring-2 focus:ring-emerald-500" />
@@ -196,14 +196,14 @@ export default function PolicyModal({
                   </Field>
 
                   <Field labelText="ประเภทประกัน">
-  <input
-    name="insurance_type"
-    value="ชั้น 1" // ✅ ล็อกให้เป็นชั้น 1
-    readOnly // ✅ ไม่ให้พิมพ์หรือแก้ไขได้
-    disabled // ✅ ปิดการโต้ตอบ (แสดงเทาเล็กน้อย)
-    className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
-  />
-</Field>
+                    <input
+                      name="insurance_type"
+                      value="ชั้น 1" // ✅ ล็อกให้เป็นชั้น 1
+                      readOnly // ✅ ไม่ให้พิมพ์หรือแก้ไขได้
+                      disabled // ✅ ปิดการโต้ตอบ (แสดงเทาเล็กน้อย)
+                      className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+                    />
+                  </Field>
                 </div>
 
                 {/* Right */}
