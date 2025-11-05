@@ -38,6 +38,8 @@ export type ClaimDetail = {
   created_at?: string;
   car: Car | null;
   accident: AccidentDraft;
+  approved_by?: string | null;   
+  approved_at?: string | null; 
 }
 
 export type Annotation = {

@@ -110,7 +110,8 @@ export default function ClaimDocument({ detail }: { detail: any }) {
   console.log("✅ Claim detail loaded:", detail);
   console.log("🚗 Car mapped:", car);
   console.log("💥 Accident mapped:", acc);
-
+  console.log("✅ Approved by:", detail.approved_by);
+  console.log("📅 Approved at:", detail.approved_at);
   /* ---------- รวมรายการความเสียหาย ---------- */
   const rawRows: Row[] = [];
   let i = 1;
@@ -529,10 +530,18 @@ export default function ClaimDocument({ detail }: { detail: any }) {
 
 
         {/* ---------- ลายเซ็น ---------- */}
-        <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 avoid-break">
-          <SignBox title="บริษัทประกัน" />
+
+        {/* <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 avoid-break">
+        
+          <SignBox
+            title="บริษัทประกัน"
+            name={detail.approved_by}
+            date={detail.approved_at}
+          />
+
+      
           <SignBox title="ผู้เอาประกันภัย / ลูกค้า" />
-        </div>
+        </div> */}
 
 
       </div>
@@ -620,16 +629,31 @@ function Info({
   );
 }
 
+// function SignBox({ title, name, date }: { title: string; name?: string; date?: string }) {
+//   return (
+//     <div className="flex-1 w-full border border-zinc-300 rounded-md p-3 text-[12px]">
+//       <div className="mb-2 font-semibold text-zinc-700">{title}</div>
 
-function SignBox({ title }: { title: string; }) {
-  return (
-    <div className="flex-1 w-full border border-zinc-300 rounded-md p-3 text-[12px]">
+//       <div>
+//         ลงชื่อ ___________________________
+//         {name && (
+//           <span className="ml-2 text-zinc-800 font-medium">
+//             ({name})
+//           </span>
+//         )}
+//       </div>
 
-      <div className="mb-2 font-semibold text-zinc-700">{title}</div>
-      <div>ลงชื่อ ___________________________</div>
-      <div className="mt-1">วันที่ ___________/___________/___________</div>
-    </div>
-  );
-}
+//       <div className="mt-1">
+//         วันที่ ___________/___________/___________
+//         {date && (
+//           <span className="ml-2 text-zinc-800 font-medium">
+//             ({thDate(date)})
+//           </span>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
+
 
 

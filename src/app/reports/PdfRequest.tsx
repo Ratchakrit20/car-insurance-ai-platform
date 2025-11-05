@@ -70,8 +70,8 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
     status === "สำเร็จ"
       ? "bg-emerald-400 text-emerald-950"
       : status === "ปฏิเสธ"
-      ? "bg-rose-400 text-rose-950"
-      : "bg-amber-400 text-amber-950";
+        ? "bg-rose-400 text-rose-950"
+        : "bg-amber-400 text-amber-950";
 
   const carTitle = car
     ? `${car.car_brand ?? ""} ${car.car_model ?? ""}`.trim() || "รถของผู้เอาประกัน"
@@ -94,18 +94,18 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
       {/* Toolbar (ซ่อนตอนพิมพ์) */}
       <div className="print:hidden flex justify-end gap-2 p-3 bg-zinc-50 border-b border-zinc-200">
         <button
-  onClick={() => window.print()}
-  className={[
-    "inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold",
-    "bg-white text-[#4c3aa8] border border-violet-100",
-    "transform-gpu transition-[transform,background-color,box-shadow] duration-[900ms]",
-    "ease-[cubic-bezier(.22,1,.36,1)] hover:-translate-y-0.5 hover:bg-violet-50",
-    "hover:shadow-[0_14px_32px_-18px_rgba(76,58,168,.35)]",
-    "focus:outline-none focus:ring-2 focus:ring-violet-200",
-  ].join(" ")}
->
-  🖨️ พิมพ์/บันทึก PDF
-</button>
+          onClick={() => window.print()}
+          className={[
+            "inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold",
+            "bg-white text-[#4c3aa8] border border-violet-100",
+            "transform-gpu transition-[transform,background-color,box-shadow] duration-[900ms]",
+            "ease-[cubic-bezier(.22,1,.36,1)] hover:-translate-y-0.5 hover:bg-violet-50",
+            "hover:shadow-[0_14px_32px_-18px_rgba(76,58,168,.35)]",
+            "focus:outline-none focus:ring-2 focus:ring-violet-200",
+          ].join(" ")}
+        >
+          🖨️ พิมพ์/บันทึก PDF
+        </button>
       </div>
 
       {/* Hero header */}
@@ -114,7 +114,7 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
           รายงานคำขอเคลมประกัน
         </h1>
         <div className="mt-2 inline-flex items-center gap-2">
-         
+
           <span className="text-white/90 text-[12px] font-medium">
             เลขเคลม: <b>{String(detail.claim_id)}</b>
           </span>
@@ -132,7 +132,7 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
         </div>
 
         {/* Hero thumbnail (ถ้ามี) */}
-        
+
       </section>
 
       {/* Content */}
@@ -166,7 +166,7 @@ export default function PdfRequest({ detail }: { detail: PdfDetail }) {
               <KV k="ยี่ห้อ/รุ่น" v={car ? `${car.car_brand ?? "-"} ${car.car_model ?? ""}`.trim() || "-" : "-"} />
               <KV k="ปีผลิต" v={car?.car_year ? String(car.car_year) : "-"} />
               <KV k="ทะเบียน" v={plate} />
-              
+
               <KV k="เลขที่กรมธรรม์" v={car?.policy_number || "-"} />
               <KV k="ประเภทประกัน" v={car?.insurance_type || "-"} />
               <KV k="วันหมดอายุ" v={fmtThaiDate(car?.coverage_end_date)} />

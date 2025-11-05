@@ -85,7 +85,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
     insured_name: detail.insured_name ?? "-",
     insurance_company: detail.insurance_company ?? "-",
     chassis_number: detail.chassis_number ?? "-",
-    
+
   };
 
 
@@ -138,43 +138,43 @@ export default function ClaimDocument({ detail }: { detail: any }) {
   };
 
   const mergedMap = new Map<string, Row>();
-const normalizeSide = (side?: string): string => {
-  if (!side) return "ไม่ระบุ";
-  if (side.includes("ซ้าย")) return "ซ้าย";
-  if (side.includes("ขวา")) return "ขวา";
-  if (side.includes("หน้า")) return "หน้า";
-  if (side.includes("หลัง")) return "หลัง";
-  return side;
-};
-for (const r of rawRows) {
-  const partId = PartIdMap[r.part] || r.part;
+  const normalizeSide = (side?: string): string => {
+    if (!side) return "ไม่ระบุ";
+    if (side.includes("ซ้าย")) return "ซ้าย";
+    if (side.includes("ขวา")) return "ขวา";
+    if (side.includes("หน้า")) return "หน้า";
+    if (side.includes("หลัง")) return "หลัง";
+    return side;
+  };
+  for (const r of rawRows) {
+    const partId = PartIdMap[r.part] || r.part;
 
-  // 🔹 Normalize ด้าน
-  const normalizedSide = normalizeSide(r.side);
+    // 🔹 Normalize ด้าน
+    const normalizedSide = normalizeSide(r.side);
 
-  const key =
-    UNIQUE_IDS.has(partId)
-      ? partId // unique → ไม่แยกซ้ายขวา
-      : LR_IDS.has(partId)
-        ? `${partId}_${normalizedSide}`
-        : `${partId}_${normalizedSide}`; // default กำหนดให้มีด้านชัดเจน
+    const key =
+      UNIQUE_IDS.has(partId)
+        ? partId // unique → ไม่แยกซ้ายขวา
+        : LR_IDS.has(partId)
+          ? `${partId}_${normalizedSide}`
+          : `${partId}_${normalizedSide}`; // default กำหนดให้มีด้านชัดเจน
 
-  const existing = mergedMap.get(key);
-  if (existing) {
-    // ✅ รวม damage ไม่ให้ซ้ำ
-    const allDamages = new Set([
-      ...existing.damages.split(",").map((s) => s.trim()).filter(Boolean),
-      ...r.damages.split(",").map((s) => s.trim()).filter(Boolean),
-    ]);
-    mergedMap.set(key, {
-      ...existing,
-      damages: Array.from(allDamages).join(", "),
-      severity: mergeSeverity(existing.severity, r.severity),
-    });
-  } else {
-    mergedMap.set(key, { ...r, side: normalizedSide }); // ✅ ใช้ด้านที่ normalize แล้ว
+    const existing = mergedMap.get(key);
+    if (existing) {
+      // ✅ รวม damage ไม่ให้ซ้ำ
+      const allDamages = new Set([
+        ...existing.damages.split(",").map((s) => s.trim()).filter(Boolean),
+        ...r.damages.split(",").map((s) => s.trim()).filter(Boolean),
+      ]);
+      mergedMap.set(key, {
+        ...existing,
+        damages: Array.from(allDamages).join(", "),
+        severity: mergeSeverity(existing.severity, r.severity),
+      });
+    } else {
+      mergedMap.set(key, { ...r, side: normalizedSide }); // ✅ ใช้ด้านที่ normalize แล้ว
+    }
   }
-}
   /* ---------- สร้าง rows สุดท้าย ---------- */
   const rows: Row[] = Array.from(mergedMap.values()).map((r, idx) => ({
     ...r,
@@ -349,7 +349,7 @@ for (const r of rawRows) {
       {/* ---------- Header ---------- */}
       <div className="rounded-xl p-4 sm:p-5 text-black">
         <div className="mb-2 flex items-center gap-3">
-        
+
           <div>
             <div className="text-[22px] font-extrabold leading-tight">
               {car.insurance_company}
@@ -370,7 +370,19 @@ for (const r of rawRows) {
           <div className="text-center border-b border-zinc-300 bg-[#F6F8FB] px-3 py-2 text-[13px] font-semibold">
             ข้อมูลการเคลม
           </div>
+               <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 mt-3 text-[13px]">
+    <Info
+      label="เลขที่คำขอเคลม"
+      value={`CLM-${detail.claim_id ?? "-"}`}
+    />
+    <Info
+      label="วันที่ยื่นคำขอ"
+      value={thDate(detail.created_at)}
+    />
+       <Info label="วันที่อนุมัติ" value={detail.approved_at ? thDate(detail.approved_at) : "-"} />
 
+   
+  </div>
           {/* ข้อมูลรถยนต์ */}
           <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 text-[13px] print:grid-cols-3">
             <Info label="ชื่อ" value={car.insured_name} />
@@ -380,7 +392,7 @@ for (const r of rawRows) {
             <Info label="ประเภทประกัน" value={car.insurance_type} />
             <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
             <Info label="เลขตัวถัง" value={car.chassis_number} />
-             <Info
+            <Info
               label="เริ่มคุ้มครอง"
               value={car.coverage_start_date ? thDate(car.coverage_start_date) : "-"}
             />
@@ -394,7 +406,6 @@ for (const r of rawRows) {
 
           {/* ข้อมูลอุบัติเหตุ */}
           <div className="grid grid-cols-3 gap-y-1.5 gap-x-6 text-[13px] print:grid-cols-3">
-            <Info label="วันที่ยื่นคำขอ" value={thDate(detail.created_at)} />
             <Info label="วันที่เกิดเหตุ" value={thDate(acc.accident_date)} />
             <Info label="เวลาที่เกิดเหตุ" value={acc.accident_time ?? "-"} />
             <Info label="ประเภทอุบัติเหตุ" value={acc.accidentType ?? "-"} />
@@ -528,10 +539,24 @@ for (const r of rawRows) {
         </div>
 
         {/* ---------- ลายเซ็น ---------- */}
-        <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 avoid-break">
-          <SignBox title="บริษัทประกัน" />
-          <SignBox title="ผู้เอาประกันภัย / ลูกค้า" />
-        </div>
+       <div className="mt-4 flex flex-col sm:flex-row justify-between gap-4 sm:gap-6 avoid-break">
+  {/* ✅ ฝั่งบริษัทประกัน – แสดงเฉพาะเมื่ออนุมัติแล้ว */}
+  {detail.status === "approved" && (
+    <SignBox
+      title="บริษัทประกัน"
+      name={detail.approved_by || "เจ้าหน้าที่ตรวจสอบ"}
+      date={detail.approved_at}
+      dateLabel="วันที่อนุมัติ" // 🟣 ชัดเจนว่าคือวันอนุมัติ
+    />
+  )}
+
+  {/* ✅ ฝั่งลูกค้า – แสดงเสมอ */}
+  <SignBox
+    title="ผู้เอาประกันภัย / ลูกค้า"
+    dateLabel="วันที่ลงนามรับรอง" // 🟢 สื่อว่าคือตอนลูกค้าเซ็น
+  />
+</div>
+
 
 
       </div>
@@ -619,14 +644,48 @@ function Info({
   );
 }
 
+function SignBox({
+  title,
+  name,
+  date,
+  dateLabel = "วันที่", // ✅ default label
+}: {
+  title: string;
+  name?: string;
+  date?: string;
+  dateLabel?: string;
+}) {
+  const thDate = date
+    ? new Date(date).toLocaleDateString("th-TH", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "";
 
-function SignBox({ title }: { title: string; }) {
   return (
     <div className="flex-1 w-full border border-zinc-300 rounded-md p-3 text-[12px]">
-
       <div className="mb-2 font-semibold text-zinc-700">{title}</div>
-      <div>ลงชื่อ ___________________________</div>
-      <div className="mt-1">วันที่ ___________/___________/___________</div>
+
+      {/* ✅ แสดงชื่อเต็มแทนเส้นขีด */}
+      <div>
+        ลงชื่อ{" "}
+        {name ? (
+          <span className="font-medium text-zinc-800">{name}</span>
+        ) : (
+          "___________________________"
+        )}
+      </div>
+
+      {/* ✅ แสดงวันที่พร้อม label ที่เหมาะสม */}
+      <div className="mt-1">
+        {dateLabel}{" "}
+        {thDate ? (
+          <span className="font-medium text-zinc-800">{thDate}</span>
+        ) : (
+          "_________/_________/_________"
+        )}
+      </div>
     </div>
   );
 }
