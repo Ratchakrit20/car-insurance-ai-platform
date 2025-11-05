@@ -897,7 +897,7 @@ export default function InspectPage() {
                   : "bg-indigo-600 text-white hover:bg-indigo-700"
                   }`}
               >
-                {analyzing ? "กำลังวิเคราะห์…" : "วิเคราะห์ภาพนี้"}
+                {analyzing ? "กำลังวิเคราะห์…" : "วิเคราะห์ภาพอีกครั้ง"}
               </button>
             </div>
             {!analyzing && !analyzeError && noDamageByIndex[activeIndex] && (

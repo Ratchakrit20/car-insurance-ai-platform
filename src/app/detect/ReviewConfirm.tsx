@@ -483,10 +483,14 @@ export default function ReviewConfirm({ onBack, onFinish, userId }: ReviewConfir
           <p className="text-sm"><span className="font-medium">วัน/เวลา:</span>   {formatDateTime(draft.accident_date, draft.accident_time)}</p>
           <p className="text-sm">
             <span className="font-medium">สถานที่:</span>{" "}
-            {draft.province || draft.district || draft.road
-              ? `${draft.province || ""} ${draft.district || ""} ${draft.road || ""}`.trim()
-              : "ไม่ระบุ"}
-          </p>
+            
+          {draft.province || draft.district || draft.road
+                ? `${draft.province || ""} ${draft.district || ""} ${draft.road || ""
+                  }`.trim()
+                : "ไม่ระบุ" + " (" + (draft.location?.lat && draft.location?.lng
+                  ? `พิกัด: ${draft.location.lat}, ${draft.location.lng}`
+                  : "ไม่มีพิกัด") + ")"}
+            </p>
           <p className="text-sm"><span className="font-medium">ประเภทพื้นที่:</span> {draft.areaType}</p>
           <p className="text-sm"><span className="font-medium">จุดสังเกต:</span> {draft.nearby}</p>
 

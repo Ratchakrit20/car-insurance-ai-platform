@@ -23,29 +23,29 @@ export default function SummaryPanel({
   preprocessEnabled: boolean;
   onTogglePreprocess: (v: boolean) => void;
 }) {
- const donutData = useMemo(() => {
-  if (!boxes || boxes.length === 0) return [];
+  const donutData = useMemo(() => {
+    if (!boxes || boxes.length === 0) return [];
 
-  // ✅ รวม part ที่ซ้ำกัน
-  const grouped: Record<string, { totalArea: number; color: string }> = {};
-  boxes.forEach((b) => {
-    if (!grouped[b.part]) {
-      grouped[b.part] = { totalArea: b.areaPercent, color: b.color };
-    } else {
-      grouped[b.part].totalArea += b.areaPercent;
-    }
-  });
+    // ✅ รวม part ที่ซ้ำกัน
+    const grouped: Record<string, { totalArea: number; color: string }> = {};
+    boxes.forEach((b) => {
+      if (!grouped[b.part]) {
+        grouped[b.part] = { totalArea: b.areaPercent, color: b.color };
+      } else {
+        grouped[b.part].totalArea += b.areaPercent;
+      }
+    });
 
-  // ✅ รวมทั้งหมดเพื่อนำมาคำนวณเปอร์เซ็นต์
-  const total = Object.values(grouped).reduce((s, g) => s + g.totalArea, 0) || 1;
+    // ✅ รวมทั้งหมดเพื่อนำมาคำนวณเปอร์เซ็นต์
+    const total = Object.values(grouped).reduce((s, g) => s + g.totalArea, 0) || 1;
 
-  // ✅ แปลงเป็น array สำหรับ donut chart
-  return Object.entries(grouped).map(([part, g]) => ({
-    label: part,
-    pct: Math.round((g.totalArea / total) * 100),
-    color: g.color,
-  }));
-}, [boxes]);
+    // ✅ แปลงเป็น array สำหรับ donut chart
+    return Object.entries(grouped).map(([part, g]) => ({
+      label: part,
+      pct: Math.round((g.totalArea / total) * 100),
+      color: g.color,
+    }));
+  }, [boxes]);
 
   const donutStyle = useMemo(() => {
     let acc = 0;
@@ -59,15 +59,15 @@ export default function SummaryPanel({
 
   return (
     <div className={`${thaiFont.className} rounded-[8px] bg-white ring-1 ring-zinc-200 shadow-sm p-4 space-y-6`}>
-      
+
       {/* 🎚 ปรับระดับความมั่นใจของโมเดล */}
       <div>
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-zinc-700">
-            ค่าความมั่นใจของโมเดล (Confidence)
+            ปรับความเข้มงวดในการตรวจ
           </div>
           <span className="text-sm font-semibold text-indigo-700 pl-1">
-            {confValue.toFixed(2)}
+             {Math.round((confValue / 0.5) * 100)}%
           </span>
         </div>
         <input
@@ -85,19 +85,20 @@ export default function SummaryPanel({
           <option value="0.2" label="0.2" />
           <option value="0.3" label="0.3" />
           <option value="0.4" label="0.4" />
-          <option value="0.5" label="0.5" />
+          <option value="0.5" label="100 %" />
         </datalist>
-        <p className="text-xs text-zinc-500 mt-1">
-          ค่ายิ่งต่ำ → ตรวจละเอียดมากขึ้น (ใช้เวลามากขึ้น)
+        <p className="text-xs text-zinc-600 mt-1">
+          <strong>ค่าน้อย:</strong> ตรวจจับได้มากขึ้น แต่อาจมีจุดผิดพลาด<br />
+          <strong>ค่ามาก:</strong> ตรวจจับได้แม่นยำขึ้น แต่อาจเจอน้อยลง
         </p>
       </div>
 
       {/* 🧠 ปุ่มเปิด/ปิด Preprocessing */}
       <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
         <div>
-          <div className="text-sm font-medium text-zinc-700">การเตรียมภาพก่อนวิเคราะห์</div>
+          <div className="text-sm font-medium text-zinc-700">ปรับปรุงคุณภาพของภาพ</div>
           <p className="text-xs text-zinc-500">
-            ปรับขนาด 640×640, หมุนภาพอัตโนมัติ, ปรับคอนทราสต์ (Histogram Equalization)
+            เมื่อเปิด จะช่วยปรับแสงให้อยู่ในระดับที่เหมาะสมในกรณีที่ภาพมีแสงและเงาบนตัวรถมากเกินไป
           </p>
         </div>
 
@@ -124,7 +125,8 @@ export default function SummaryPanel({
           <div className="w-full sm:w-[250px] space-y-2 text-center">
             <div className="text-sm text-zinc-600">
               พบความเสียหายทั้งหมด{" "}
-              <span className="font-semibold text-zinc-900">{boxes.length}</span>{" "}
+              <span className="font-semibold text-zinc-900">{donutData.length} </span>
+
               จุด
             </div>
 
