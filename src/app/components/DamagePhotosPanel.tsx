@@ -46,27 +46,27 @@ export default function DamagePhotosPanel({
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   useEffect(() => {
-  if (!value) return;
+    if (!value) return;
 
-  // ถ้า value มี id เดิมกับ items ไม่ต้อง setState ใหม่
-  const isSame =
-    value.length === items.length &&
-    value.every((v, i) => v.id === items[i]?.id);
+    // ถ้า value มี id เดิมกับ items ไม่ต้อง setState ใหม่
+    const isSame =
+      value.length === items.length &&
+      value.every((v, i) => v.id === items[i]?.id);
 
-  if (!isSame) {
-    setItems(value);
-    if (!selectedId && value.length > 0) {
-      setSelectedId(value[0].id);
+    if (!isSame) {
+      setItems(value);
+      if (!selectedId && value.length > 0) {
+        setSelectedId(value[0].id);
+      }
     }
-  }
-  // ✅ อย่าใส่ items ใน dependency array เพื่อไม่ให้ loop
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [value]);
+    // ✅ อย่าใส่ items ใน dependency array เพื่อไม่ให้ loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
 
   useEffect(() => {
-  onChange?.(items);
-}, [items, onChange]);
+    onChange?.(items);
+  }, [items, onChange]);
 
 
   const mutate = (fn: (prev: DamagePhotoItem[]) => DamagePhotoItem[]) => {
@@ -164,83 +164,82 @@ export default function DamagePhotosPanel({
   return (
     <div className="rounded-[7px] p-4 bg-white relative z-[4000] overflow-visible">
       {/* 🟣 Upload รอบรถ */}
-        <div className="flex justify-center my-6 overflow-visible">
-          <div className="relative w-[90%] sm:w-[280px] md:w-[300px] lg:w-[360px] mx-auto z-[4000] overflow-visible py-8 sm:pt-14 mb-12">
-            <img
-              src="/elements/car-top-view.png"
-              alt="car"
-              className="w-full max-w-[420px] mx-auto select-none pointer-events-none"
-            />
-            {uploadPositions.map(({ side, style }) => (
-                <div
-                  key={side}
-                  className={`group absolute w-10 h-10 flex items-center justify-center rounded-full 
+      <div className="flex justify-center my-6 overflow-visible">
+        <div className="relative w-[90%] sm:w-[280px] md:w-[300px] lg:w-[360px] mx-auto z-[4000] overflow-visible py-8 sm:pt-14 mb-12">
+          <img
+            src="/elements/car-top-view.png"
+            alt="car"
+            className="w-full max-w-[420px] mx-auto select-none pointer-events-none"
+          />
+          {uploadPositions.map(({ side, style }) => (
+            <div
+              key={side}
+              className={`group absolute w-10 h-10 flex items-center justify-center rounded-full 
                   bg-[#433D8B] border-[6px] border-[#D9D4F3] shadow-lg cursor-pointer 
                   hover:bg-[#433D8B]/80 transition-all duration-300 
                   hover:scale-110 hover:ring-4 hover:ring-[#433D8B]/40 active:scale-95
-                  ${side === "หลัง" || side === "หน้า"  ? "z-[9999]" : "z-[100]"}`} // ✅ ยกปุ่มขึ้นเหนือ element อื่น
-                  style={style}
-                  onMouseEnter={() => !isMobile && setHoverSide(side)}
-                  onMouseLeave={() => !isMobile && setHoverSide(null)}
-                  onClick={() => {
-                    if (isMobile) {
-                      setPreviewSide(side);
-                      setShowPreviewModal(true);
-                    }
+                  ${side === "หลัง" || side === "หน้า" ? "z-[9999]" : "z-[100]"}`} // ✅ ยกปุ่มขึ้นเหนือ element อื่น
+              style={style}
+              onMouseEnter={() => !isMobile && setHoverSide(side)}
+              onMouseLeave={() => !isMobile && setHoverSide(null)}
+              onClick={() => {
+                if (isMobile) {
+                  setPreviewSide(side);
+                  setShowPreviewModal(true);
+                }
+              }}
+            >
+              {/* ปุ่มอัปโหลด */}
+              <label className="relative w-full h-full flex items-center justify-center cursor-pointer">
+                <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white pointer-events-none" />
+                {/* ✅ เงื่อนไขเฉพาะ Desktop เท่านั้น */}
+                {!isMobile && (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: "none" }}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={(e) => {
+                      addFiles(e.target.files, side);
+                      e.target.value = "";
+                    }}
+                  />
+                )}
+              </label>
+              {/* Hover Preview (Desktop Only) */}
+              {!isMobile && hoverSide === side && (
+                <div
+                  className={`absolute z-[99999] w-[280px] p-2 
+                        bg-white border rounded-xl shadow-2xl pointer-events-none
+                        ${side === "หน้า"
+                      ? "left-1/2 -translate-x-1/2 bottom-[-14rem]" // หน้า → ตรงกลาง ล่าง
+                      : side === "หน้าซ้าย" || side === "ซ้าย" || side === "หลังซ้าย"
+                        ? "left-[-12rem] -top-[14rem]" // ซ้ายทั้งหมด → เยื้องซ้าย
+                        : side === "หน้าขวา" || side === "ขวา" || side === "หลังขวา"
+                          ? "-top-[14rem]" // ✅ ใช้ inline style เยื้องขวาแทน
+                          : "-top-[14rem] left-1/2 -translate-x-1/2"
+                    }`}
+                  style={{
+                    ...(side === "หน้าขวา" || side === "ขวา" || side === "หลังขวา"
+                      ? { right: "-12rem" }
+                      : {}),
+                    boxShadow: "0 10px 28px rgba(0,0,0,0.25)",
                   }}
                 >
-                  {/* ปุ่มอัปโหลด */}
-                  <label className="relative w-full h-full flex items-center justify-center cursor-pointer">
-                    <FontAwesomeIcon icon={faCamera as any} className="w-4 h-4 text-white pointer-events-none" />
-                      {/* ✅ เงื่อนไขเฉพาะ Desktop เท่านั้น */}
-                      {!isMobile && (
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          style={{ display: "none" }}
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          onChange={(e) => {
-                            addFiles(e.target.files, side);
-                            e.target.value = "";
-                          }}
-                        />
-                      )}
-                  </label>
-                  {/* Hover Preview (Desktop Only) */}
-                  {!isMobile && hoverSide === side && (
-                      <div
-                        className={`absolute z-[99999] w-[280px] p-2 
-                        bg-white border rounded-xl shadow-2xl pointer-events-none
-                        ${
-                          side === "หน้า"
-                            ? "left-1/2 -translate-x-1/2 bottom-[-14rem]" // หน้า → ตรงกลาง ล่าง
-                            : side === "หน้าซ้าย" || side === "ซ้าย" || side === "หลังซ้าย"
-                            ? "left-[-12rem] -top-[14rem]" // ซ้ายทั้งหมด → เยื้องซ้าย
-                            : side === "หน้าขวา" || side === "ขวา" || side === "หลังขวา"
-                            ? "-top-[14rem]" // ✅ ใช้ inline style เยื้องขวาแทน
-                            : "-top-[14rem] left-1/2 -translate-x-1/2"
-                        }`}
-                        style={{
-                          ...(side === "หน้าขวา" || side === "ขวา" || side === "หลังขวา"
-                            ? { right: "-12rem" }
-                            : {}),
-                          boxShadow: "0 10px 28px rgba(0,0,0,0.25)",
-                        }}
-                      >
-                      {sidePreviewMap[side] && sidePreviewMap[side].length > 0 ? (
-                        <img
-                          src={sidePreviewMap[side][slideIndex % sidePreviewMap[side].length]}
-                          alt={`${side} preview`}
-                          className="rounded-lg w-full h-[160px] md:h-[180px] object-cover transition-all duration-700"
-                        />
-                      ) : (
-                        <p className="text-xs text-zinc-500 text-center">ยังไม่มีรูปฝั่ง {side}</p>
-                      )}
-                    </div>
+                  {sidePreviewMap[side] && sidePreviewMap[side].length > 0 ? (
+                    <img
+                      src={sidePreviewMap[side][slideIndex % sidePreviewMap[side].length]}
+                      alt={`${side} preview`}
+                      className="rounded-lg w-full h-[160px] md:h-[180px] object-cover transition-all duration-700"
+                    />
+                  ) : (
+                    <p className="text-xs text-zinc-500 text-center">ยังไม่มีรูปฝั่ง {side}</p>
                   )}
                 </div>
-              ))}
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -260,11 +259,10 @@ export default function DamagePhotosPanel({
                 {items.map((it) => (
                   <li
                     key={it.id}
-                    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm transition cursor-pointer ${
-                      selectedId === it.id
-                        ? "bg-violet-600 text-white"
+                    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm transition cursor-pointer ${selectedId === it.id
+                        ? "bg-[#6F47E4] text-white"
                         : "bg-white hover:bg-violet-100 text-zinc-700"
-                    }`}
+                      }`}
                     onClick={() => setSelectedId(it.id)}
                   >
                     <ImageIcon className="w-4 h-4" />
@@ -296,11 +294,10 @@ export default function DamagePhotosPanel({
                         e.stopPropagation();
                         removeOne(it.id);
                       }}
-                      className={`absolute top-1 right-1 rounded-[8px] transition ${
-                        selectedId === it.id
+                      className={`absolute top-1 right-1 rounded-[8px] transition ${selectedId === it.id
                           ? "bg-[#FF4A4A] text-white hover:bg-[#e53e3e]"
                           : "bg-zinc-200 text-zinc-600 hover:bg-red-100 hover:text-red-600"
-                      }`}
+                        }`}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -314,12 +311,18 @@ export default function DamagePhotosPanel({
         {/* Preview */}
         <div className="md:col-span-2 bg-zinc-50 rounded-lg p-4 shadow flex items-center justify-center">
           {selectedItem ? (
-            <div className="flex flex-col space-y-3 w-full">
-              <div className="flex justify-center">
+             <div className="flex flex-col space-y-3 w-full">
+    <div className="flex flex-col items-center justify-center">
+                <p
+                  className="text-sm text-white m-3 truncate max-w-[80%] px-3 py-1 bg-[#6F47E4] rounded-full"
+                  title={selectedItem.file?.name || "ไม่ทราบชื่อไฟล์"}
+                >
+                  {selectedItem.file?.name || "ไม่ทราบชื่อไฟล์"}
+                </p>
                 <img
                   src={selectedItem.previewUrl}
                   alt="preview"
-                  className="max-h-[360px] rounded object-contain"
+                  className="max-h-[360px] rounded object-contain border-3 border-[#6F47E4]"
                 />
               </div>
               <div>
@@ -351,7 +354,7 @@ export default function DamagePhotosPanel({
               <img
                 src={
                   sidePreviewMap[previewSide][
-                    slideIndex % sidePreviewMap[previewSide].length
+                  slideIndex % sidePreviewMap[previewSide].length
                   ]
                 }
                 alt={`${previewSide} preview`}

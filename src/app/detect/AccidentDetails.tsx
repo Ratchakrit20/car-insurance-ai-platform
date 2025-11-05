@@ -382,10 +382,10 @@ export default function AccidentStep1({ onNext, onBack }: StepProps) {
     // ✅ reset value เพื่อให้อัปโหลดไฟล์ชื่อซ้ำได้
     e.target.value = "";
   };
-const canProceed =
-  details.trim().length > 0 &&
-  (evidenceFiles.length === 0 ||
-    evidenceFiles.every((f) => f.progress === 100 && f.loaded));
+  const canProceed =
+    details.trim().length > 0 &&
+    (evidenceFiles.length === 0 ||
+      evidenceFiles.every((f) => f.progress === 100 && f.loaded));
 
 
 
@@ -671,7 +671,7 @@ const canProceed =
         {/* Evidence Upload */}
 
         {/* Sidebar */}         {labelEl("อัปโหลดหลักฐานภาพถ่ายหรือวิดีโอของเหตุการณ์ (ถ้ามี) ")}
-ิ<br />
+        <br />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Sidebar */}
           <div className="bg-violet-50 rounded-lg p-4 flex flex-col">
@@ -690,7 +690,7 @@ const canProceed =
                       onClick={() => setSelectedIndex(i)}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition relative
                 ${isActive
-                          ? "bg-violet-600 text-white ring-2 ring-violet-400"
+                          ? "bg-[#6F47E4] text-white ring-2 ring-violet-400"
                           : "bg-white hover:bg-violet-100 text-zinc-700"
                         }`}
                       title="คลิกเพื่อดูภาพนี้ทางขวา"

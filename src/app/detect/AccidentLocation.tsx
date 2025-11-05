@@ -7,19 +7,24 @@ import MapPreview from "../components/MapPreview";
 import { useLeaveConfirm } from "@/hooks/useLeaveConfirm";
 import { useRouter } from "next/navigation";
 const ACC_KEY = "accidentDraft";
+import districts from "@/app/data/districts.json";
+import provinces from "@/app/data/provinces.json";
 import { MapPin, FileText, ChevronDown, ChevronUp } from "lucide-react";
-const DISTRICTS_BY_PROVINCE: Record<string, string[]> = {
-  กรุงเทพมหานคร: ["พระนคร", "ดุสิต", "หนองจอก", "บางรัก", "บางเขน", "บางกะปิ", "ปทุมวัน", "ป้อมปราบศัตรูพ่าย"],
-  นนทบุรี: ["เมืองนนทบุรี", "บางบัวทอง", "ปากเกร็ด", "บางกรวย", "บางใหญ่", "ไทรน้อย"],
-  ปทุมธานี: ["เมืองปทุมธานี", "คลองหลวง", "ธัญบุรี", "หนองเสือ", "ลาดหลุมแก้ว", "ลำลูกกา"],
-  สมุทรปราการ: ["เมืองสมุทรปราการ", "บางบ่อ", "บางพลี", "พระประแดง", "พระสมุทรเจดีย์", "บางเสาธง"],
-  ชลบุรี: ["เมืองชลบุรี", "บางละมุง", "ศรีราชา", "พานทอง", "สัตหีบ"],
-  เชียงใหม่: ["เมืองเชียงใหม่", "สารภี", "สันทราย", "สันกำแพง", "แม่ริม", "หางดง"],
-  นครราชสีมา: ["เมืองนครราชสีมา", "ปากช่อง", "โนนสูง", "สูงเนิน", "สีคิ้ว"],
-  ขอนแก่น: ["เมืองขอนแก่น", "บ้านไผ่", "น้ำพอง", "ชุมแพ", "พล"],
-  ภูเก็ต: ["เมืองภูเก็ต", "กะทู้", "ถลาง"],
-};
-const PROVINCES = Object.keys(DISTRICTS_BY_PROVINCE);
+
+
+
+// const DISTRICTS_BY_PROVINCE: Record<string, string[]> = {
+//   กรุงเทพมหานคร: ["พระนคร", "ดุสิต", "หนองจอก", "บางรัก", "บางเขน", "บางกะปิ", "ปทุมวัน", "ป้อมปราบศัตรูพ่าย"],
+//   นนทบุรี: ["เมืองนนทบุรี", "บางบัวทอง", "ปากเกร็ด", "บางกรวย", "บางใหญ่", "ไทรน้อย"],
+//   ปทุมธานี: ["เมืองปทุมธานี", "คลองหลวง", "ธัญบุรี", "หนองเสือ", "ลาดหลุมแก้ว", "ลำลูกกา"],
+//   สมุทรปราการ: ["เมืองสมุทรปราการ", "บางบ่อ", "บางพลี", "พระประแดง", "พระสมุทรเจดีย์", "บางเสาธง"],
+//   ชลบุรี: ["เมืองชลบุรี", "บางละมุง", "ศรีราชา", "พานทอง", "สัตหีบ"],
+//   เชียงใหม่: ["เมืองเชียงใหม่", "สารภี", "สันทราย", "สันกำแพง", "แม่ริม", "หางดง"],
+//   นครราชสีมา: ["เมืองนครราชสีมา", "ปากช่อง", "โนนสูง", "สูงเนิน", "สีคิ้ว"],
+//   ขอนแก่น: ["เมืองขอนแก่น", "บ้านไผ่", "น้ำพอง", "ชุมแพ", "พล"],
+//   ภูเก็ต: ["เมืองภูเก็ต", "กะทู้", "ถลาง"],
+// };
+// const PROVINCES = Object.keys(DISTRICTS_BY_PROVINCE);
 
 interface StepProps {
   onNext: () => void;
@@ -132,6 +137,20 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
   const todayYMD = useMemo(() => localYMD(new Date()), []);
   const nowHM = useMemo(() => localHM(new Date()), [])
   const [adminNote, setAdminNote] = useState<any>(null);
+
+
+const provinceList = provinces.map((p) => p.name_th);
+const districtList = useMemo(() => {
+  const selected = provinces.find((p) => p.name_th === province);
+  if (!selected) return [];
+  return districts
+    .filter((d) => d.province_id === selected.id)
+    .map((d) => d.name_th);
+}, [province]);
+
+
+
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem("claimAdminNote");
@@ -514,8 +533,8 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
           </div>
         </div>
 
-        {/* จังหวัด / อำเภอ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             {labelEl("จังหวัด")}
             <select
@@ -543,7 +562,45 @@ export default function AccidentStep2({ onNext, onBack }: StepProps) {
               ))}
             </select>
           </div>
-        </div>
+        </div> */}
+{/* จังหวัด / อำเภอ */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div>
+    {labelEl("จังหวัด")}
+    <select
+      className={fieldSurface({ filled: !!province })}
+      value={province}
+      onChange={(e) => {
+        setProvince(e.target.value);
+        setDistrict(""); // รีเซ็ตเมื่อเปลี่ยนจังหวัด
+      }}
+    >
+      <option value="">ไม่ระบุ</option>
+      {provinceList.map((p) => (
+        <option key={p} value={p}>
+          {p}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  <div>
+    {labelEl("อำเภอ/เขต")}
+    <select
+      className={fieldSurface({ filled: !!district })}
+      value={district}
+      disabled={!province}
+      onChange={(e) => setDistrict(e.target.value)}
+    >
+      <option value="">{province ? "ไม่ระบุ" : "—"}</option>
+      {districtList.map((d) => (
+        <option key={d} value={d}>
+          {d}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
         {/* ถนน */}
         <div>
