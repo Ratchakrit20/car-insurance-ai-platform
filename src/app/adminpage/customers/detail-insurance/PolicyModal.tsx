@@ -72,7 +72,7 @@ export default function PolicyModal({
   const [form, setForm] = useState<InsurancePolicy>(() =>
     initial ?? {
       policy_number: "", insurance_company: "", insured_name: "",
-      citizen_id: citizenId, insurance_type: "",
+      citizen_id: citizenId, insurance_type: "ชั้น 1",
       car_brand: "", car_model: "", car_license_plate: "", chassis_number: "",
       car_year: undefined as any, address: "",
       coverage_start_date: "", coverage_end_date: "",
@@ -131,7 +131,7 @@ export default function PolicyModal({
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { ...form, coverage_end_time: timeForSave(form.coverage_end_time) };
+      const payload = { ...form, coverage_end_time: timeForSave(form.coverage_end_time), insurance_type: "ชั้น 1" };
       await onSubmit(payload);
       onClose();
     } finally {
