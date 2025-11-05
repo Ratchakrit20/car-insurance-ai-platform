@@ -67,7 +67,8 @@ export default function SummaryPanel({
             ปรับความเข้มงวดในการตรวจ
           </div>
           <span className="text-sm font-semibold text-indigo-700 pl-1">
-             {Math.round((confValue / 0.5) * 100)}%
+           
+            {Math.round((confValue / 0.5) * 100)}%
           </span>
         </div>
         <input
@@ -85,7 +86,7 @@ export default function SummaryPanel({
           <option value="0.2" label="0.2" />
           <option value="0.3" label="0.3" />
           <option value="0.4" label="0.4" />
-          <option value="0.5" label="100 %" />
+          <option value="0.5" label="0.5" />
         </datalist>
         <p className="text-xs text-zinc-600 mt-1">
           <strong>ค่าน้อย:</strong> ตรวจจับได้มากขึ้น แต่อาจมีจุดผิดพลาด<br />
