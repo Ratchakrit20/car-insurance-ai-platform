@@ -84,6 +84,7 @@ export default function ClaimDocument({ detail }: { detail: any }) {
     car_path: detail.car?.car_path ?? "",
     insured_name: detail.car?.insured_name ?? "-",
     insurance_company: detail.car?.insurance_company ?? "-",
+    chassis_number: detail.car?.chassis_number ?? "-"
   };
 
 
@@ -135,44 +136,44 @@ export default function ClaimDocument({ detail }: { detail: any }) {
   };
 
   const mergedMap = new Map<string, Row>();
-// ✅ Normalize ด้าน เช่น "หน้าขวา" → "ขวา", "หลังซ้าย" → "ซ้าย"
-const normalizeSide = (side?: string): string => {
-  if (!side) return "ไม่ระบุ";
-  if (side.includes("ซ้าย")) return "ซ้าย";
-  if (side.includes("ขวา")) return "ขวา";
-  if (side.includes("หน้า")) return "หน้า";
-  if (side.includes("หลัง")) return "หลัง";
-  return side;
-};
-for (const r of rawRows) {
-  const partId = PartIdMap[r.part] || r.part;
+  // ✅ Normalize ด้าน เช่น "หน้าขวา" → "ขวา", "หลังซ้าย" → "ซ้าย"
+  const normalizeSide = (side?: string): string => {
+    if (!side) return "ไม่ระบุ";
+    if (side.includes("ซ้าย")) return "ซ้าย";
+    if (side.includes("ขวา")) return "ขวา";
+    if (side.includes("หน้า")) return "หน้า";
+    if (side.includes("หลัง")) return "หลัง";
+    return side;
+  };
+  for (const r of rawRows) {
+    const partId = PartIdMap[r.part] || r.part;
 
-  // 🔹 Normalize ด้าน
-  const normalizedSide = normalizeSide(r.side);
+    // 🔹 Normalize ด้าน
+    const normalizedSide = normalizeSide(r.side);
 
-  const key =
-    UNIQUE_IDS.has(partId)
-      ? partId // unique → ไม่แยกซ้ายขวา
-      : LR_IDS.has(partId)
-        ? `${partId}_${normalizedSide}`
-        : `${partId}_${normalizedSide}`; // default กำหนดให้มีด้านชัดเจน
+    const key =
+      UNIQUE_IDS.has(partId)
+        ? partId // unique → ไม่แยกซ้ายขวา
+        : LR_IDS.has(partId)
+          ? `${partId}_${normalizedSide}`
+          : `${partId}_${normalizedSide}`; // default กำหนดให้มีด้านชัดเจน
 
-  const existing = mergedMap.get(key);
-  if (existing) {
-    // ✅ รวม damage ไม่ให้ซ้ำ
-    const allDamages = new Set([
-      ...existing.damages.split(",").map((s) => s.trim()).filter(Boolean),
-      ...r.damages.split(",").map((s) => s.trim()).filter(Boolean),
-    ]);
-    mergedMap.set(key, {
-      ...existing,
-      damages: Array.from(allDamages).join(", "),
-      severity: mergeSeverity(existing.severity, r.severity),
-    });
-  } else {
-    mergedMap.set(key, { ...r, side: normalizedSide }); // ✅ ใช้ด้านที่ normalize แล้ว
+    const existing = mergedMap.get(key);
+    if (existing) {
+      // ✅ รวม damage ไม่ให้ซ้ำ
+      const allDamages = new Set([
+        ...existing.damages.split(",").map((s) => s.trim()).filter(Boolean),
+        ...r.damages.split(",").map((s) => s.trim()).filter(Boolean),
+      ]);
+      mergedMap.set(key, {
+        ...existing,
+        damages: Array.from(allDamages).join(", "),
+        severity: mergeSeverity(existing.severity, r.severity),
+      });
+    } else {
+      mergedMap.set(key, { ...r, side: normalizedSide }); // ✅ ใช้ด้านที่ normalize แล้ว
+    }
   }
-}
 
 
   /* ---------- สร้าง rows สุดท้าย ---------- */
@@ -349,7 +350,7 @@ for (const r of rawRows) {
       {/* ---------- Header ---------- */}
       <div className="rounded-xl p-4 sm:p-5 text-black">
         <div className="mb-2 flex items-center gap-3">
-         
+
           <div>
             <div className="text-[22px] font-extrabold leading-tight">
               {car.insurance_company}
@@ -376,9 +377,10 @@ for (const r of rawRows) {
             <Info label="ชื่อ" value={car.insured_name} />
             <Info label="ยี่ห้อรถ" value={car.car_brand} />
             <Info label="รุ่น" value={car.car_model} />
-            <Info label="ทะเบียน" value={car.car_license_plate +" "+ car.registration_province} />
+            <Info label="ทะเบียน" value={car.car_license_plate + " " + car.registration_province} />
             <Info label="ประเภทประกัน" value={car.insurance_type} />
             <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
+            <Info label="เลขตัวถัง" value={car.chassis_number} />
             <Info
               label="เริ่มคุ้มครอง"
               value={car.coverage_start_date ? thDate(car.coverage_start_date) : "-"}

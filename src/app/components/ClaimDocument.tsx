@@ -84,6 +84,8 @@ export default function ClaimDocument({ detail }: { detail: any }) {
     car_path: detail.car_path,
     insured_name: detail.insured_name ?? "-",
     insurance_company: detail.insurance_company ?? "-",
+    chassis_number: detail.chassis_number ?? "-",
+    
   };
 
 
@@ -377,6 +379,7 @@ for (const r of rawRows) {
             <Info label="ทะเบียน" value={car.car_license_plate + " " + car.registration_province} />
             <Info label="ประเภทประกัน" value={car.insurance_type} />
             <Info label="เลขที่กรมธรรม์" value={car.policy_number} />
+            <Info label="เลขตัวถัง" value={car.chassis_number} />
              <Info
               label="เริ่มคุ้มครอง"
               value={car.coverage_start_date ? thDate(car.coverage_start_date) : "-"}
