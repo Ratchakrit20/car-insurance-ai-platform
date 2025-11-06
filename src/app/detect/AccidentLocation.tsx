@@ -189,7 +189,7 @@ const districtList = useMemo(() => {
   // 🔧 ใหม่: modal ยืนยันออกหน้า + url ปลายทาง
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
-  // const reset = (e: React.FormEvent<H>) => {
+  // const reset = (e: React.) => {
   //   e.preventDefault
   //   setDate(e.target.value);
   //   setTime("");
@@ -503,8 +503,10 @@ const districtList = useMemo(() => {
               required
               onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("กรุณาระบุวันที่เกิดอุบัติเหตุ")}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
-              onChange={(e) => setDate(e.target.value)}
-              
+              onChange={(e) => {
+                setDate(e.target.value);
+                setTime("");
+              }}
             />
             {!coverageStart || !coverageEnd ? (
               <p className="mt-1 text-xs text-amber-600">
@@ -569,44 +571,44 @@ const districtList = useMemo(() => {
             </select>
           </div>
         </div> */}
-{/* จังหวัด / อำเภอ */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div>
-    {labelEl("จังหวัด")}
-    <select
-      className={fieldSurface({ filled: !!province })}
-      value={province}
-      onChange={(e) => {
-        setProvince(e.target.value);
-        setDistrict(""); // รีเซ็ตเมื่อเปลี่ยนจังหวัด
-      }}
-    >
-      <option value="">ไม่ระบุ</option>
-      {provinceList.map((p) => (
-        <option key={p} value={p}>
-          {p}
-        </option>
-      ))}
-    </select>
-  </div>
+        {/* จังหวัด / อำเภอ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            {labelEl("จังหวัด")}
+            <select
+              className={fieldSurface({ filled: !!province })}
+              value={province}
+              onChange={(e) => {
+                setProvince(e.target.value);
+                setDistrict(""); // รีเซ็ตเมื่อเปลี่ยนจังหวัด
+              }}
+            >
+              <option value="">ไม่ระบุ</option>
+              {provinceList.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
 
-  <div>
-    {labelEl("อำเภอ/เขต")}
-    <select
-      className={fieldSurface({ filled: !!district })}
-      value={district}
-      disabled={!province}
-      onChange={(e) => setDistrict(e.target.value)}
-    >
-      <option value="">{province ? "ไม่ระบุ" : "—"}</option>
-      {districtList.map((d) => (
-        <option key={d} value={d}>
-          {d}
-        </option>
-      ))}
-    </select>
-  </div>
-</div>
+          <div>
+            {labelEl("อำเภอ/เขต")}
+            <select
+              className={fieldSurface({ filled: !!district })}
+              value={district}
+              disabled={!province}
+              onChange={(e) => setDistrict(e.target.value)}
+            >
+              <option value="">{province ? "ไม่ระบุ" : "—"}</option>
+              {districtList.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         {/* ถนน */}
         <div>
