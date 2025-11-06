@@ -189,7 +189,11 @@ const districtList = useMemo(() => {
   // 🔧 ใหม่: modal ยืนยันออกหน้า + url ปลายทาง
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
-
+  // const reset = (e: React.FormEvent<H>) => {
+  //   e.preventDefault
+  //   setDate(e.target.value);
+  //   setTime("");
+  // }
   // Auto-save function
   const autoSave = () => {
     const snapshot = {
@@ -377,6 +381,7 @@ const districtList = useMemo(() => {
         alert("โปรดระบุตำแหน่งที่เกิดเหตุก่อนดำเนินการต่อ");
         return; // ❌ หยุดการ submit
       }
+      
     }
 
     const oldDraft = JSON.parse(localStorage.getItem(ACC_KEY) || "{}");
@@ -499,6 +504,7 @@ const districtList = useMemo(() => {
               onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("กรุณาระบุวันที่เกิดอุบัติเหตุ")}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
               onChange={(e) => setDate(e.target.value)}
+              
             />
             {!coverageStart || !coverageEnd ? (
               <p className="mt-1 text-xs text-amber-600">
@@ -520,7 +526,7 @@ const districtList = useMemo(() => {
               value={time}
               min={timeMin}
               max={timeMax}   // ❗ ถ้าเลือกวันนี้ → ห้ามเกินเวลาปัจจุบัน
-              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("กรุณาระบุเวลาเกิดอุบัติเหตุ")}
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("กรุณาระบุเวลาเกิดอุบัติเหตุใหม่")}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
               onChange={(e) => setTime(e.target.value)}
               required
