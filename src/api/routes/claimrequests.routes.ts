@@ -11,6 +11,7 @@ const router = express.Router();
 /**
  * POST /api/claim-requests
  * สร้างคำขอเคลมเริ่มต้น (pending)
+ * ไม่ได้ใช้
  */
 router.post("/", async (req: Request, res: Response) => {
   try {
@@ -56,6 +57,7 @@ router.post("/", async (req: Request, res: Response) => {
 /**
  * ✅ PATCH /api/claim-requests/:id
  * สำหรับแอดมินเปลี่ยนสถานะ claim (approve / reject / incomplete)
+ * ใช้
  */
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
@@ -70,6 +72,23 @@ router.patch("/:id", async (req: Request, res: Response) => {
       incomplete_by,
       incomplete_at,
     } = req.body as any;
+    // ✅ parse admin_note (รองรับทั้ง string ธรรมดา และ JSON object)
+    let adminNote = admin_note;
+    if (typeof admin_note === "object") {
+      try {
+        adminNote = JSON.stringify(admin_note);
+      } catch {
+        adminNote = String(admin_note);
+      }
+    } else if (typeof admin_note === "string") {
+      // เผื่อฝั่ง frontend ส่งเป็น JSON string มา
+      try {
+        JSON.parse(admin_note); // ถ้า parse ได้ แสดงว่าเป็น JSON อยู่แล้ว
+        adminNote = admin_note;
+      } catch {
+        adminNote = admin_note; // เป็นข้อความธรรมดา
+      }
+    }
 
     const nowTH = dayjs().tz("Asia/Bangkok").format();
 
@@ -89,9 +108,12 @@ router.patch("/:id", async (req: Request, res: Response) => {
     let newIncompleteHistory = prevHistory;
     let newIncompleteAt = incomplete_at ?? null;
 
-    if (status === "incomplete" && admin_note) {
+    if (status === "incomplete" && adminNote) {
       newIncompleteAt = nowTH;
-      newIncompleteHistory = [...prevHistory, { time: nowTH, note: admin_note }];
+      newIncompleteHistory = [
+        ...prevHistory,
+        { time: nowTH, note: adminNote } // ✅ ใช้ตัวที่แปลงแล้ว
+      ];
     }
 
     const result = await pool.query(
@@ -113,7 +135,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
       `,
       [
         status ?? null,
-        admin_note ?? null,
+        adminNote ?? null,
         approved_by ?? null,
         approved_at ?? null,
         rejected_by ?? null,
@@ -145,8 +167,14 @@ router.patch("/:id", async (req: Request, res: Response) => {
         break;
       case "incomplete":
         title = "เอกสารไม่ครบ กรุณาแก้ไข ";
-        message = `คำขอเคลมหมายเลข #${id} ต้องแก้ไขเพิ่มเติม: ${admin_note || "โปรดตรวจสอบรายละเอียด"}`;
+        let shortMessage = "โปรดตรวจสอบรายละเอียด";
+        try {
+          const parsed = typeof admin_note === "string" ? JSON.parse(admin_note) : admin_note;
+          if (parsed?.note) shortMessage = parsed.note;
+        } catch { }
+        message = `คำขอเคลมหมายเลข #${id} ต้องแก้ไขเพิ่มเติม: ${shortMessage}`;
         break;
+
       default:
         title = "สถานะเคลมของคุณได้รับการอัปเดต ";
         message = `คำขอเคลมหมายเลข #${id} มีการอัปเดตสถานะล่าสุด: ${status}`;
@@ -172,6 +200,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
 /**
  * PATCH /api/claim-requests/:id/correction
  * ลูกค้าอัปโหลดเอกสารแก้ไข → อัปเดตสถานะเดิม + เพิ่ม timeline step
+ * ไม่ได้ใช้ในหน้าเว็บ
  */
 router.patch('/:id/correction', async (req: Request, res: Response) => {
   const claimId = Number(req.params.id);
@@ -226,6 +255,7 @@ router.patch('/:id/correction', async (req: Request, res: Response) => {
 /**
  * PUT /api/claim-requests/:id/accident
  * ผูก claim กับ accident_details.id
+ * ไม่ได้ใช้
  */
 router.put('/:id/accident', async (req: Request, res: Response) => {
   try {
@@ -254,7 +284,9 @@ router.put('/:id/accident', async (req: Request, res: Response) => {
   }
 });
 
-
+/**
+ * ใช้
+ */
 router.get('/admin/detail', async (req: Request, res: Response) => {
   const claimId = req.query.claim_id ? Number(req.query.claim_id) : null;
 
@@ -348,7 +380,9 @@ router.get('/admin/detail', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, message: 'server error' });
   }
 });
-
+/**
+ * ใช้
+ */
 router.get("/detail", async (req: Request, res: Response) => {
   const claimId = req.query.claim_id ? Number(req.query.claim_id) : null;
   const userId = req.query.user_id ? Number(req.query.user_id) : null;
@@ -386,8 +420,9 @@ router.get("/detail", async (req: Request, res: Response) => {
         ip.car_brand, ip.car_model, ip.car_year,
         ip.car_license_plate AS license_plate,
         ip.registration_province,
-        ip.insurance_type, ip.policy_number, ip.coverage_end_date,
+        ip.insurance_type, ip.policy_number, ip.coverage_end_date,ip.coverage_start_date,
         ip.car_path, ip.insured_name, ip.insurance_company,
+        ip.chassis_number, 
 
         (
           SELECT COALESCE(
@@ -546,21 +581,28 @@ router.get("/detail", async (req: Request, res: Response) => {
       },
       steps, // ✅ timeline ที่เรียงตามเวลาจริงแล้ว
     };
-
-    return res.json({ ok: true, data: parsed });
+    let parsedAdminNote = {};
+    try {
+      parsedAdminNote =
+        typeof row.admin_note === "string" ? JSON.parse(row.admin_note) : row.admin_note;
+    } catch {
+      parsedAdminNote = { text: row.admin_note || "" };
+    }
+    return res.json({
+      ok: true,
+      data: {
+        ...parsed,
+        admin_note: parsedAdminNote, // ✅ เพิ่มตรงนี้
+      },
+    });
   } catch (err) {
     console.error("❌ claim detail error:", err);
     return res.status(500).json({ ok: false, message: "server error" });
   }
 });
-
-
-
-
-
-
-
-
+/**
+ * ใช้
+ */
 router.get("/listall", async (req: Request, res: Response) => {
   const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 100;
 
@@ -651,10 +693,13 @@ router.get("/listall", async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, message: "server error" });
   }
 });
+/**
+ * ใช้
+ */
 router.get("/list", async (req: Request, res: Response) => {
   const userId = req.query.user_id ? Number(req.query.user_id) : null;
   const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 100;
-
+  console.log("🟢 userId =", userId);
   try {
     const { rows } = await pool.query(`
       SELECT
@@ -668,8 +713,8 @@ router.get("/list", async (req: Request, res: Response) => {
         cr.approved_at,
         cr.rejected_at,
         cr.incomplete_at,
-       cr.incomplete_history::jsonb AS incomplete_history,
-cr.resubmitted_history::jsonb AS resubmitted_history,
+        cr.incomplete_history::jsonb AS incomplete_history,
+        cr.resubmitted_history::jsonb AS resubmitted_history,
         cr.admin_note,
 
         ad.accident_type,
@@ -718,7 +763,7 @@ cr.resubmitted_history::jsonb AS resubmitted_history,
         ) AS steps
 
       FROM claim_requests cr
-      JOIN accident_details ad ON ad.id = cr.accident_detail_id
+      LEFT JOIN accident_details ad ON ad.id = cr.accident_detail_id
       LEFT JOIN insurance_policies ip ON ip.id = cr.selected_car_id
       WHERE ($1::int IS NULL OR cr.user_id = $1)
       ORDER BY COALESCE(cr.updated_at, cr.created_at::date) DESC, cr.created_at DESC
@@ -744,6 +789,7 @@ cr.resubmitted_history::jsonb AS resubmitted_history,
     return res.status(500).json({ ok: false, message: "server error" });
   }
 });
+
 // PATCH /api/claim-requests/:id/resubmit
 router.patch("/:id/resubmit", async (req: Request, res: Response) => {
   const claimId = Number(req.params.id);
@@ -921,6 +967,49 @@ router.patch("/:id/resubmit", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/:id", async (req: Request, res: Response) => {
+  const claimId = Number(req.params.id);
 
+  if (!claimId) {
+    return res.status(400).json({ ok: false, message: "claim_id is required" });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT id, status, admin_note
+      FROM claim_requests
+      WHERE id = $1
+      `,
+      [claimId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ ok: false, message: "claim not found" });
+    }
+
+    const claim = rows[0];
+    let parsedNote: Record<string, any> | null = null;
+
+    try {
+      parsedNote =
+        typeof claim.admin_note === "string"
+          ? JSON.parse(claim.admin_note)
+          : claim.admin_note;
+    } catch {
+      parsedNote = { text: claim.admin_note || "" };
+    }
+
+    return res.json({
+      ok: true,
+      id: claim.id,
+      status: claim.status,
+      admin_note: parsedNote,
+    });
+  } catch (err) {
+    console.error("❌ error fetching claim note:", err);
+    return res.status(500).json({ ok: false, message: "server error" });
+  }
+});
 
 export default router;

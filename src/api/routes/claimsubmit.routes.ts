@@ -7,8 +7,10 @@ const router = express.Router();
 // ---------- Types จาก FE ----------
 type MediaItem = { url: string; type?: "image" | "video"; publicId?: string };
 type DamagePhoto = MediaItem & {
-  side?: "ซ้าย" | "ขวา" | "หน้า" | "หลัง" | "ไม่ระบุ";
-  note?: string; // <-- เพิ่ม
+  side?: "หน้า" | "หลัง" | "ซ้าย" | "ขวา"
+  | "หน้าซ้าย" | "หลังซ้าย" | "หน้าขวา" | "หลังขวา"
+  | "ไม่ระบุ";
+  note?: string;
 };
 
 type AccidentDraft = {
@@ -34,7 +36,7 @@ type SubmitBody = {
   status?: string;  // <-- เพิ่ม (optional) เผื่ออยากให้ backend อัปเดตสถานะ
 };
 
-// POST /api/claim-requests/submit
+// POST /api/claim-submit/submit
 router.post("/submit", async (req: Request, res: Response) => {
   const body = req.body as SubmitBody;
 
@@ -75,8 +77,15 @@ router.post("/submit", async (req: Request, res: Response) => {
     `;
 
     // ✅ แปลง evidenceMedia เป็น array ของ url/type
-    const fileUrls = draft.evidenceMedia?.map(m => m.url) ?? [];
-    const mediaTypes = draft.evidenceMedia?.map(m => m.type ?? "image") ?? [];
+    const fileUrls = Array.isArray(draft.evidenceMedia)
+      ? draft.evidenceMedia.map(m => m.url)
+      : [];
+
+    const mediaTypes = Array.isArray(draft.evidenceMedia)
+      ? draft.evidenceMedia.map(m => m.type ?? "image")
+      : [];
+    console.log("[claim-submit] evidenceMedia:", draft.evidenceMedia);
+    console.log("[claim-submit] fileUrls:", fileUrls);
 
     const toNum = (v: any) => (Number.isFinite(+v) ? +v : null);
     const round = (v: number, dp: number) => Math.round(v * 10 ** dp) / 10 ** dp;
@@ -106,9 +115,9 @@ router.post("/submit", async (req: Request, res: Response) => {
       latSafe,
       lngSafe,
       acc,
-      JSON.stringify(fileUrls),
+      JSON.stringify(fileUrls ?? []),
       agreed,
-      JSON.stringify(mediaTypes),
+      JSON.stringify(mediaTypes ?? []),
     ]);
 
     const accidentDetailId: number = accRes.rows[0].id;
@@ -175,8 +184,8 @@ router.post("/submit", async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/claim-requests/update/:id
-// PUT /api/claim-requests/update/:id
+// PUT /api/claim-submit/update/:id
+// PUT /api/claim-submit/update/:id
 router.put("/update/:id", async (req: Request, res: Response) => {
   const claimId = Number(req.params.id);
   const body = req.body as SubmitBody;
@@ -197,8 +206,14 @@ router.put("/update/:id", async (req: Request, res: Response) => {
       : "00:00:00";
 
     // ✅ เตรียม array สำหรับ file_url / media_type (jsonb)
-    const fileUrls = draft.evidenceMedia?.map(m => m.url) ?? [];
-    const mediaTypes = draft.evidenceMedia?.map(m => m.type ?? "image") ?? [];
+    const fileUrls = Array.isArray(draft.evidenceMedia)
+      ? draft.evidenceMedia.map(m => m.url)
+      : [];
+
+    const mediaTypes = Array.isArray(draft.evidenceMedia)
+      ? draft.evidenceMedia.map(m => m.type ?? "image")
+      : [];
+
 
     // 🟢 2) อัปเดต accident_details
     await client.query(
@@ -237,8 +252,8 @@ router.put("/update/:id", async (req: Request, res: Response) => {
         draft.location?.lat ?? null,
         draft.location?.lng ?? null,
         draft.location?.accuracy ?? null,
-        JSON.stringify(fileUrls),
-        JSON.stringify(mediaTypes),
+        JSON.stringify(fileUrls ?? []),
+        JSON.stringify(mediaTypes ?? []),
         claimId,
       ]
     );

@@ -52,8 +52,8 @@ function normBox(b: AnnotationInput): AnnotationInput & { damage_name: string[];
     y: round3(clamp01(b.y)),
     w: round3(Math.max(0.0001, Math.min(1, b.w))),
     h: round3(Math.max(0.0001, Math.min(1, b.h))),
-    confidence: b.confidence ?? null,
-    mask_iou: b.mask_iou == null ? null : Math.max(0, Math.min(1, b.mask_iou)),
+    // confidence: b.confidence ?? null,
+    // mask_iou: b.mask_iou == null ? null : Math.max(0, Math.min(1, b.mask_iou)),
     source: (b.source ?? "manual") as "manual" | "model" | "legacy",
   };
 }
@@ -69,8 +69,7 @@ router.get("/by-image", async (req: Request, res: Response) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, evaluation_image_id, part_name, damage_name, severity,
-              area_percent, x, y, w, h, confidence, mask_iou,
-              created_by, created_at, updated_at
+              area_percent, x, y, w, h, created_at, updated_at
        FROM image_damage_annotations
        WHERE evaluation_image_id = $1
        ORDER BY id ASC`,
@@ -87,7 +86,7 @@ router.get("/by-image", async (req: Request, res: Response) => {
 
 /* =========================================================================
  * POST /api/image-annotations/save
- * body: { image_id, created_by?, boxes:[{...}] }
+ * body: { image_id, boxes:[{...}] }
  * กลยุทธ์: REPLACE ทั้งชุดของรูปนั้น (ลบเก่า-ใส่ใหม่) ภายใต้ transaction
  *  - ปัดทศนิยม x/y/w/h เป็น 3 ตำแหน่ง ให้ตรงกับ unique index แบบ rounded
  * ========================================================================= */
@@ -95,15 +94,12 @@ router.post("/save", async (req: Request, res: Response) => {
   const body = req.body as SaveBody;
   const imageId = Number(body?.image_id);
   const boxes = Array.isArray(body?.boxes) ? body.boxes.map(normBox) : [];
-
   if (!imageId) {
     return res.status(400).json({ ok: false, message: "image_id required" });
   }
-
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-
     // ลบของเก่าในรูปนี้ก่อน
     await client.query(
       `DELETE FROM image_damage_annotations WHERE evaluation_image_id = $1`,
@@ -165,12 +161,12 @@ router.patch("/:id", async (req: Request, res: Response) => {
     const { rowCount } = await pool.query(
       `UPDATE image_damage_annotations
        SET part_name=$1, damage_name=$2, severity=$3, area_percent=$4,
-           x=$5, y=$6, w=$7, h=$8, confidence=$9, mask_iou=$10, source=$11, updated_at=NOW()
-       WHERE id=$12`,
+           x=$5, y=$6, w=$7, h=$8, source=$9, updated_at=NOW()
+       WHERE id=$10`,
       [
         b.part_name, b.damage_name, b.severity ?? "A", b.area_percent ?? null,
         b.x, b.y, b.w, b.h,
-        b.confidence ?? null, b.mask_iou ?? null, b.source ?? "manual",
+        b.source ?? "manual",
         id
       ]
     );

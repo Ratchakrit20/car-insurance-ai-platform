@@ -98,8 +98,6 @@ router.get("/by-id/:car_id", async (req: Request, res: Response) => {
  * - เพิ่มกรมธรรม์ใหม่
  * body: JSON ตามคอลัมน์ในตาราง (ดู validate เบื้องต้นด้านล่าง)
  */
-
-
 router.post("/", async (req: Request, res: Response) => {
   try {
     const {
@@ -121,7 +119,6 @@ router.post("/", async (req: Request, res: Response) => {
       car_color,                       // NEW
       registration_province
     } = req.body ?? {};
-
     // validate เบื้องต้น (เพิ่มตามต้องการ)
     if (
       !policy_number ||
@@ -131,7 +128,6 @@ router.post("/", async (req: Request, res: Response) => {
     ) {
       return res.status(400).json({ message: "กรอกข้อมูลไม่ครบ (policy_number, insurance_company, insured_name, citizen_id)" });
     }
-
     const result = await pool.query(`
       INSERT INTO insurance_policies (
         policy_number, insurance_company, insured_name, citizen_id, address,
